@@ -1,7 +1,7 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
-    return (int) $user->id === (int) $id;
-});
+// Canal de todas las pantallas del TPV (caja y móviles).
+Broadcast::channel('pos', fn (User $user) => $user->canUsePos(), ['guards' => ['pos']]);

@@ -17,15 +17,22 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
-#[Fillable(['name', 'email', 'password', 'role', 'pin', 'is_active'])]
+#[Fillable(['name', 'email', 'password', 'role', 'color', 'pin', 'is_active'])]
 #[Hidden(['password', 'remember_token', 'pin'])]
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    /** Colores por defecto para distinguir camareros en el TPV. */
+    public const COLORS = ['#f97316', '#0ea5e9', '#22c55e', '#a855f7', '#ef4444', '#eab308', '#14b8a6', '#ec4899'];
+
     protected static function booted(): void
     {
+        static::creating(function (User $user) {
+            $user->color ??= self::COLORS[(int) User::query()->count() % count(self::COLORS)];
+        });
+
         // Admin y encargado entran al backoffice con email: es obligatorio.
         static::saving(function (User $user) {
             if ($user->role?->canAccessBackoffice() && blank($user->email)) {
@@ -70,6 +77,21 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->is_active && $this->role->canAccessBackoffice();
+    }
+
+    public function canUsePos(): bool
+    {
+        return $this->is_active && $this->pin !== null && $this->role->canUsePos();
+    }
+
+    /** "Ana García" → "AG"; "Luis" → "LU". */
+    public function initials(): string
+    {
+        $words = preg_split('/\s+/', trim(preg_replace('/\(.*?\)/', '', $this->name)));
+
+        return mb_strtoupper(count($words) > 1
+            ? mb_substr($words[0], 0, 1).mb_substr($words[1], 0, 1)
+            : mb_substr($words[0], 0, 2));
     }
 
     public function checkPin(string $pin): bool

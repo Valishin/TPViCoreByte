@@ -47,7 +47,17 @@ class OrderLineBuilder
         $this->assertVariant($product, $variant);
         $this->assertModifiers($product, $modifiers);
 
+        $notes = blank($notes) ? null : trim($notes);
+
         return DB::transaction(function () use ($order, $product, $variant, $modifiers, $quantity, $notes, $by, $course) {
+            // Línea idéntica pendiente de enviar → se suma la cantidad.
+            if ($same = $this->findIdenticalPendingLine($order, $product, $variant, $modifiers, $notes, $course)) {
+                $same->increment('quantity', $quantity);
+                $this->totals->apply($order->refresh());
+
+                return $same->refresh();
+            }
+
             $line = $order->lines()->create($this->snapshot($order, $product, $variant) + [
                 'kind' => OrderLineKind::Normal,
                 'unit_price' => $product->priceFor($variant),
@@ -185,6 +195,28 @@ class OrderLineBuilder
 
             return $parent->refresh();
         });
+    }
+
+    /**
+     * Línea pendiente idéntica: mismo producto, variante, modificadores y notas,
+     * sin hijas, sin descuento ni invitación, sin enviar ni anular.
+     */
+    private function findIdenticalPendingLine(Order $order, Product $product, ?ProductVariant $variant, array $modifiers, ?string $notes, ?int $course): ?OrderLine
+    {
+        $signature = fn ($items) => collect($items)->countBy(fn ($m) => $m->modifier_id ?? $m->id)->sortKeys()->all();
+        $wanted = $signature($modifiers);
+
+        return $order->lines()
+            ->whereNull('parent_line_id')->whereNull('sent_at')->whereNull('voided_at')
+            ->where('product_id', $product->id)
+            ->where('product_variant_id', $variant?->id)
+            ->where('notes', $notes)
+            ->where('course', $course)
+            ->whereNull('discount_type')->where('is_invitation', false)
+            ->whereDoesntHave('children')
+            ->with('modifiers')
+            ->get()
+            ->first(fn (OrderLine $line) => $line->modifiers->mapWithKeys(fn ($m) => [$m->modifier_id => $m->quantity])->sortKeys()->all() === $wanted);
     }
 
     /** Campos copiados del producto. */

@@ -19,9 +19,9 @@ class Ticket
     /** @var list<array{type: string, ...}> */
     private array $operations = [];
 
-    public function line(string $text = '', string $align = self::ALIGN_LEFT, bool $bold = false, bool $large = false): static
+    public function line(string $text = '', string $align = self::ALIGN_LEFT, bool $bold = false, bool $large = false, bool $reverse = false): static
     {
-        $this->operations[] = compact('text', 'align', 'bold', 'large') + ['type' => 'line'];
+        $this->operations[] = compact('text', 'align', 'bold', 'large', 'reverse') + ['type' => 'line'];
 
         return $this;
     }
@@ -29,6 +29,14 @@ class Ticket
     public function title(string $text): static
     {
         return $this->line($text, self::ALIGN_CENTER, bold: true, large: true);
+    }
+
+    /** Dos textos en la misma línea: uno a la izquierda y otro a la derecha (importes). */
+    public function columns(string $left, string $right, bool $bold = false): static
+    {
+        $this->operations[] = ['type' => 'columns', 'left' => $left, 'right' => $right, 'bold' => $bold];
+
+        return $this;
     }
 
     public function separator(string $char = '-'): static
@@ -50,6 +58,15 @@ class Ticket
         $this->operations[] = ['type' => 'cut'];
 
         return $this;
+    }
+
+    /** Reconstruye un ticket guardado (print_jobs.content) para reimprimirlo igual. */
+    public static function fromOperations(array $operations): self
+    {
+        $ticket = new self;
+        $ticket->operations = array_values($operations);
+
+        return $ticket;
     }
 
     /** @return list<array{type: string, ...}> */

@@ -42,6 +42,13 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // TPV (login con PIN). Guard propio: convive en la misma sesión con
+        // el de /admin sin cerrarlo.
+        'pos' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
     ],
 
     /*

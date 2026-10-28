@@ -13,7 +13,7 @@ return [
     'network' => [
         'host' => env('PRINTER_HOST', '192.168.1.200'),
         'port' => (int) env('PRINTER_PORT', 9100),
-        'timeout' => (int) env('PRINTER_TIMEOUT', 5),
+        'timeout' => (int) env('PRINTER_TIMEOUT', 3), // corto: una impresora caída no debe bloquear
     ],
 
     // Perfil de capacidades de escpos-php (default, simple, TM-T88V, ...).

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PrinterStatus;
 use App\Enums\PrinterType;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +17,8 @@ class Printer extends Model
     {
         return [
             'type' => PrinterType::class,
+            'status' => PrinterStatus::class,
+            'last_status_at' => 'datetime',
             'is_active' => 'boolean',
             'port' => 'integer',
             'columns' => 'integer',

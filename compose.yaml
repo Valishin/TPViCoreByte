@@ -54,6 +54,22 @@ services:
             - laravel.test
             - pgsql
         restart: unless-stopped
+    # Worker exclusivo de impresión (cola `printing`): una impresora caída no
+    # retrasa el resto de trabajos. Cada intento tiene un timeout corto (3 s).
+    printing:
+        image: 'sail-8.4/app'
+        command: ['php', 'artisan', 'queue:listen', '--queue=printing', '--timeout=30', '--sleep=1']
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - laravel.test
+            - pgsql
+        restart: unless-stopped
     pgsql:
         image: 'postgres:18-alpine'
         ports:

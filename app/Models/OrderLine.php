@@ -44,9 +44,15 @@ class OrderLine extends Model
             'taxable_amount' => 'integer',
             'course' => 'integer',
             'sent_at' => 'datetime',
+            'send_number' => 'integer',
             'fired_at' => 'datetime',
             'voided_at' => 'datetime',
         ];
+    }
+
+    public function isSent(): bool
+    {
+        return $this->sent_at !== null;
     }
 
     public function isVoided(): bool

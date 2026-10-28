@@ -52,6 +52,7 @@ class Order extends Model
             'discount_amount' => 'integer',
             'subtotal' => 'integer',
             'total' => 'integer',
+            'send_count' => 'integer',
         ];
     }
 
@@ -104,6 +105,11 @@ class Order extends Model
     public function rootLines(): HasMany
     {
         return $this->lines()->whereNull('parent_line_id');
+    }
+
+    public function printJobs(): HasMany
+    {
+        return $this->hasMany(PrintJob::class)->latest('id');
     }
 
     public function tickets(): HasMany

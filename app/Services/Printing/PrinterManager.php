@@ -131,11 +131,18 @@ class PrinterManager
                         default => Printer::JUSTIFY_LEFT,
                     });
                     $printer->setEmphasis($op['bold']);
+                    $printer->setReverseColors($op['reverse'] ?? false);
                     $op['large'] ? $printer->setTextSize(2, 2) : $printer->setTextSize(1, 1);
                     $write($op['text']."\n");
                     $printer->setTextSize(1, 1);
+                    $printer->setReverseColors(false);
                     $printer->setEmphasis(false);
                     $printer->setJustification(Printer::JUSTIFY_LEFT);
+                    break;
+                case 'columns':
+                    $printer->setEmphasis($op['bold']);
+                    $write(self::fitColumns($op['left'], $op['right'], $this->config['columns'])."\n");
+                    $printer->setEmphasis(false);
                     break;
                 case 'separator':
                     $write(str_repeat($op['char'], $this->config['columns'])."\n");
@@ -163,12 +170,16 @@ class PrinterManager
                 case 'line':
                     $text = $op['large'] ? mb_strtoupper($op['text']) : $op['text'];
                     $text = $op['bold'] ? "**{$text}**" : $text;
+                    $text = ($op['reverse'] ?? false) ? "█ {$text} █" : $text;
                     $pad = max(0, $columns - mb_strlen($text));
                     $out[] = match ($op['align']) {
                         Ticket::ALIGN_CENTER => str_repeat(' ', intdiv($pad, 2)).$text,
                         Ticket::ALIGN_RIGHT => str_repeat(' ', $pad).$text,
                         default => $text,
                     };
+                    break;
+                case 'columns':
+                    $out[] = self::fitColumns($op['left'], $op['right'], $columns);
                     break;
                 case 'separator':
                     $out[] = str_repeat($op['char'], $columns);
@@ -183,5 +194,14 @@ class PrinterManager
         }
 
         return implode("\n", $out)."\n";
+    }
+
+    /** "Croquetas ........ 7,50 €" ajustado al ancho del papel. */
+    private static function fitColumns(string $left, string $right, int $columns): string
+    {
+        $space = $columns - mb_strlen($right) - 1;
+        $left = mb_strlen($left) > $space ? mb_substr($left, 0, max(0, $space)) : $left;
+
+        return $left.str_repeat(' ', max(1, $columns - mb_strlen($left) - mb_strlen($right))).$right;
     }
 }

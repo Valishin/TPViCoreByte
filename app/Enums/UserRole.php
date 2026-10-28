@@ -22,6 +22,12 @@ enum UserRole: string implements HasLabel
         };
     }
 
+    /** Roles que usan el TPV de sala (los repartidores tendrán su propia pantalla). */
+    public function canUsePos(): bool
+    {
+        return $this !== self::Courier;
+    }
+
     /** Roles que entran en el backoffice (Filament) con email y contraseña. */
     public function canAccessBackoffice(): bool
     {
