@@ -2,6 +2,7 @@
 
 namespace App\Services\Printing;
 
+use App\Models\Printer as PrinterModel;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Mike42\Escpos\CapabilityProfile;
@@ -16,6 +17,23 @@ use Mike42\Escpos\Printer;
 class PrinterManager
 {
     public function __construct(private array $config) {}
+
+    /**
+     * Copia configurada para una impresora concreta (host, puerto, columnas,
+     * página de códigos, perfil). El modo (simulated / network) sigue siendo
+     * el global de PRINTER_MODE.
+     */
+    public function forPrinter(PrinterModel $printer): self
+    {
+        $config = $this->config;
+        $config['network']['host'] = $printer->host ?? $config['network']['host'];
+        $config['network']['port'] = $printer->port ?: $config['network']['port'];
+        $config['columns'] = $printer->columns ?: $config['columns'];
+        $config['codepage'] = $printer->codepage;
+        $config['profile'] = $printer->profile ?: $config['profile'];
+
+        return new self($config);
+    }
 
     public function mode(): string
     {
@@ -52,6 +70,13 @@ class PrinterManager
         $connector->finalize();
 
         return ['mode' => 'network', 'bytes' => strlen($bytes), 'target' => "{$host}:{$port}"];
+    }
+
+    public function target(): string
+    {
+        return $this->mode() === 'network'
+            ? $this->config['network']['host'].':'.$this->config['network']['port']
+            : 'storage/app/private/'.trim($this->config['simulated_path'], '/');
     }
 
     private function printSimulated(Ticket $ticket): array
