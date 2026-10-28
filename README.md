@@ -85,6 +85,7 @@ Otros comandos útiles:
 ./vendor/bin/sail restart reverb         # Reverb NO recarga código solo
 ./vendor/bin/sail down                   # parar todo (los datos de PostgreSQL se conservan)
 ./vendor/bin/sail artisan tpv:print-test # página de prueba de impresora
+./vendor/bin/sail test                   # tests (usan la BD 'testing' de PostgreSQL)
 ```
 
 ## Usuario admin de desarrollo
@@ -95,11 +96,30 @@ Otros comandos útiles:
 | | |
 |---|---|
 | URL | <http://localhost:8081/admin> |
-| Email | `admin@tpv.test` |
-| Contraseña | `admin1234` |
+| Admin | `admin@tpv.test` / `admin1234` (PIN `0000`) |
+| Encargado | `encargado@tpv.test` / `admin1234` (PIN `9999`) |
+
+Los camareros y repartidores de demo solo tienen PIN (ver `docs/modelo-datos.md`).
+
+## Datos de demo
+
+Hay dos datasets excluyentes: **bar** (mesas, tapas y bebidas) y **pizzería**
+(reparto, tamaños, mitad y mitad, menús). `DEMO_DATASET` del `.env` decide
+cuál carga `db:seed`; para cambiar sin tocar el `.env`:
+
+```bash
+./vendor/bin/sail artisan migrate:fresh --seeder=DemoPizzeriaSeeder
+./vendor/bin/sail artisan migrate:fresh --seeder=DemoBarSeeder
+```
+
+> `DEMO_DATASET=pizzeria ./vendor/bin/sail artisan ...` **no funciona**: Sail no
+> pasa variables de la línea de comandos al contenedor. Usa `--seeder` o el `.env`.
+
+El modelo de datos completo (tablas, diagrama ER y reglas de cálculo) está en
+[docs/modelo-datos.md](docs/modelo-datos.md).
 
 Se pueden cambiar con `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD` en `.env` y
-volver a ejecutar `./vendor/bin/sail artisan db:seed`.
+volver a sembrar.
 
 ## Entrar desde el móvil (red local)
 
