@@ -1,0 +1,89 @@
+@use '../tokens' as *;
+
+// Mesa en el plano. El color de fondo indica el estado.
+.c-table-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: calc(#{$touch-target} * 1.6);
+    padding: $space-2 $space-3;
+    border: 3px solid transparent;
+    border-radius: $radius-md;
+    background: $color-table-free;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+
+    &:active {
+        transform: scale(0.97);
+    }
+
+    &__name {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        line-height: 1;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-2;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+    }
+
+    &__total {
+        font-size: $font-size-base;
+        font-weight: $font-weight-bold;
+    }
+
+    &__waiter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.9em;
+        height: 1.9em;
+        border-radius: $radius-pill;
+        border: 2px solid #fff;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-bold;
+    }
+
+    &__seats {
+        opacity: 0.9;
+    }
+
+    &--libre {
+        background: $color-table-free;
+    }
+
+    &--ocupada {
+        background: $color-table-occupied;
+    }
+
+    &--cuenta_pedida {
+        background: $color-table-bill;
+    }
+
+    &--fuera_servicio {
+        background: $color-table-out;
+        cursor: not-allowed;
+    }
+
+    &--round {
+        aspect-ratio: 1;
+        justify-self: center;
+        max-width: 100%;
+        border-radius: 50%;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: $space-1;
+    }
+
+    &--busy {
+        opacity: 0.6;
+    }
+}

@@ -1,0 +1,154 @@
+@use '../tokens' as *;
+
+// Pestañas (salas, categorías en móvil)
+.c-tabs {
+    display: flex;
+    gap: $space-2;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &__tab {
+        flex: 0 0 auto;
+        min-height: $touch-target;
+        padding: 0 $space-5;
+        border: 2px solid $color-border;
+        border-radius: $radius-pill;
+        background: $color-surface-2;
+        color: $color-text;
+        font-weight: $font-weight-bold;
+        cursor: pointer;
+
+        &--active {
+            background: $color-text;
+            border-color: $color-text;
+            color: $color-bg;
+        }
+    }
+}
+
+// Etiqueta pequeña de estado
+.c-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1;
+    padding: 2px $space-2;
+    border-radius: $radius-pill;
+    background: $color-surface-3;
+    color: $color-text;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-bold;
+    white-space: nowrap;
+
+    &--ok {
+        background: $color-success;
+        color: $color-on-strong;
+    }
+
+    &--error {
+        background: $color-danger;
+        color: $color-on-strong;
+    }
+
+    &--pending {
+        background: $color-warning;
+        color: #000;
+    }
+}
+
+// Selector de cantidad − 2 +
+.c-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-3;
+
+    &__value {
+        min-width: 2ch;
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        text-align: center;
+    }
+}
+
+// Opción seleccionable (variantes, modificadores, elecciones de menú)
+.c-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-2;
+    min-height: $touch-target;
+    padding: $space-2 $space-3;
+    border: 2px solid $color-border;
+    border-radius: $radius-md;
+    background: $color-surface-2;
+    color: $color-text;
+    text-align: left;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+
+    &__extra {
+        color: $color-text-muted;
+        font-size: $font-size-sm;
+        white-space: nowrap;
+    }
+
+    &__count {
+        min-width: 1.8em;
+        padding: 0 $space-2;
+        border-radius: $radius-pill;
+        background: $color-primary;
+        color: $color-primary-contrast;
+        font-weight: $font-weight-bold;
+        text-align: center;
+    }
+
+    &--selected {
+        border-color: $color-primary;
+        background: $color-surface-3;
+        font-weight: $font-weight-bold;
+    }
+
+    &--disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+.c-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: $space-2;
+}
+
+// Campo de texto
+.c-field {
+    display: flex;
+    flex-direction: column;
+    gap: $space-1;
+
+    &__label {
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+        color: $color-text-muted;
+    }
+
+    &__input {
+        min-height: $touch-target;
+        padding: $space-2 $space-3;
+        border: 2px solid $color-border;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+        font-size: $font-size-base;
+
+        &:focus {
+            outline: none;
+            border-color: $color-primary;
+        }
+    }
+}
+
+// Chips de texto rápido (motivos de anulación, notas frecuentes)
+.c-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+}

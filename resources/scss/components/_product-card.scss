@@ -1,0 +1,53 @@
+@use '../tokens' as *;
+
+.c-product-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: $space-1;
+    min-height: calc(#{$touch-target} * 1.4);
+    padding: $space-2 $space-3;
+    border: 2px solid $color-border;
+    border-left: 8px solid var(--category-color, #{$color-border});
+    border-radius: $radius-md;
+    background: $color-surface-2;
+    color: $color-text;
+    text-align: left;
+    cursor: pointer;
+
+    &:active {
+        background: $color-surface-3;
+    }
+
+    &__name {
+        font-size: $font-size-base;
+        font-weight: $font-weight-bold;
+        line-height: 1.15;
+    }
+
+    &__price {
+        font-size: $font-size-sm;
+        color: $color-text-muted;
+        font-weight: $font-weight-medium;
+    }
+
+    &__flags {
+        position: absolute;
+        top: $space-1;
+        right: $space-2;
+        font-size: $font-size-xs;
+        color: $color-text-muted;
+    }
+
+    &--flash {
+        border-color: $color-success;
+        background: $color-surface-3;
+    }
+
+    &--unavailable {
+        opacity: 0.4;
+        cursor: not-allowed;
+        text-decoration: line-through;
+    }
+}

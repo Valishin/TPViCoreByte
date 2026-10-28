@@ -1,8 +1,22 @@
-// Punto de entrada de estilos de la SPA (BEM: c- componentes, v- vistas).
+// Punto de entrada de estilos (BEM: c- componentes, v- vistas, u- utilidades).
+@use 'themes';
 @use 'base';
 
 @use 'components/button';
+@use 'components/keypad';
+@use 'components/sheet';
+@use 'components/modal';
+@use 'components/table-card';
+@use 'components/product-card';
+@use 'components/order-line';
+@use 'components/toast';
+@use 'components/misc';
+@use 'components/topbar';
 @use 'components/status-card';
 
 @use 'views/home';
 @use 'views/estado';
+@use 'views/login';
+@use 'views/floor';
+@use 'views/order';
+@use 'views/config';

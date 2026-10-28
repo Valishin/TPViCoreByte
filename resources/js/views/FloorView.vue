@@ -1,0 +1,100 @@
+<template>
+    <main class="v-floor">
+        <nav v-if="floor.rooms.length > 1" class="c-tabs" aria-label="Salas">
+            <button
+                v-for="room in floor.rooms"
+                :key="room.id"
+                type="button"
+                :class="['c-tabs__tab', { 'c-tabs__tab--active': room.id === floor.currentRoom?.id }]"
+                @click="floor.roomId = room.id"
+            >
+                {{ room.name }} · {{ busyCount(room) }}/{{ room.tables.length }}
+            </button>
+        </nav>
+
+        <p v-if="floor.loaded && !floor.rooms.length" class="v-floor__empty">No hay salas. Créalas en el backoffice (/admin → Sala).</p>
+
+        <!-- Caja: plano según pos_x / pos_y -->
+        <section v-if="ui.isPos && floor.currentRoom" class="v-floor__plan" :style="{ '--cols': cols }">
+            <TableCard
+                v-for="t in floor.currentRoom.tables"
+                :key="t.id"
+                :table="t"
+                :now="now"
+                :style="planStyle(t)"
+                @select="select"
+            />
+        </section>
+
+        <!-- Móvil: rejilla compacta -->
+        <section v-else-if="floor.currentRoom" class="v-floor__grid">
+            <TableCard v-for="t in sortedTables" :key="t.id" :table="t" :now="now" @select="select" />
+        </section>
+
+        <div class="v-floor__legend">
+            <span><i class="v-floor__swatch" style="background: var(--c-table-free)"></i>Libre</span>
+            <span><i class="v-floor__swatch" style="background: var(--c-table-occupied)"></i>Ocupada</span>
+            <span><i class="v-floor__swatch" style="background: var(--c-table-bill)"></i>Cuenta pedida</span>
+        </div>
+
+        <GuestsDialog :open="!!opening" :title="opening ? `Mesa ${opening.name}: ¿cuántos son?` : ''" @confirm="open" @close="opening = null" />
+    </main>
+</template>
+
+<script setup>
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import TableCard from '@/components/TableCard.vue';
+import GuestsDialog from '@/components/GuestsDialog.vue';
+import pos, { errorMessage } from '@/services/pos';
+import { useFloorStore } from '@/stores/floor';
+import { useNoticesStore } from '@/stores/notices';
+import { useUiStore } from '@/stores/ui';
+
+const router = useRouter();
+const floor = useFloorStore();
+const notices = useNoticesStore();
+const ui = useUiStore();
+
+const opening = ref(null);
+const now = ref(Date.now());
+let ticker;
+
+onMounted(() => {
+    floor.load().catch((e) => notices.error(errorMessage(e)));
+    ticker = setInterval(() => (now.value = Date.now()), 30000);
+});
+onUnmounted(() => clearInterval(ticker));
+
+const busyCount = (room) => room.tables.filter((t) => t.status !== 'libre').length;
+const sortedTables = computed(() =>
+    [...(floor.currentRoom?.tables ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true })),
+);
+
+// Cuadrícula del plano: cada mesa ocupa 2×2 celdas por unidad de tamaño.
+const cols = computed(() => Math.max(6, ...(floor.currentRoom?.tables ?? []).map((t) => t.x + t.w * 2 + 1)));
+function planStyle(t) {
+    return {
+        gridColumn: `${t.x + 1} / span ${t.w * 2}`,
+        gridRow: `${t.y + 1} / span ${t.h * 2}`,
+    };
+}
+
+function select(table) {
+    if (table.status === 'fuera_servicio') return;
+    if (table.order) router.push(`/mesas/pedido/${table.order.id}`);
+    else opening.value = table;
+}
+
+async function open(guests) {
+    const table = opening.value;
+    opening.value = null;
+    try {
+        const order = await pos.openTable(table.id, guests);
+        router.push(`/mesas/pedido/${order.id}`);
+    } catch (e) {
+        notices.error(errorMessage(e));
+        floor.load();
+    }
+}
+</script>

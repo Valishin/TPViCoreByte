@@ -8,21 +8,38 @@
 
 html {
     -webkit-text-size-adjust: 100%;
-    // Evita el zoom por doble toque y el resaltado azul en pantallas táctiles.
-    touch-action: manipulation;
+    touch-action: manipulation; // sin zoom por doble toque
     -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+    height: 100%;
 }
 
 body {
     margin: 0;
-    min-height: 100vh;
     font-family: $font-family-base;
     font-size: $font-size-base;
-    line-height: 1.5;
+    line-height: 1.35;
     color: $color-text;
     background: $color-bg;
-    // TPV: no queremos selección de texto accidental al tocar.
-    user-select: none;
+    user-select: none; // TPV: sin selección accidental al tocar
+    overscroll-behavior: none;
+}
+
+// La app ocupa la pantalla; cada vista gestiona su propio scroll.
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+
+    > main {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
 }
 
 h1,
@@ -32,11 +49,35 @@ p {
     margin: 0;
 }
 
-button {
+button,
+input,
+textarea {
     font: inherit;
+    color: inherit;
+}
+
+input,
+textarea {
+    user-select: text;
 }
 
 pre {
     font-family: $font-family-mono;
     user-select: text;
+}
+
+.u-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+        animation: none !important;
+    }
 }

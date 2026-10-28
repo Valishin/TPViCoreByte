@@ -1,0 +1,110 @@
+@use '../tokens' as *;
+
+.c-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    min-height: calc(#{$touch-target} + 8px);
+    padding: $space-1 $space-3;
+    padding-top: calc(#{$space-1} + env(safe-area-inset-top));
+    background: $color-surface;
+    border-bottom: 2px solid $color-border;
+
+    &__title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    &__user {
+        display: inline-flex;
+        align-items: center;
+        gap: $space-2;
+        font-weight: $font-weight-bold;
+    }
+
+    &__avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.2em;
+        height: 2.2em;
+        border-radius: 50%;
+        color: #fff;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+    }
+
+    &__conn {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: $color-warning;
+
+        &--connected {
+            background: $color-success;
+        }
+
+        &--offline {
+            background: $color-danger;
+        }
+    }
+
+    html[data-layout='mobile'] &__user-name {
+        display: none;
+    }
+}
+
+// Avisos persistentes (impresoras / comandas fallidas)
+.c-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.c-alert {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2 $space-3;
+    padding: $space-2 $space-3;
+    background: $color-danger;
+    color: $color-on-strong;
+    font-weight: $font-weight-bold;
+
+    &__text {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    &__detail {
+        display: block;
+        font-weight: $font-weight-normal;
+        font-size: $font-size-sm;
+        opacity: 0.9;
+    }
+
+    &__actions {
+        display: flex;
+        gap: $space-2;
+
+        .c-button {
+            min-height: 44px;
+            background: $color-on-strong;
+            color: $color-text;
+            border-color: transparent;
+        }
+    }
+
+    &--warning {
+        background: $color-warning;
+        color: #000;
+    }
+}

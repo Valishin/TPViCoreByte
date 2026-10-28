@@ -1,0 +1,39 @@
+@use '../tokens' as *;
+
+.c-toasts {
+    position: fixed;
+    left: 50%;
+    bottom: $space-4;
+    z-index: $z-toast;
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    width: min(520px, calc(100% - 2rem));
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.c-toast {
+    padding: $space-3 $space-4;
+    border-radius: $radius-md;
+    background: $color-text;
+    color: $color-bg;
+    font-weight: $font-weight-bold;
+    box-shadow: $shadow-overlay;
+    pointer-events: auto;
+
+    &--success {
+        background: $color-success;
+        color: $color-on-strong;
+    }
+
+    &--error {
+        background: $color-danger;
+        color: $color-on-strong;
+    }
+
+    &--warning {
+        background: $color-warning;
+        color: #000;
+    }
+}

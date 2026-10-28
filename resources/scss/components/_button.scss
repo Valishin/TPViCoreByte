@@ -1,33 +1,50 @@
 @use '../tokens' as *;
 
-// Bloque: c-button
+// Botón táctil. Variantes: primary, secondary, danger, success, ghost.
+// Tamaños: --lg (acciones principales: Enviar), --sm (solo en listas densas).
 .c-button {
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: $space-2;
+    min-width: $touch-target;
     min-height: $touch-target;
-    padding: $space-3 $space-6;
-    border: 0;
+    padding: $space-2 $space-5;
+    border: 2px solid transparent;
     border-radius: $radius-md;
-    font-size: $font-size-lg;
+    font-size: $font-size-base;
     font-weight: $font-weight-bold;
+    line-height: 1.1;
+    text-align: center;
     cursor: pointer;
     transition: background-color $transition-fast, transform $transition-fast;
 
     &:active:not(:disabled) {
-        transform: scale(0.98);
+        transform: scale(0.97);
     }
 
     &:disabled {
-        opacity: 0.6;
+        opacity: 0.45;
         cursor: not-allowed;
     }
 
-    // Elementos
+    &:focus-visible {
+        outline: 3px solid $color-info;
+        outline-offset: 2px;
+    }
+
     &__label {
         pointer-events: none;
+    }
+
+    &__count {
+        min-width: 1.8em;
+        padding: 0 $space-2;
+        border-radius: $radius-pill;
+        background: $color-on-strong;
+        color: $color-text;
+        font-size: 0.9em;
     }
 
     &__spinner {
@@ -39,7 +56,6 @@
         animation: c-button-spin 0.7s linear infinite;
     }
 
-    // Modificadores
     &--primary {
         background: $color-primary;
         color: $color-primary-contrast;
@@ -50,22 +66,48 @@
     }
 
     &--secondary {
-        background: $color-secondary;
-        color: $color-primary-contrast;
-
-        &:hover:not(:disabled) {
-            background: $color-secondary-hover;
-        }
+        background: $color-surface-3;
+        color: $color-text;
+        border-color: $color-border;
     }
 
     &--danger {
         background: $color-danger;
-        color: $color-primary-contrast;
+        color: $color-on-strong;
+    }
+
+    &--success {
+        background: $color-success;
+        color: $color-on-strong;
+    }
+
+    &--ghost {
+        background: transparent;
+        color: $color-text;
+        border-color: $color-border;
+    }
+
+    &--lg {
+        min-height: calc(#{$touch-target} * 1.25);
+        font-size: $font-size-lg;
+        padding: $space-3 $space-6;
+    }
+
+    &--sm {
+        min-height: 40px;
+        min-width: 40px;
+        padding: $space-1 $space-3;
+        font-size: $font-size-sm;
     }
 
     &--block {
         display: flex;
         width: 100%;
+    }
+
+    &--icon {
+        padding: 0;
+        font-size: $font-size-lg;
     }
 }
 

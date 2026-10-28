@@ -1,0 +1,188 @@
+@use '../tokens' as *;
+
+.v-order {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: $space-2;
+        padding: $space-2 $space-3;
+        background: $color-surface;
+        border-bottom: 1px solid $color-border;
+    }
+
+    &__where {
+        flex: 1;
+        min-width: 0;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__categories {
+        display: flex;
+        gap: $space-2;
+        padding: $space-2 $space-3;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    &__category {
+        flex: 0 0 auto;
+        min-height: $touch-target;
+        padding: 0 $space-4;
+        border: 2px solid $color-border;
+        border-left: 8px solid var(--category-color, #{$color-border});
+        border-radius: $radius-md;
+        background: $color-surface-2;
+        color: $color-text;
+        font-weight: $font-weight-bold;
+        text-align: left;
+        cursor: pointer;
+
+        &--active {
+            background: $color-text;
+            color: $color-bg;
+            border-color: $color-text;
+            border-left-color: var(--category-color, #{$color-text});
+        }
+    }
+
+    &__products {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-auto-rows: min-content;
+        gap: $space-2;
+        padding: $space-2 $space-3 calc(#{$touch-target} * 2);
+    }
+
+    &__panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: $color-surface;
+    }
+
+    &__lines {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    &__empty {
+        padding: $space-6;
+        color: $color-text-muted;
+        text-align: center;
+    }
+
+    &__totals {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: $space-3;
+        border-top: 2px solid $color-border;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__send {
+        padding: 0 $space-3 $space-3;
+    }
+
+    // Barra inferior en móvil (abre la hoja con el pedido)
+    &__bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        display: flex;
+        gap: $space-2;
+        padding: $space-2 $space-3;
+        padding-bottom: calc(#{$space-2} + env(safe-area-inset-bottom));
+        background: $color-surface;
+        border-top: 2px solid $color-border;
+    }
+
+    &__summary {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: $touch-target;
+        padding: 0 $space-3;
+        border: 2px solid $color-border;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+        color: $color-text;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    &__summary-total {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__summary-count {
+        font-size: $font-size-sm;
+        color: $color-text-muted;
+    }
+
+    // Móvil: la mesa ocupa la primera fila de la cabecera y las acciones, la segunda.
+    html[data-layout='mobile'] & {
+        &__header {
+            flex-wrap: wrap;
+        }
+
+        &__where {
+            order: -1;
+            flex: 1 0 100%;
+        }
+
+        &__header > .c-button {
+            flex: 1;
+            padding: 0 $space-2;
+        }
+    }
+
+    // Caja: categorías | productos | pedido, todo a la vez.
+    html[data-layout='pos'] & {
+        &__body {
+            display: grid;
+            grid-template-columns: 220px 1fr minmax(360px, 32vw);
+        }
+
+        &__categories {
+            flex-direction: column;
+            overflow-y: auto;
+            padding: $space-3;
+            border-right: 1px solid $color-border;
+        }
+
+        &__category {
+            width: 100%;
+        }
+
+        &__products {
+            padding: $space-3;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        }
+
+        &__panel {
+            border-left: 2px solid $color-border;
+        }
+    }
+}

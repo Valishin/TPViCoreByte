@@ -1,0 +1,64 @@
+@use '../tokens' as *;
+
+// Configurador de producto (variantes, modificadores, menú, mitad y mitad).
+.v-config {
+    &__steps {
+        display: flex;
+        gap: $space-1;
+        margin-bottom: $space-4;
+    }
+
+    &__step {
+        flex: 1;
+        height: 6px;
+        border-radius: $radius-pill;
+        background: $color-surface-3;
+
+        &--done {
+            background: $color-success;
+        }
+
+        &--current {
+            background: $color-primary;
+        }
+    }
+
+    &__question {
+        margin-bottom: $space-1;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__rule {
+        margin-bottom: $space-3;
+        color: $color-text-muted;
+        font-size: $font-size-sm;
+
+        &--error {
+            color: $color-danger;
+            font-weight: $font-weight-bold;
+        }
+    }
+
+    &__section + &__section {
+        margin-top: $space-5;
+    }
+
+    &__summary {
+        display: flex;
+        flex-direction: column;
+        gap: $space-3;
+    }
+
+    &__row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-3;
+    }
+
+    &__price {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+    }
+}

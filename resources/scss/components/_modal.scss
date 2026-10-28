@@ -1,0 +1,54 @@
+@use '../tokens' as *;
+
+.c-modal {
+    position: fixed;
+    inset: 0;
+    z-index: $z-modal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $space-4;
+
+    &__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+    }
+
+    &__panel {
+        position: relative;
+        width: min(480px, 100%);
+        max-height: 92vh;
+        overflow-y: auto;
+        padding: $space-5;
+        background: $color-surface;
+        border: 2px solid $color-border;
+        border-radius: $radius-lg;
+        box-shadow: $shadow-overlay;
+    }
+
+    &__title {
+        margin-bottom: $space-4;
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+    }
+
+    &__text {
+        margin-bottom: $space-4;
+        color: $color-text-muted;
+    }
+
+    &__actions {
+        display: flex;
+        gap: $space-3;
+        margin-top: $space-5;
+
+        > * {
+            flex: 1;
+        }
+    }
+
+    &--danger &__panel {
+        border-color: $color-danger;
+    }
+}

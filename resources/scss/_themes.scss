@@ -1,0 +1,63 @@
+// Temas de alto contraste. Oscuro por defecto en caja; claro disponible en
+// ambas disposiciones (interruptor en la barra superior, por dispositivo).
+
+:root,
+html[data-theme='dark'] {
+    color-scheme: dark;
+    --c-bg: #0a0c0f;
+    --c-surface: #151a20;
+    --c-surface-2: #1d232b;
+    --c-surface-3: #29313b;
+    --c-border: #3a4450;
+    --c-text: #f7f9fb;
+    --c-text-muted: #a9b4c0;
+    --c-primary: #ff7a1a;
+    --c-primary-hover: #ff9142;
+    --c-on-primary: #160800;
+    --c-on-strong: #0a0c0f;
+    --c-danger: #ff4d4f;
+    --c-success: #2ee06e;
+    --c-warning: #ffd23f;
+    --c-info: #4cc3ff;
+    --c-pending: #ffd23f;
+    --c-pending-bg: rgba(255, 210, 63, 0.14);
+    --c-table-free: #1f9d55;
+    --c-table-occupied: #e8590c;
+    --c-table-bill: #7c5cff;
+    --c-table-out: #4b5563;
+}
+
+html[data-theme='light'] {
+    color-scheme: light;
+    --c-bg: #eef1f5;
+    --c-surface: #ffffff;
+    --c-surface-2: #f4f6f9;
+    --c-surface-3: #dde3ea;
+    --c-border: #b9c3cf;
+    --c-text: #0a0c0f;
+    --c-text-muted: #3f4955;
+    --c-primary: #c2410c;
+    --c-primary-hover: #9a3412;
+    --c-on-primary: #ffffff;
+    --c-on-strong: #ffffff;
+    --c-danger: #b91c1c;
+    --c-success: #15803d;
+    --c-warning: #8a5a00;
+    --c-info: #0369a1;
+    --c-pending: #8a5a00;
+    --c-pending-bg: #fff3c4;
+    --c-table-free: #15803d;
+    --c-table-occupied: #c2410c;
+    --c-table-bill: #5b3fd6;
+    --c-table-out: #6b7280;
+}
+
+:root {
+    --touch: 48px;
+    font-size: 16px;
+}
+
+html[data-layout='pos'] {
+    --touch: 64px;
+    font-size: 18px;
+}

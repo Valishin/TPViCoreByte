@@ -1,0 +1,90 @@
+@use '../tokens' as *;
+
+// Línea de pedido. --pending: pendiente de enviar (destacada); --voided: anulada.
+.c-order-line {
+    display: grid;
+    grid-template-columns: 2.4em 1fr auto;
+    align-items: start;
+    gap: $space-2;
+    width: 100%;
+    min-height: $touch-target;
+    padding: $space-2 $space-3;
+    border: 0;
+    border-bottom: 1px solid $color-border;
+    background: transparent;
+    color: $color-text;
+    text-align: left;
+    cursor: pointer;
+
+    &__qty {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__name {
+        font-weight: $font-weight-bold;
+    }
+
+    &__detail {
+        display: block;
+        font-size: $font-size-sm;
+        color: $color-text-muted;
+    }
+
+    &__note {
+        display: inline-block;
+        margin-top: 2px;
+        padding: 0 $space-2;
+        border-radius: $radius-sm;
+        background: $color-warning;
+        color: #000;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+    }
+
+    &__total {
+        font-weight: $font-weight-bold;
+        white-space: nowrap;
+    }
+
+    &--pending {
+        background: $color-pending-bg;
+        border-left: 6px solid $color-pending;
+    }
+
+    &--voided {
+        opacity: 0.5;
+
+        .c-order-line__name,
+        .c-order-line__total {
+            text-decoration: line-through;
+        }
+    }
+}
+
+// Cabecera de grupo: "Pendiente de enviar" / "1.er envío 21:14".
+.c-order-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-2;
+    padding: $space-2 $space-3;
+    background: $color-surface-3;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-bold;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+
+    &__jobs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $space-1;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+
+    &--pending {
+        background: $color-pending;
+        color: #000;
+    }
+}

@@ -20,13 +20,17 @@ class CatalogService
 {
     public const CACHE_KEY = 'pos.catalog';
 
+    public const SCHEMA = 'v2';
+
     /** @return array{version: string, data: array} */
     public function get(): array
     {
         return Cache::rememberForever(self::CACHE_KEY, function () {
-            $data = $this->build();
+            // Solo arrays planos: la caché no deserializa objetos (colecciones).
+            $data = json_decode(json_encode($this->build()), true);
 
-            return ['version' => substr(sha1(json_encode($data)), 0, 12), 'data' => $data];
+            // El prefijo cambia si cambia la forma de los datos: invalida cachés de clientes antiguos.
+            return ['version' => self::SCHEMA.'-'.substr(sha1(json_encode($data)), 0, 12), 'data' => $data];
         });
     }
 

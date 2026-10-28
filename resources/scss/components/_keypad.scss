@@ -1,0 +1,71 @@
+@use '../tokens' as *;
+
+// Teclado numérico grande (PIN, comensales).
+.c-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $space-3;
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
+
+    &__display {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: $space-4;
+        min-height: calc(#{$touch-target} * 1.2);
+        font-size: $font-size-xxl;
+        font-weight: $font-weight-bold;
+        letter-spacing: 0.1em;
+    }
+
+    &__dot {
+        width: 20px;
+        height: 20px;
+        border: 3px solid $color-text-muted;
+        border-radius: 50%;
+
+        &--filled {
+            background: $color-text;
+            border-color: $color-text;
+        }
+    }
+
+    &__key {
+        min-height: calc(#{$touch-target} * 1.25);
+        border: 2px solid $color-border;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+        color: $color-text;
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        cursor: pointer;
+
+        &:active {
+            background: $color-surface-3;
+        }
+
+        &--action {
+            font-size: $font-size-base;
+            background: $color-surface;
+        }
+
+        &--ok {
+            background: $color-primary;
+            border-color: $color-primary;
+            color: $color-primary-contrast;
+        }
+    }
+
+    &--error &__display {
+        color: $color-danger;
+        animation: c-keypad-shake 0.25s;
+    }
+}
+
+@keyframes c-keypad-shake {
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+}

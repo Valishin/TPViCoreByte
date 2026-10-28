@@ -37,4 +37,15 @@ class CatalogApiTest extends PosTestCase
         app()->terminate(); // fin de la petición: un solo aviso aunque haya varios cambios
         Event::assertDispatchedTimes(CatalogChanged::class, 1);
     }
+
+    public function test_cached_catalog_is_plain_data(): void
+    {
+        config(['cache.default' => 'database']);
+        $this->product('Croquetas', 750);
+        app(CatalogService::class)->get(); // guarda en caché
+        $this->app->forgetInstance(CatalogService::class);
+
+        $cached = app(CatalogService::class)->get(); // lee de la caché (deserializa)
+        $this->assertSame('Croquetas', $cached['data']['products'][0]['name']);
+    }
 }
