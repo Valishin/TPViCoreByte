@@ -12,6 +12,7 @@ use App\Models\ProductVariant;
 use App\Support\Format;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -98,17 +99,22 @@ class ProductForm
                     ->orderColumn('sort_order')
                     ->minItems(1)
                     ->addActionLabel('Añadir variante')
-                    ->itemLabel(fn (array $state) => $state['name'] ?? null)
-                    ->columns(4)
+                    ->table([
+                        TableColumn::make('Nombre')->markAsRequired(),
+                        TableColumn::make('Código de tamaño')->markAsRequired(),
+                        TableColumn::make('Precio')->markAsRequired()->width('180px'),
+                        TableColumn::make('Activa')->width('90px'),
+                    ])
+                    ->compact()
                     ->schema([
                         TextInput::make('name')->label('Nombre')->required()->placeholder('Familiar'),
                         TextInput::make('code')->label('Código de tamaño')->required()->distinct()
                             ->datalist(['individual', 'mediana', 'familiar', 'grande', 'media', 'entera'])
-                            ->helperText('Igual en todas las pizzas (mitad y mitad, extras).')
                             ->alphaDash(),
                         MoneyInput::make('price')->label('Precio')->required(),
-                        Toggle::make('is_active')->label('Activa')->default(true)->inline(false),
-                    ]),
+                        Toggle::make('is_active')->label('Activa')->default(true),
+                    ])
+                    ->helperText('El código de tamaño debe ser igual en todas las pizzas (mediana, familiar…): sirve para la mitad y mitad y para los extras por tamaño.'),
             ]);
     }
 
@@ -151,17 +157,22 @@ class ProductForm
                             ->orderColumn('sort_order')
                             ->minItems(1)
                             ->addActionLabel('Añadir producto')
-                            ->columns(3)
+                            ->table([
+                                TableColumn::make('Producto')->markAsRequired(),
+                                TableColumn::make('Variante'),
+                                TableColumn::make('Suplemento')->width('160px'),
+                            ])
+                            ->compact()
                             ->schema([
                                 Select::make('product_id')->label('Producto')->required()->searchable()->live()
                                     ->options(fn () => Product::query()->where('type', '!=', ProductType::Menu)->orderBy('name')->pluck('name', 'id'))
                                     ->afterStateUpdated(fn ($set) => $set('product_variant_id', null)),
                                 Select::make('product_variant_id')->label('Variante')
                                     ->options(fn (Get $get) => ProductVariant::query()->where('product_id', $get('product_id'))->orderBy('sort_order')->pluck('name', 'id'))
-                                    ->visible(fn (Get $get) => $get('product_id') && ProductVariant::query()->where('product_id', $get('product_id'))->exists())
+                                    ->placeholder('—')
+                                    ->disabled(fn (Get $get) => ! ($get('product_id') && ProductVariant::query()->where('product_id', $get('product_id'))->exists()))
                                     ->required(fn (Get $get) => $get('product_id') && ProductVariant::query()->where('product_id', $get('product_id'))->exists()),
-                                MoneyInput::make('supplement')->label('Suplemento')->default(0)
-                                    ->helperText('0 si no tiene coste extra.'),
+                                MoneyInput::make('supplement')->label('Suplemento')->default(0),
                             ]),
                     ]),
             ]);

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ModifierGroups;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\ModifierGroups\Pages\CreateModifierGroup;
 use App\Filament\Resources\ModifierGroups\Pages\EditModifierGroup;
 use App\Filament\Resources\ModifierGroups\Pages\ListModifierGroups;
@@ -15,6 +16,8 @@ use UnitEnum;
 
 class ModifierGroupResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = ModifierGroup::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAdjustmentsHorizontal;
@@ -28,6 +31,8 @@ class ModifierGroupResource extends Resource
     protected static ?string $pluralModelLabel = 'grupos de modificadores';
 
     protected static ?string $slug = 'modificadores';
+
+    protected static ?string $navigationLabel = 'Grupos de modificadores';
 
     protected static ?string $recordTitleAttribute = 'name';
 

@@ -57,7 +57,7 @@ class TicketInfolist
             Section::make('Líneas')->columnSpanFull()->schema([LinesTree::make('lines')]),
             Grid::make(2)->columnSpanFull()->schema([
                 Section::make('Desglose de IVA')->schema([
-                    RepeatableEntry::make('vat_breakdown')->hiddenLabel()
+                    RepeatableEntry::make('vat_breakdown')->label('Desglose de IVA')->hiddenLabel()
                         ->table([
                             TableColumn::make('Tipo'),
                             TableColumn::make('Base')->alignment('end'),
@@ -65,10 +65,10 @@ class TicketInfolist
                             TableColumn::make('Total')->alignment('end'),
                         ])
                         ->schema([
-                            TextEntry::make('rate')->formatStateUsing(fn ($state) => Format::percent((int) $state)),
-                            TextEntry::make('base')->formatStateUsing(fn ($state) => Format::money((int) $state)),
-                            TextEntry::make('tax')->formatStateUsing(fn ($state) => Format::money((int) $state)),
-                            TextEntry::make('total')->formatStateUsing(fn ($state) => Format::money((int) $state)),
+                            TextEntry::make('rate')->label('Tipo')->formatStateUsing(fn ($state) => Format::percent((int) $state)),
+                            TextEntry::make('base')->label('Base')->formatStateUsing(fn ($state) => Format::money((int) $state)),
+                            TextEntry::make('tax')->label('Cuota')->formatStateUsing(fn ($state) => Format::money((int) $state)),
+                            TextEntry::make('total')->label('Total')->formatStateUsing(fn ($state) => Format::money((int) $state)),
                         ]),
                     Grid::make(2)->schema([
                         MoneyEntry::make('tax_base')->label('Base imponible total'),
@@ -76,7 +76,7 @@ class TicketInfolist
                     ]),
                 ]),
                 Section::make('Pagos')->schema([
-                    RepeatableEntry::make('payments')->hiddenLabel()
+                    RepeatableEntry::make('payments')->label('Pagos')->hiddenLabel()
                         ->placeholder('Pendiente de cobro')
                         ->table([
                             TableColumn::make('Fecha'),
@@ -86,12 +86,12 @@ class TicketInfolist
                             TableColumn::make('Cobró'),
                         ])
                         ->schema([
-                            TextEntry::make('paid_at')->dateTime('d/m H:i'),
-                            TextEntry::make('method')->badge(),
-                            MoneyEntry::make('amount'),
-                            TextEntry::make('tendered')->placeholder('—')
+                            TextEntry::make('paid_at')->label('Fecha')->dateTime('d/m H:i'),
+                            TextEntry::make('method')->label('Forma de pago')->badge(),
+                            MoneyEntry::make('amount')->label('Importe'),
+                            TextEntry::make('tendered')->label('Entregado / cambio')->placeholder('—')
                                 ->formatStateUsing(fn ($record) => $record->tendered === null ? '—' : Format::money($record->tendered).' / '.Format::money($record->change)),
-                            TextEntry::make('user.name'),
+                            TextEntry::make('user.name')->label('Cobró'),
                         ]),
                 ]),
             ]),

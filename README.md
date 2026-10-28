@@ -115,8 +115,36 @@ cuál carga `db:seed`; para cambiar sin tocar el `.env`:
 > `DEMO_DATASET=pizzeria ./vendor/bin/sail artisan ...` **no funciona**: Sail no
 > pasa variables de la línea de comandos al contenedor. Usa `--seeder` o el `.env`.
 
+Para tener ventas de ejemplo (una semana de tickets con cierres de caja, útil
+para ver el panel y los listados de Ventas):
+
+```bash
+./vendor/bin/sail artisan db:seed --class=DemoSalesSeeder
+```
+
 El modelo de datos completo (tablas, diagrama ER y reglas de cálculo) está en
 [docs/modelo-datos.md](docs/modelo-datos.md).
+
+## Backoffice (/admin)
+
+Filament 5 en español. Menú: **Carta** (productos, categorías, grupos de
+modificadores) · **Sala** (salas y mesas) · **Clientes y reparto** (clientes,
+zonas) · **Ventas** (pedidos, tickets, cierres: solo consulta) ·
+**Configuración** (ajustes del local, series, usuarios, impresoras).
+
+| Rol | Puede |
+|---|---|
+| Admin | Todo. |
+| Encargado | Carta, sala, impresoras, clientes, zonas y consultar ventas. No ve ajustes fiscales, series ni usuarios. |
+| Camarero / repartidor | No entran en el backoffice (solo TPV con PIN). |
+
+- Importes: se escriben en euros con coma (`12,50`) y se guardan en céntimos.
+  Porcentajes e IVA se ven como `10 %` y se guardan en puntos básicos.
+- Los tickets no se pueden editar ni borrar desde ningún sitio.
+- "Imprimir prueba" en Impresoras imprime al momento en esa impresora (en
+  modo simulado, en `storage/app/private/prints/`) y avisa del resultado.
+- Una mesa con un pedido abierto no se puede desactivar.
+- Duplicar un producto crea "… (copia)" desactivado, para revisarlo.
 
 Se pueden cambiar con `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD` en `.env` y
 volver a sembrar.
@@ -245,6 +273,7 @@ Lo que cambia respecto a desarrollo:
 
 | Síntoma | Causa / solución |
 |---|---|
+| El backoffice va lento en desarrollo | `PHP_CLI_SERVER_WORKERS=4` en `.env` y `sail restart laravel.test` (Filament pide muchos ficheros a la vez). |
 | `/estado` da 500 "Vite manifest not found" | No está corriendo `npm run dev` (o falta `npm run build`). |
 | En el móvil la página sale en blanco | El móvil no llega a Vite: revisa `VITE_HMR_HOST` (IP actual del Mac), el firewall de macOS para `node` y que estás en la misma wifi. |
 | El Mac ha cambiado de IP | Actualiza `VITE_HMR_HOST` y `SANCTUM_STATEFUL_DOMAINS`, reinicia `npm run dev` y `sail restart`. |

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\DeliveryZones;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\DeliveryZones\Pages\CreateDeliveryZone;
 use App\Filament\Resources\DeliveryZones\Pages\EditDeliveryZone;
 use App\Filament\Resources\DeliveryZones\Pages\ListDeliveryZones;
@@ -15,6 +16,8 @@ use UnitEnum;
 
 class DeliveryZoneResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = DeliveryZone::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMap;
@@ -28,6 +31,8 @@ class DeliveryZoneResource extends Resource
     protected static ?string $pluralModelLabel = 'zonas de reparto';
 
     protected static ?string $slug = 'zonas-reparto';
+
+    protected static ?string $navigationLabel = 'Zonas de reparto';
 
     protected static ?string $recordTitleAttribute = 'name';
 

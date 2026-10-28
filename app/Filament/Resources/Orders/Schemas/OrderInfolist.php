@@ -8,6 +8,8 @@ use App\Filament\Components\MoneyEntry;
 use App\Filament\Resources\Tickets\TicketResource;
 use App\Models\Order;
 use App\Support\Format;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -61,8 +63,21 @@ class OrderInfolist
             Section::make('Tickets')->columnSpanFull()
                 ->visible(fn (Order $record) => $record->tickets()->exists())
                 ->schema([
-                    TextEntry::make('tickets')->hiddenLabel()->html()
-                        ->state(fn (Order $record) => $record->tickets->map(fn ($t) => '<a class="text-primary-600 underline" href="'.TicketResource::getUrl('view', ['record' => $t]).'">'.e($t->fullNumber()).'</a> — '.Format::money($t->total))->implode('<br>')),
+                    RepeatableEntry::make('tickets')->label('Tickets')->hiddenLabel()
+                        ->table([
+                            TableColumn::make('Ticket'),
+                            TableColumn::make('Emitido'),
+                            TableColumn::make('Total')->alignment('end'),
+                            TableColumn::make('Cobro'),
+                        ])
+                        ->schema([
+                            TextEntry::make('number')->label('Ticket')->color('primary')
+                                ->formatStateUsing(fn ($record) => $record->fullNumber())
+                                ->url(fn ($record) => TicketResource::getUrl('view', ['record' => $record])),
+                            TextEntry::make('issued_at')->label('Emitido')->dateTime('d/m/Y H:i'),
+                            MoneyEntry::make('total')->label('Total'),
+                            TextEntry::make('payment_status')->label('Cobro')->badge(),
+                        ]),
                 ]),
         ]);
     }

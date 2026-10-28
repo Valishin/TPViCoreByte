@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Categories;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\Categories\Pages\CreateCategory;
 use App\Filament\Resources\Categories\Pages\EditCategory;
 use App\Filament\Resources\Categories\Pages\ListCategories;
@@ -19,6 +20,8 @@ use UnitEnum;
 
 class CategoryResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = Category::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;

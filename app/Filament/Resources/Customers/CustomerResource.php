@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Customers;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\Customers\Pages\CreateCustomer;
 use App\Filament\Resources\Customers\Pages\EditCustomer;
 use App\Filament\Resources\Customers\Pages\ListCustomers;
@@ -22,6 +23,8 @@ use UnitEnum;
 
 class CustomerResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = Customer::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;

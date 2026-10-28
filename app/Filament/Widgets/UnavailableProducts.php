@@ -14,6 +14,8 @@ class UnavailableProducts extends TableWidget
 {
     protected static ?int $sort = 3;
 
+    protected static ?bool $isLazyLoaded = false;
+
     protected int|string|array $columnSpan = 'full';
 
     protected static ?string $heading = 'Productos agotados';

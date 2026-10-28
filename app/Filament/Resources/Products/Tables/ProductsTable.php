@@ -6,10 +6,12 @@ use App\Enums\ProductType;
 use App\Filament\Components\MoneyColumn;
 use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Resources\Products\Schemas\ProductForm;
+use App\Models\Category;
 use App\Models\Product;
 use App\Services\Catalog\ProductDuplicator;
 use App\Support\Format;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -33,7 +35,10 @@ class ProductsTable
     {
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with(['category', 'variants']))
-            ->defaultSort('sort_order')
+            // Orden de la carta: por categoría y, dentro, por el orden del producto.
+            ->defaultSort(fn ($query) => $query
+                ->orderBy(Category::select('sort_order')->whereColumn('categories.id', 'products.category_id'))
+                ->orderBy('sort_order'))
             ->reorderable('sort_order')
             ->groups([
                 Group::make('category.name')->label('Categoría')->collapsible(),
@@ -69,22 +74,24 @@ class ProductsTable
             ])
             ->recordActions([
                 EditAction::make(),
-                Action::make('duplicate')
-                    ->label('Duplicar')
-                    ->icon('heroicon-o-document-duplicate')
-                    ->color('gray')
-                    ->authorize(fn (Product $record) => auth()->user()->can('replicate', $record))
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (Product $record) => "Duplicar «{$record->name}»")
-                    ->modalDescription('Se creará una copia (variantes, modificadores y grupos del menú incluidos) como NO activa, para que la revises antes de que aparezca en el TPV.')
-                    ->modalSubmitActionLabel('Duplicar')
-                    ->action(function (Product $record, Action $action) {
-                        $copy = app(ProductDuplicator::class)->duplicate($record);
-                        Notification::make()->success()->title("Creado «{$copy->name}»")->send();
-                        $action->redirect(ProductResource::getUrl('edit', ['record' => $copy]));
-                    }),
-                DeleteAction::make(),
-                RestoreAction::make(),
+                ActionGroup::make([
+                    Action::make('duplicate')
+                        ->label('Duplicar')
+                        ->icon('heroicon-o-document-duplicate')
+                        ->color('gray')
+                        ->authorize(fn (Product $record) => auth()->user()->can('replicate', $record))
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (Product $record) => "Duplicar «{$record->name}»")
+                        ->modalDescription('Se creará una copia (variantes, modificadores y grupos del menú incluidos) como NO activa, para que la revises antes de que aparezca en el TPV.')
+                        ->modalSubmitActionLabel('Duplicar')
+                        ->action(function (Product $record, Action $action) {
+                            $copy = app(ProductDuplicator::class)->duplicate($record);
+                            Notification::make()->success()->title("Creado «{$copy->name}»")->send();
+                            $action->redirect(ProductResource::getUrl('edit', ['record' => $copy]));
+                        }),
+                    DeleteAction::make(),
+                    RestoreAction::make(),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

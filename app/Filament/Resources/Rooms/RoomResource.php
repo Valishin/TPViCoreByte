@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Rooms;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\Rooms\Pages\CreateRoom;
 use App\Filament\Resources\Rooms\Pages\EditRoom;
 use App\Filament\Resources\Rooms\Pages\ListRooms;
@@ -16,6 +17,8 @@ use UnitEnum;
 
 class RoomResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = Room::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingStorefront;

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Printers;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\Printers\Pages\CreatePrinter;
 use App\Filament\Resources\Printers\Pages\EditPrinter;
 use App\Filament\Resources\Printers\Pages\ListPrinters;
@@ -15,6 +16,8 @@ use UnitEnum;
 
 class PrinterResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = Printer::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPrinter;

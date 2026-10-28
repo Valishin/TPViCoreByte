@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\Orders\Pages\ListOrders;
 use App\Filament\Resources\Orders\Pages\ViewOrder;
 use App\Filament\Resources\Orders\Schemas\OrderInfolist;
@@ -17,6 +18,8 @@ use UnitEnum;
 /** Pedidos: solo consulta. Se crean y editan desde el TPV. */
 class OrderResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = Order::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;

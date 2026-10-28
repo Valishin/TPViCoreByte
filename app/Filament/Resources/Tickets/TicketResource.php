@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tickets;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\Tickets\Pages\ListTickets;
 use App\Filament\Resources\Tickets\Pages\ViewTicket;
 use App\Filament\Resources\Tickets\Schemas\TicketInfolist;
@@ -17,6 +18,8 @@ use UnitEnum;
 /** Tickets: solo consulta. Son inmutables: ni editar ni borrar en ningún sitio. */
 class TicketResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = Ticket::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedReceiptPercent;

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CashSessions;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\CashSessions\Pages\ListCashSessions;
 use App\Filament\Resources\CashSessions\Pages\ViewCashSession;
 use App\Filament\Resources\CashSessions\Schemas\CashSessionInfolist;
@@ -17,6 +18,8 @@ use UnitEnum;
 /** Cierres de caja: solo consulta. La caja se abre y cierra desde el TPV. */
 class CashSessionResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = CashSession::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
@@ -30,6 +33,8 @@ class CashSessionResource extends Resource
     protected static ?string $pluralModelLabel = 'cierres de caja';
 
     protected static ?string $slug = 'cierres-caja';
+
+    protected static ?string $navigationLabel = 'Cierres de caja';
 
     public static function infolist(Schema $schema): Schema
     {

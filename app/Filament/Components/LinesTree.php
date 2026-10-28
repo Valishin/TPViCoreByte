@@ -19,7 +19,7 @@ class LinesTree
     public static function make(string $relationship = 'lines'): RepeatableEntry
     {
         return RepeatableEntry::make($relationship)
-            ->hiddenLabel()
+            ->label('Líneas')->hiddenLabel()
             ->table([
                 TableColumn::make('Producto'),
                 TableColumn::make('Cant.')->alignment('end'),
@@ -29,16 +29,16 @@ class LinesTree
                 TableColumn::make('Importe')->alignment('end'),
             ])
             ->schema([
-                TextEntry::make('name')
+                TextEntry::make('name')->label('Producto')
                     ->formatStateUsing(fn (OrderLine|TicketLine $record) => self::name($record))
                     ->helperText(fn (OrderLine|TicketLine $record) => self::details($record))
                     ->weight(fn (OrderLine|TicketLine $record) => $record->parent_line_id ? null : 'bold')
                     ->color(fn (OrderLine|TicketLine $record) => ($record instanceof OrderLine && $record->isVoided()) ? 'danger' : null),
-                TextEntry::make('quantity')->formatStateUsing(fn ($state, $record) => $record->parent_line_id ? "×{$state}" : $state),
-                TextEntry::make('unit_price')->formatStateUsing(fn (OrderLine|TicketLine $record) => self::price($record)),
-                TextEntry::make('vat_rate')->formatStateUsing(fn ($state, $record) => self::isComposite($record) ? '' : Format::percent($state)),
-                TextEntry::make('discount_amount')->formatStateUsing(fn (OrderLine|TicketLine $record) => self::discount($record)),
-                TextEntry::make('line_total')->formatStateUsing(fn (OrderLine|TicketLine $record) => $record->parent_line_id ? '' : Format::money($record->line_total)),
+                TextEntry::make('quantity')->label('Cantidad')->formatStateUsing(fn ($state, $record) => $record->parent_line_id ? "×{$state}" : $state),
+                TextEntry::make('unit_price')->label('Precio')->formatStateUsing(fn (OrderLine|TicketLine $record) => self::price($record)),
+                TextEntry::make('vat_rate')->label('IVA')->formatStateUsing(fn ($state, $record) => self::isComposite($record) ? '' : Format::percent($state)),
+                TextEntry::make('discount_amount')->label('Descuento')->formatStateUsing(fn (OrderLine|TicketLine $record) => self::discount($record)),
+                TextEntry::make('line_total')->label('Importe')->formatStateUsing(fn (OrderLine|TicketLine $record) => $record->parent_line_id ? '' : Format::money($record->line_total)),
             ]);
     }
 

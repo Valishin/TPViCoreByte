@@ -13,6 +13,8 @@ class SalesByOrderTypeChart extends ChartWidget
 {
     protected static ?int $sort = 2;
 
+    protected static ?bool $isLazyLoaded = false;
+
     protected ?string $heading = 'Ventas por tipo de pedido · últimos 7 días';
 
     protected int|string|array $columnSpan = 'full';

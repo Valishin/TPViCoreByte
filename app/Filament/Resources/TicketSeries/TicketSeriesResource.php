@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\TicketSeries;
 
+use App\Filament\Concerns\HasSentenceCaseLabels;
 use App\Filament\Resources\TicketSeries\Pages\CreateTicketSeries;
 use App\Filament\Resources\TicketSeries\Pages\EditTicketSeries;
 use App\Filament\Resources\TicketSeries\Pages\ListTicketSeries;
@@ -15,6 +16,8 @@ use UnitEnum;
 
 class TicketSeriesResource extends Resource
 {
+    use HasSentenceCaseLabels;
+
     protected static ?string $model = TicketSeries::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHashtag;
@@ -28,6 +31,8 @@ class TicketSeriesResource extends Resource
     protected static ?string $pluralModelLabel = 'series de tickets';
 
     protected static ?string $slug = 'series';
+
+    protected static ?string $navigationLabel = 'Series de tickets';
 
     protected static ?string $recordTitleAttribute = 'name';
 
