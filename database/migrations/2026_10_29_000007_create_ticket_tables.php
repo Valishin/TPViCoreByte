@@ -114,7 +114,7 @@ return new class extends Migration
         // impide borrar tickets/líneas y modificar nada salvo el estado de cobro
         // y la transición emitido → rectificado.
         DB::unprepared(<<<'SQL'
-            CREATE FUNCTION tpv_ticket_guard() RETURNS trigger AS $$
+            CREATE OR REPLACE FUNCTION tpv_ticket_guard() RETURNS trigger AS $$
             BEGIN
                 IF TG_OP = 'DELETE' THEN
                     RAISE EXCEPTION 'Los tickets son inmutables: no se pueden borrar (ticket %)', OLD.id;
@@ -134,7 +134,7 @@ return new class extends Migration
             CREATE TRIGGER tickets_immutable BEFORE UPDATE OR DELETE ON tickets
                 FOR EACH ROW EXECUTE FUNCTION tpv_ticket_guard();
 
-            CREATE FUNCTION tpv_ticket_line_guard() RETURNS trigger AS $$
+            CREATE OR REPLACE FUNCTION tpv_ticket_line_guard() RETURNS trigger AS $$
             BEGIN
                 RAISE EXCEPTION 'Las líneas de ticket son inmutables';
             END;

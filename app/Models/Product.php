@@ -54,7 +54,7 @@ class Product extends Model
 
     public function modifierGroups(): BelongsToMany
     {
-        return $this->belongsToMany(ModifierGroup::class)->withPivot('sort_order')->orderByPivot('sort_order');
+        return $this->belongsToMany(ModifierGroup::class, 'product_modifier_group')->withPivot('sort_order')->orderByPivot('sort_order');
     }
 
     /** Grupos de elección (solo productos tipo menú). */
