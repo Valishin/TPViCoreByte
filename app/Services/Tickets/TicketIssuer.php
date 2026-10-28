@@ -12,7 +12,6 @@ use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Orders\OrderService;
-use App\Services\Orders\OrderTotals;
 use App\Services\Orders\OrderTotalsCalculator;
 use Illuminate\Support\Facades\DB;
 use LogicException;

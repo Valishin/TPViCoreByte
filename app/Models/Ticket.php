@@ -118,7 +118,11 @@ class Ticket extends Model
 
     public function lines(): HasMany
     {
-        return $this->hasMany(TicketLine::class)->orderBy('sort_order')->orderBy('id');
+        // Orden de árbol: cada línea padre seguida de sus hijas.
+        return $this->hasMany(TicketLine::class)->orderByRaw(
+            '(select p.sort_order from ticket_lines p where p.id = coalesce(ticket_lines.parent_line_id, ticket_lines.id)), '
+            .'coalesce(ticket_lines.parent_line_id, ticket_lines.id), ticket_lines.parent_line_id nulls first, ticket_lines.sort_order, ticket_lines.id'
+        );
     }
 
     public function rootLines(): HasMany

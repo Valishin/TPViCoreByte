@@ -14,6 +14,7 @@ use App\Models\Modifier;
 use App\Models\ModifierGroup;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\Orders\OrderLineBuilder;
 use App\Services\Orders\OrderService;
@@ -273,6 +274,6 @@ class OrderTotalsCalculatorTest extends TestCase
 
     private function setting(array $values): void
     {
-        \App\Models\Setting::current()->update($values);
+        Setting::current()->update($values);
     }
 }

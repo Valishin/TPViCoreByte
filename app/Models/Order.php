@@ -93,7 +93,11 @@ class Order extends Model
     /** Todas las líneas (padres e hijas). */
     public function lines(): HasMany
     {
-        return $this->hasMany(OrderLine::class)->orderBy('sort_order')->orderBy('id');
+        // Orden de árbol: cada línea padre seguida de sus hijas.
+        return $this->hasMany(OrderLine::class)->orderByRaw(
+            '(select p.sort_order from order_lines p where p.id = coalesce(order_lines.parent_line_id, order_lines.id)), '
+            .'coalesce(order_lines.parent_line_id, order_lines.id), order_lines.parent_line_id nulls first, order_lines.sort_order, order_lines.id'
+        );
     }
 
     /** Solo líneas de primer nivel. */
