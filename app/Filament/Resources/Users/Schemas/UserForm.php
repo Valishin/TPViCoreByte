@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\UserRole;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
@@ -25,6 +26,8 @@ class UserForm
                     ->helperText(fn (Get $get) => self::backoffice($get)
                         ? 'Obligatorio: lo usa para entrar en el backoffice.'
                         : 'Opcional para camareros y repartidores.'),
+                ColorPicker::make('color')->label('Color en el TPV')
+                    ->helperText('Para reconocerlo de un vistazo en el plano de mesas.'),
                 Toggle::make('is_active')->label('Activo')->default(true)->inline(false)
                     ->helperText('Un usuario inactivo no puede entrar ni usar su PIN.'),
             ]),

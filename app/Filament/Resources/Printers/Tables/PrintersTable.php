@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Printers\Tables;
 
+use App\Enums\PrinterStatus;
 use App\Jobs\PrintTestPage;
 use App\Models\Printer;
 use Filament\Actions\Action;
@@ -25,6 +26,13 @@ class PrintersTable
                 TextColumn::make('type')->label('Uso')->badge(),
                 TextColumn::make('host')->label('Dirección')->formatStateUsing(fn (Printer $record) => "{$record->host}:{$record->port}"),
                 TextColumn::make('columns')->label('Papel')->formatStateUsing(fn (int $state) => $state === 32 ? '58 mm' : '80 mm'),
+                TextColumn::make('status')->label('Estado')->badge()
+                    ->color(fn (PrinterStatus $state) => match ($state) {
+                        PrinterStatus::Ok => 'success',
+                        PrinterStatus::Error => 'danger',
+                        PrinterStatus::Unknown => 'gray',
+                    })
+                    ->tooltip(fn (Printer $record) => $record->last_error),
                 IconColumn::make('is_active')->label('Activa')->boolean(),
             ])
             ->recordActions([

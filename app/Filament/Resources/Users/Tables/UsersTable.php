@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users\Tables;
 use App\Enums\UserRole;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\ColorColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -17,6 +18,7 @@ class UsersTable
         return $table
             ->defaultSort('name')
             ->columns([
+                ColorColumn::make('color')->label(''),
                 TextColumn::make('name')->label('Nombre')->searchable()->sortable(),
                 TextColumn::make('role')->label('Rol')->badge()
                     ->color(fn (UserRole $state) => match ($state) {

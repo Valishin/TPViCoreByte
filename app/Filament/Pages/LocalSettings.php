@@ -16,6 +16,7 @@ use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
@@ -114,6 +115,17 @@ class LocalSettings extends Page
                             HalfAndHalfModifierPricing::Half->value => 'Se cobran a mitad de precio',
                         ])->required(),
                 ]),
+                Section::make('TPV')->columns(3)->columnSpanFull()
+                    ->description('Bloqueo automático: vuelve a la pantalla de PIN sin perder la comanda en curso.')
+                    ->schema([
+                        TextInput::make('auto_lock_minutes_pos')->label('Bloquear la caja tras (minutos)')
+                            ->numeric()->integer()->minValue(0)->maxValue(120)->required()
+                            ->helperText('0 = no bloquear nunca.'),
+                        TextInput::make('auto_lock_minutes_mobile')->label('Bloquear los móviles tras (minutos)')
+                            ->numeric()->integer()->minValue(0)->maxValue(120)->required()
+                            ->helperText('0 = no bloquear nunca.'),
+                        Toggle::make('lock_pos_after_send')->label('Bloquear la caja tras enviar una comanda')->inline(false),
+                    ]),
                 Section::make('Reparto')->columnSpanFull()->schema([
                     VatRateSelect::make('delivery_fee_vat_rate')->label('IVA de los gastos de envío')->required()
                         ->helperText('Normalmente el mismo que la comida (10 %).'),
