@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Estado de envío a la AEAT (VeriFactu). */
-enum FiscalSubmissionStatus: string
+enum FiscalSubmissionStatus: string implements HasLabel
 {
     case Pending = 'pendiente';
     case Sent = 'enviado';
@@ -20,5 +22,10 @@ enum FiscalSubmissionStatus: string
             self::AcceptedWithErrors => 'Aceptado con errores',
             self::Rejected => 'Rechazado',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

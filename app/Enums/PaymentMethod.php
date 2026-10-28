@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Forma de pago. */
-enum PaymentMethod: string
+enum PaymentMethod: string implements HasLabel
 {
     case Cash = 'efectivo';
     case Card = 'tarjeta';
@@ -18,5 +20,10 @@ enum PaymentMethod: string
             self::Bizum => 'Bizum',
             self::Other => 'Otro',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

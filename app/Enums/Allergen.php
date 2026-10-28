@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Los 14 alérgenos de declaración obligatoria (Reglamento UE 1169/2011). */
-enum Allergen: string
+enum Allergen: string implements HasLabel
 {
     case Gluten = 'gluten';
     case Crustaceans = 'crustaceos';
@@ -38,5 +40,31 @@ enum Allergen: string
             self::Lupin => 'Altramuces',
             self::Molluscs => 'Moluscos',
         };
+    }
+
+    /** Icono para listas y la carta (sin depender de una librería de iconos). */
+    public function emoji(): string
+    {
+        return match ($this) {
+            self::Gluten => '🌾',
+            self::Crustaceans => '🦐',
+            self::Eggs => '🥚',
+            self::Fish => '🐟',
+            self::Peanuts => '🥜',
+            self::Soy => '🫘',
+            self::Milk => '🥛',
+            self::Nuts => '🌰',
+            self::Celery => '🥬',
+            self::Mustard => '🟡',
+            self::Sesame => '⚪',
+            self::Sulphites => '🍷',
+            self::Lupin => '🌼',
+            self::Molluscs => '🦑',
+        };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

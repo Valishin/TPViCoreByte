@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Rol del personal. */
-enum UserRole: string
+enum UserRole: string implements HasLabel
 {
     case Admin = 'admin';
     case Manager = 'encargado';
@@ -24,5 +26,10 @@ enum UserRole: string
     public function canAccessBackoffice(): bool
     {
         return $this === self::Admin || $this === self::Manager;
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

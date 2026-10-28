@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Mesa de una sala.
@@ -18,11 +19,28 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * (App\Services\Orders\OrderService). No lo modifiques desde controladores,
  * Filament ni la SPA: así el estado de la mesa siempre es coherente con sus
  * pedidos abiertos.
+ *
+ * `is_active` (interruptor "Activa" del backoffice) es lo que pone una mesa
+ * fuera de servicio: no se pueden abrir pedidos en ella. No se puede
+ * desactivar una mesa con un pedido abierto.
  */
 #[Unguarded]
 class Table extends Model
 {
     use HasFactory;
+
+    public const OPEN_ORDER_MESSAGE = 'La mesa :name tiene un pedido abierto. Ciérralo o cóbralo antes de desactivarla.';
+
+    protected static function booted(): void
+    {
+        static::saving(function (Table $table) {
+            if ($table->exists && $table->isDirty('is_active') && ! $table->is_active && $table->openOrders()->exists()) {
+                throw ValidationException::withMessages([
+                    'is_active' => str_replace(':name', $table->name, self::OPEN_ORDER_MESSAGE),
+                ]);
+            }
+        });
+    }
 
     protected function casts(): array
     {

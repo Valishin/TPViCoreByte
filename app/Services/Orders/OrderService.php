@@ -39,7 +39,7 @@ class OrderService
         return DB::transaction(function () use ($type, $by, $table, $guests, $attributes) {
             if ($table) {
                 $table = Table::query()->whereKey($table->id)->lockForUpdate()->firstOrFail();
-                if ($table->status === TableStatus::OutOfService) {
+                if (! $table->is_active || $table->status === TableStatus::OutOfService) {
                     throw new LogicException("La mesa {$table->name} está fuera de servicio.");
                 }
                 $table->update(['status' => TableStatus::Occupied]);

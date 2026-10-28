@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Estado de reparto (para llevar / domicilio). */
-enum DeliveryStatus: string
+enum DeliveryStatus: string implements HasLabel
 {
     case Pending = 'pendiente';
     case InKitchen = 'en_cocina';
@@ -18,5 +20,10 @@ enum DeliveryStatus: string
             self::OutForDelivery => 'En reparto',
             self::Delivered => 'Entregado',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

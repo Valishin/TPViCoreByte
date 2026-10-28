@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Tipo de producto de la carta. */
-enum ProductType: string
+enum ProductType: string implements HasLabel
 {
     case Simple = 'simple';
     case Variants = 'variantes';
@@ -16,5 +18,10 @@ enum ProductType: string
             self::Variants => 'Con variantes',
             self::Menu => 'Menú / combo',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Tipo de pedido. Cada local activa los suyos en settings.enabled_order_types. */
-enum OrderType: string
+enum OrderType: string implements HasLabel
 {
     case Table = 'mesa';
     case Bar = 'barra';
@@ -24,5 +26,10 @@ enum OrderType: string
     public function isTakeaway(): bool
     {
         return $this === self::Takeaway || $this === self::Delivery;
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Estado de cobro de un ticket. */
-enum PaymentStatus: string
+enum PaymentStatus: string implements HasLabel
 {
     case Paid = 'pagado';
     case Pending = 'pendiente';
@@ -14,5 +16,10 @@ enum PaymentStatus: string
             self::Paid => 'Pagado',
             self::Pending => 'Pendiente de cobro',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

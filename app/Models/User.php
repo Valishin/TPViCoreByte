@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 #[Fillable(['name', 'email', 'password', 'role', 'pin', 'is_active'])]
@@ -22,6 +23,18 @@ class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        // Admin y encargado entran al backoffice con email: es obligatorio.
+        static::saving(function (User $user) {
+            if ($user->role?->canAccessBackoffice() && blank($user->email)) {
+                throw ValidationException::withMessages([
+                    'email' => 'El email es obligatorio para administradores y encargados.',
+                ]);
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

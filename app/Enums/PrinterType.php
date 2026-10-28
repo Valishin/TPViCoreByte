@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Uso de una impresora. */
-enum PrinterType: string
+enum PrinterType: string implements HasLabel
 {
     case Ticket = 'ticket';
     case Kitchen = 'cocina';
@@ -16,5 +18,10 @@ enum PrinterType: string
             self::Kitchen => 'Cocina',
             self::Bar => 'Barra',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

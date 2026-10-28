@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Estado de un pedido. */
-enum OrderStatus: string
+enum OrderStatus: string implements HasLabel
 {
     case Open = 'abierto';
     case Closed = 'cerrado';
@@ -16,5 +18,10 @@ enum OrderStatus: string
             self::Closed => 'Cerrado',
             self::Cancelled => 'Cancelado',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

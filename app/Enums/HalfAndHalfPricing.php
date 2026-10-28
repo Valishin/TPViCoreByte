@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Precio de una pizza mitad y mitad. */
-enum HalfAndHalfPricing: string
+enum HalfAndHalfPricing: string implements HasLabel
 {
     case MostExpensive = 'mas_cara';
     case Average = 'media';
@@ -14,5 +16,10 @@ enum HalfAndHalfPricing: string
             self::MostExpensive => 'La mitad más cara',
             self::Average => 'Media de las dos mitades',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

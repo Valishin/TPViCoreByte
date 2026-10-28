@@ -2,8 +2,10 @@
 
 namespace App\Enums;
 
+use Filament\Support\Contracts\HasLabel;
+
 /** Método de rectificación. */
-enum RectificationMethod: string
+enum RectificationMethod: string implements HasLabel
 {
     case Substitution = 'sustitucion';
     case Differences = 'diferencias';
@@ -14,5 +16,10 @@ enum RectificationMethod: string
             self::Substitution => 'Por sustitución',
             self::Differences => 'Por diferencias',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }
