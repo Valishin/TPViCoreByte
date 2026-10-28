@@ -1,0 +1,76 @@
+@use '../tokens' as *;
+
+// Bloque: c-button
+.c-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $space-2;
+    min-height: $touch-target;
+    padding: $space-3 $space-6;
+    border: 0;
+    border-radius: $radius-md;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    cursor: pointer;
+    transition: background-color $transition-fast, transform $transition-fast;
+
+    &:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    // Elementos
+    &__label {
+        pointer-events: none;
+    }
+
+    &__spinner {
+        width: 1.1em;
+        height: 1.1em;
+        border: 3px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: c-button-spin 0.7s linear infinite;
+    }
+
+    // Modificadores
+    &--primary {
+        background: $color-primary;
+        color: $color-primary-contrast;
+
+        &:hover:not(:disabled) {
+            background: $color-primary-hover;
+        }
+    }
+
+    &--secondary {
+        background: $color-secondary;
+        color: $color-primary-contrast;
+
+        &:hover:not(:disabled) {
+            background: $color-secondary-hover;
+        }
+    }
+
+    &--danger {
+        background: $color-danger;
+        color: $color-primary-contrast;
+    }
+
+    &--block {
+        display: flex;
+        width: 100%;
+    }
+}
+
+@keyframes c-button-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

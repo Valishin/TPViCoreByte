@@ -1,0 +1,54 @@
+@use '../tokens' as *;
+
+.v-estado {
+    max-width: $bp-desktop;
+    margin: 0 auto;
+    padding: $space-6 $space-4;
+
+    &__header {
+        margin-bottom: $space-6;
+    }
+
+    &__title {
+        font-size: $font-size-xl;
+    }
+
+    &__host {
+        color: $color-text-muted;
+    }
+
+    &__grid {
+        display: grid;
+        gap: $space-4;
+
+        @media (min-width: $bp-tablet) {
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        }
+    }
+
+    &__socket {
+        font-size: $font-size-base;
+    }
+
+    &__badge {
+        padding: $space-1 $space-2;
+        border-radius: $radius-sm;
+        background: $color-idle;
+        color: $color-primary-contrast;
+        font-weight: $font-weight-bold;
+
+        &--connected {
+            background: $color-ok;
+        }
+
+        &--unavailable,
+        &--failed,
+        &--disconnected {
+            background: $color-error;
+        }
+
+        &--connecting {
+            background: $color-warning;
+        }
+    }
+}

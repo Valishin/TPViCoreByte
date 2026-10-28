@@ -2,6 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+/*
+| Ruta comodín de la SPA (Vue Router en modo history).
+|
+| Todo lo que no sea una ruta del backend devuelve el contenedor de la SPA.
+| Las rutas excluidas las registran Laravel o los paquetes (Filament, Livewire,
+| Sanctum, broadcasting, /up, assets compilados y storage).
+*/
+Route::view('/{any?}', 'app')
+    ->where('any', '^(?!(admin|api|livewire|filament|broadcasting|sanctum|storage|build|up|css|js|fonts|favicon\.ico|robots\.txt)(/|$)).*$')
+    ->name('spa');

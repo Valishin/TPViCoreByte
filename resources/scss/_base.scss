@@ -1,0 +1,42 @@
+@use 'tokens' as *;
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    // Evita el zoom por doble toque y el resaltado azul en pantallas táctiles.
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: $font-family-base;
+    font-size: $font-size-base;
+    line-height: 1.5;
+    color: $color-text;
+    background: $color-bg;
+    // TPV: no queremos selección de texto accidental al tocar.
+    user-select: none;
+}
+
+h1,
+h2,
+h3,
+p {
+    margin: 0;
+}
+
+button {
+    font: inherit;
+}
+
+pre {
+    font-family: $font-family-mono;
+    user-select: text;
+}

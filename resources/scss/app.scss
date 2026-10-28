@@ -1,0 +1,8 @@
+// Punto de entrada de estilos de la SPA (BEM: c- componentes, v- vistas).
+@use 'base';
+
+@use 'components/button';
+@use 'components/status-card';
+
+@use 'views/home';
+@use 'views/estado';
