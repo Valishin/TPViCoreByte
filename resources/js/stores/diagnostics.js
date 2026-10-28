@@ -58,12 +58,11 @@ export const useDiagnosticsStore = defineStore('diagnostics', {
         async sendPing() {
             this.reverb = { ...this.reverb, status: 'loading', message: 'Enviando evento…' };
             try {
-                await api.post('/diagnostico/ping', { origen: navigator.userAgent });
-                // Si no llega en unos segundos, algo falla entre servidor y Reverb.
-                const sentAt = Date.now();
+                const { data } = await api.post('/diagnostico/ping', { origen: navigator.userAgent });
+                // El evento puede llegar antes que la respuesta del POST: se
+                // compara por id. Si no llega en 5 s, falla servidor ↔ Reverb.
                 setTimeout(() => {
-                    const last = this.reverb.last;
-                    if (!last || new Date(last.receivedAt).getTime() < sentAt) {
+                    if (this.reverb.last?.id !== data.id) {
                         this.reverb = { ...this.reverb, status: 'error', message: 'El evento no ha llegado' };
                     }
                 }, 5000);

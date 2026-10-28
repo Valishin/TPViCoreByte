@@ -1,58 +1,238 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# TPV Hostelería
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Base de un TPV local-first para hostelería. En producción corre en un mini PC
+Linux con Docker: la pantalla táctil del mini PC es la caja (Chromium en modo
+kiosko) y los móviles de los camareros entran por la IP local del mini PC.
 
-## About Laravel
+**Stack:** Laravel 13 · PHP 8.4 · PostgreSQL 18 · Sanctum (SPA con cookies) ·
+Reverb (websockets) · Filament 5 (backoffice en `/admin`) · colas en base de
+datos · Vue 3 + Vite + Vue Router + Pinia + axios + laravel-echo · SCSS con BEM
+· mike42/escpos-php.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requisitos (desarrollo)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Herramienta | Versión probada | Para qué |
+|---|---|---|
+| Docker Desktop | 29.x (Compose v5) | app, PostgreSQL, Reverb y worker |
+| Node.js / npm | 25.x / 11.x | Vite (se ejecuta en el Mac, no en Docker) |
+| PHP / Composer (Homebrew) | 8.5 / 2.9 | solo para `composer install` en el host (opcional) |
 
-## Learning Laravel
+> Si `docker` no se encuentra en la terminal, añade los binarios de Docker
+> Desktop al PATH: `echo 'export PATH="$HOME/.docker/bin:$PATH"' >> ~/.zshrc`
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Composer está fijado a `platform.php = 8.4` para que el `composer.lock` sea
+siempre compatible con el contenedor, aunque en el Mac tengas PHP 8.5.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### ¿Por qué PHP 8.4?
+Es la misma versión en desarrollo (runtime 8.4 de Sail) y en el mini PC.
+Laravel 13, Filament 5 y escpos-php funcionan también en 8.5, pero 8.4 lleva
+más tiempo en producción, tiene paquetes en todas las distros LTS y es la opción
+más compatible con extensiones y librerías de terceros (escpos-php apenas se
+mantiene).
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Servicios
 
-## Agentic Development
+| Servicio | Qué es | Puerto en el Mac |
+|---|---|---|
+| `laravel.test` | Laravel (HTTP) | `APP_PORT` = **8081** |
+| `pgsql` | PostgreSQL 18 | `FORWARD_DB_PORT` = 5432 |
+| `reverb` | Servidor websockets (`reverb:start` en 0.0.0.0) | `FORWARD_REVERB_PORT` = 8080 |
+| `queue` | Worker de colas (`queue:listen`) | — |
+| Vite (en el Mac) | Assets de desarrollo + HMR | `VITE_PORT` = **5174** |
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Los puertos 80 y 5173 los usa MAMP / otro proyecto en este Mac; por eso la app
+va en 8081 y Vite en 5174. Se cambian en `.env`, nunca hace falta cerrar nada.
+
+`reverb` y `queue` reutilizan la imagen de la app (sin build extra). No hay
+Redis, Mailpit ni Meilisearch: la cola, la caché y las sesiones van en
+PostgreSQL. Así el consumo de memoria es mínimo.
+
+En desarrollo el worker usa **`queue:listen`**, que recarga el código en cada
+job (no hay que reiniciar el contenedor al cambiar un job). **En producción
+será `queue:work`** (más eficiente; se reinicia con `php artisan queue:restart`
+en cada despliegue).
+
+## Primera instalación
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+cp .env.example .env            # y revisa VITE_HMR_HOST y SANCTUM_STATEFUL_DOMAINS
+composer install                # o: docker run --rm -v "$PWD":/app -w /app laravelsail/php84-composer composer install
+npm install
+./vendor/bin/sail build
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan key:generate
+# Rellena REVERB_APP_ID, REVERB_APP_KEY y REVERB_APP_SECRET con valores aleatorios, p. ej.:
+#   echo "REVERB_APP_ID=$RANDOM$RANDOM REVERB_APP_KEY=$(openssl rand -hex 10) REVERB_APP_SECRET=$(openssl rand -hex 10)"
+./vendor/bin/sail artisan migrate --seed
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Arrancar el día a día
 
-## Contributing
+```bash
+./vendor/bin/sail up -d     # app + PostgreSQL + Reverb + worker de colas
+npm run dev                 # Vite (déjalo abierto en otra pestaña)
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- SPA: <http://localhost:8081>  · Diagnóstico: <http://localhost:8081/estado>
+- Backoffice: <http://localhost:8081/admin>
 
-## Code of Conduct
+Otros comandos útiles:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+./vendor/bin/sail logs -f reverb queue   # ver websockets y cola
+./vendor/bin/sail restart reverb         # Reverb NO recarga código solo
+./vendor/bin/sail down                   # parar todo (los datos de PostgreSQL se conservan)
+./vendor/bin/sail artisan tpv:print-test # página de prueba de impresora
+```
 
-## Security Vulnerabilities
+## Usuario admin de desarrollo
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+> ⚠️ **SOLO DESARROLLO.** Lo crea `AdminUserSeeder`, que no se ejecuta con
+> `APP_ENV=production`. No uses estas credenciales en el mini PC.
 
-## License
+| | |
+|---|---|
+| URL | <http://localhost:8081/admin> |
+| Email | `admin@tpv.test` |
+| Contraseña | `admin1234` |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Se pueden cambiar con `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD` en `.env` y
+volver a ejecutar `./vendor/bin/sail artisan db:seed`.
+
+## Entrar desde el móvil (red local)
+
+1. El móvil tiene que estar en la **misma wifi** que el Mac.
+2. Averigua la IP del Mac: `ipconfig getifaddr en0` (ahora mismo: `192.168.1.74`).
+3. Comprueba en `.env` que esa IP está en:
+   - `VITE_HMR_HOST=192.168.1.74`
+   - `SANCTUM_STATEFUL_DOMAINS=...,192.168.1.74,192.168.1.74:8081`
+4. Si has cambiado algo: `npm run dev` de nuevo y `./vendor/bin/sail restart`.
+5. En el móvil abre **http://192.168.1.74:8081/estado**.
+6. Prueba los tres botones. Abre `/estado` también en el Mac y pulsa "Enviar
+   evento" en uno: debe aparecer en los dos a la vez.
+
+La primera vez macOS puede preguntar si permites conexiones entrantes a `node`:
+acepta (si no, el móvil no cargará los assets de Vite).
+
+**Cómo está hecho:** Vite escucha en `0.0.0.0` y anuncia `VITE_HMR_HOST` como
+origen de los assets y del HMR (el navegador del móvil tiene que poder llegar a
+él). Echo se conecta siempre a `window.location.hostname`, nunca a una IP fija,
+así que la caja (localhost) y los móviles (IP) usan el mismo build. Reverb
+escucha en `0.0.0.0`. Laravel publica los eventos en Reverb por la red interna
+de Docker (`REVERB_HOST=reverb`). `SESSION_DOMAIN=null` hace que la cookie de
+sesión sea del host con el que se entra (localhost o IP).
+
+## Impresora
+
+`PrinterManager` (`app/Services/Printing`) tiene dos modos, según `PRINTER_MODE`:
+
+- `simulated` (por defecto): guarda cada ticket en
+  `storage/app/private/prints/` como `.txt` legible y `.bin` con los bytes
+  ESC/POS exactos que irían a la impresora.
+- `network`: envía por TCP a `PRINTER_HOST:PRINTER_PORT` (9100).
+
+Formas de lanzar una página de prueba (nombre, acentos, ñ, €, fecha y corte):
+
+- Botón "Imprimir prueba" en `/estado` → job `PrintTestPage` en cola.
+- `./vendor/bin/sail artisan tpv:print-test` → imprime directamente.
+- `./vendor/bin/sail artisan tpv:print-test --queue` → lo manda a la cola.
+
+### Probar la impresora real
+
+1. Conecta la impresora a la red e imprime su hoja de autotest (suele ser
+   mantener pulsado FEED al encender) para ver su IP.
+2. Comprueba que el Mac llega a ella: `nc -vz 192.168.1.200 9100`.
+3. En `.env`:
+   ```
+   PRINTER_MODE=network
+   PRINTER_HOST=192.168.1.200
+   PRINTER_PORT=9100
+   ```
+4. `./vendor/bin/sail artisan tpv:print-test`
+5. El worker de colas lee `.env` en cada job (`queue:listen`), no hace falta
+   reiniciarlo para el botón de `/estado`.
+
+**Página de códigos:** `PRINTER_CODEPAGE` es el número de tabla de caracteres
+(`ESC t n`) de la impresora. `16` = WPC1252 (á, é, ñ, €) en la mayoría de Epson
+y compatibles. Si salen caracteres raros, prueba `19` (CP858, también con €) o
+`2` (CP850, sin €), o déjalo vacío para que escpos-php elija automáticamente
+según `PRINTER_PROFILE` (`default`, `simple`, `TM-T88V`, …). La hoja de
+autotest de la impresora suele listar sus tablas. `PRINTER_COLUMNS` es 48 para
+papel de 80 mm y 32 para 58 mm.
+
+## Estructura del frontend
+
+```
+resources/
+├── js/
+│   ├── app.js            # arranque: Vue + Pinia + Router + Echo
+│   ├── App.vue
+│   ├── router/           # rutas de la SPA (/, /estado)
+│   ├── stores/           # Pinia (diagnostics.js)
+│   ├── views/            # páginas (HomeView, EstadoView)
+│   ├── components/       # TpvButton, StatusCard
+│   └── services/         # api.js (axios + Sanctum), echo.js (Reverb)
+├── scss/
+│   ├── _tokens.scss      # variables: colores, espacios, tipografía, táctil
+│   ├── _base.scss        # reset y estilos base
+│   ├── components/       # bloques BEM: .c-button, .c-status-card
+│   ├── views/            # bloques BEM de páginas: .v-home, .v-estado
+│   └── app.scss          # punto de entrada
+└── views/app.blade.php   # contenedor de la SPA
+```
+
+Convención BEM: `.c-bloque__elemento--modificador` para componentes y `.v-…`
+para vistas. Sin Tailwind ni utilidades en la SPA. Filament trae sus propios
+estilos precompilados (`public/css/filament`, publicados por
+`php artisan filament:upgrade` al hacer `composer install`), así que no depende
+de Vite.
+
+`routes/web.php` tiene una ruta comodín que sirve la SPA para todo excepto
+`admin`, `api`, `livewire`, `filament`, `broadcasting`, `sanctum`, `storage`,
+`build`, `up` y los assets estáticos.
+
+## Paso al mini PC (producción)
+
+Lo que cambia respecto a desarrollo:
+
+1. **IP fija del mini PC**: reserva una IP en el router (DHCP estático), p. ej.
+   `192.168.1.10`.
+2. `.env`:
+   - `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=http://192.168.1.10`
+     (o el puerto que se use).
+   - `SANCTUM_STATEFUL_DOMAINS=localhost,127.0.0.1,192.168.1.10` (más
+     `:puerto` si no es el 80). Ya no hace falta la IP del Mac.
+   - `SESSION_DOMAIN=null` se mantiene.
+   - `VITE_HMR_HOST` / `VITE_PORT` dejan de usarse: no hay Vite en producción.
+   - `PRINTER_MODE=network` con la IP de la impresora.
+   - Contraseñas reales para PostgreSQL y claves nuevas de Reverb
+     (`REVERB_APP_ID/KEY/SECRET`).
+3. Assets compilados: `npm ci && npm run build` (sin `public/hot`). Las
+   variables `VITE_REVERB_*` se fijan en el build, así que cualquier cambio de
+   puerto de Reverb requiere volver a compilar. El host no, porque es
+   `window.location.hostname`.
+4. Worker: **`queue:work`** en lugar de `queue:listen`, y
+   `php artisan queue:restart` tras cada despliegue.
+5. Imagen de producción propia (PHP 8.4 + nginx/FrankenPHP) en lugar de la de
+   Sail, con `php artisan optimize` y `filament:optimize`.
+6. Crear el admin real con `php artisan make:filament-user` (el seeder de
+   desarrollo no se ejecuta en producción).
+7. Chromium en kiosko en el mini PC apuntando a `http://localhost`.
+
+## Problemas típicos
+
+| Síntoma | Causa / solución |
+|---|---|
+| `/estado` da 500 "Vite manifest not found" | No está corriendo `npm run dev` (o falta `npm run build`). |
+| En el móvil la página sale en blanco | El móvil no llega a Vite: revisa `VITE_HMR_HOST` (IP actual del Mac), el firewall de macOS para `node` y que estás en la misma wifi. |
+| El Mac ha cambiado de IP | Actualiza `VITE_HMR_HOST` y `SANCTUM_STATEFUL_DOMAINS`, reinicia `npm run dev` y `sail restart`. |
+| POST a la API da 419 (CSRF) | El host desde el que entras no está en `SANCTUM_STATEFUL_DOMAINS` (incluye la variante con `:8081`). |
+| Socket en `unavailable`/`failed` | Reverb parado o puerto 8080 bloqueado: `sail logs reverb`. Tras cambiar `.env`: `sail restart reverb`. |
+| El evento no llega pero el socket está `connected` | Laravel no llega a Reverb: `REVERB_HOST` debe ser `reverb` (servicio Docker) y `BROADCAST_CONNECTION=reverb`. |
+| Reverb muere al arrancar con "relation cache does not exist" | Arrancó antes de migrar; se reinicia solo (`restart: unless-stopped`). Ejecuta `sail artisan migrate`. |
+| El botón de imprimir no hace nada | Worker de colas parado: `sail logs queue`. |
+| Caracteres raros en el ticket | Cambia `PRINTER_CODEPAGE` (ver sección Impresora). |
+| `port is already allocated` | Otro programa usa el puerto: cambia `APP_PORT`, `FORWARD_DB_PORT`, `FORWARD_REVERB_PORT` o `VITE_PORT` en `.env`. |
+| `docker: command not found` | Añade `~/.docker/bin` al PATH (ver Requisitos). |
