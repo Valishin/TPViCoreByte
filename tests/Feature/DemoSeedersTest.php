@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\UserRole;
 use App\Models\Customer;
+use App\Models\CustomerAddress;
 use App\Models\DeliveryZone;
 use App\Models\Order;
 use App\Models\Printer;
@@ -47,6 +48,9 @@ class DemoSeedersTest extends TestCase
         $this->assertTrue($pizzas->every(fn ($p) => $p->variants->pluck('code')->sort()->values()->all() === ['familiar', 'mediana']));
         $this->assertSame(2, Product::where('type', 'menu')->count());
         $this->assertSame(3, DeliveryZone::count());
+        $this->assertSame(['17220'], DeliveryZone::where('name', 'Sant Feliu')->value('postal_codes'));
+        $this->assertSame('Sant Feliu de Guíxols', Setting::current()->city);
+        $this->assertTrue(CustomerAddress::all()->every(fn ($a) => str_starts_with($a->postal_code, '172') && in_array($a->postal_code, $a->deliveryZone->postal_codes, true)));
         $this->assertSame(15, Customer::count());
         $this->assertTrue(Customer::withCount('addresses')->get()->every(fn ($c) => in_array($c->addresses_count, [1, 2], true)));
         $this->assertSame(2, User::where('role', UserRole::Courier)->count());

@@ -21,7 +21,13 @@ class DemoPizzeriaSeeder extends DemoSeeder
     {
         fake()->seed(2026); // datos de clientes reproducibles
 
-        $this->setUpLocal('Pizzería Bella Napoli', [OrderType::Takeaway, OrderType::Delivery]);
+        $this->setUpLocal('Pizzería Bella Napoli', [OrderType::Takeaway, OrderType::Delivery])->update([
+            'address' => 'Rambla del Portalet, 12',
+            'postal_code' => '17220',
+            'city' => 'Sant Feliu de Guíxols',
+            'province' => 'Girona',
+            'phone' => '972000000',
+        ]);
 
         $this->createStaff(UserRole::Waiter, ['Carlos (mostrador)' => '1111']);
         $this->createStaff(UserRole::Courier, ['Javi (reparto)' => '4444', 'Sara (reparto)' => '5555']);
@@ -115,11 +121,21 @@ class DemoPizzeriaSeeder extends DemoSeeder
         $this->menuGroup($couple, 'Bebidas', 2, 2, $smallDrinks + ['Coca-Cola 2 l' => $drinks['Coca-Cola 2 l']]);
         $this->menuGroup($couple, 'Postre', 1, 1, $desserts, supplements: ['Coulant de chocolate' => 50]);
 
-        // Zonas de reparto.
+        // Zonas de reparto (Sant Feliu de Guíxols y alrededores, Girona).
         $zones = [
-            DeliveryZone::create(['name' => 'Centro', 'delivery_fee' => 0, 'minimum_order' => 1200, 'postal_codes' => ['28001', '28004', '28013']]),
-            DeliveryZone::create(['name' => 'Ensanche', 'delivery_fee' => 150, 'minimum_order' => 1500, 'postal_codes' => ['28010', '28015']]),
-            DeliveryZone::create(['name' => 'Afueras', 'delivery_fee' => 250, 'minimum_order' => 2000, 'postal_codes' => ['28035', '28050']]),
+            DeliveryZone::create(['name' => 'Sant Feliu', 'delivery_fee' => 0, 'minimum_order' => 1200, 'postal_codes' => ['17220']]),
+            DeliveryZone::create(['name' => "S'Agaró i Platja d'Aro", 'delivery_fee' => 150, 'minimum_order' => 1500, 'postal_codes' => ['17248', '17249', '17250']]),
+            DeliveryZone::create(['name' => 'Santa Cristina i Calonge', 'delivery_fee' => 250, 'minimum_order' => 2000, 'postal_codes' => ['17246', '17251', '17252']]),
+        ];
+        // Calles reales y población de cada código postal.
+        $streets = [
+            '17220' => ['Sant Feliu de Guíxols', ['Rambla del Portalet', 'Rambla Vidal', 'Carrer Major', 'Passeig dels Guíxols', 'Carrer de Sant Pere', 'Carrer de Sant Domènec', 'Carrer de Girona', 'Avinguda de Juli Garreta', 'Carrer de Santa Magdalena', 'Carrer de Joan Maragall']],
+            '17248' => ["S'Agaró", ["Avinguda de S'Agaró", 'Passeig de la Ronda']],
+            '17249' => ["Castell d'Aro", ['Carrer del Castell', 'Carrer Major']],
+            '17250' => ["Platja d'Aro", ['Avinguda de Castell d\'Aro', 'Passeig del Mar', 'Carrer de Sant Antoni']],
+            '17246' => ["Santa Cristina d'Aro", ['Carrer de Sant Martí', 'Carretera de Girona']],
+            '17251' => ['Calonge', ['Carrer de la Mare de Déu', 'Carrer del Raval']],
+            '17252' => ['Sant Antoni de Calonge', ['Avinguda de Catalunya', 'Passeig del Mar']],
         ];
 
         // 15 clientes con 1-2 direcciones.
@@ -131,14 +147,16 @@ class DemoPizzeriaSeeder extends DemoSeeder
             ]);
             foreach (range(1, $n % 3 === 0 ? 2 : 1) as $a) {
                 $zone = fake()->randomElement($zones);
+                $postalCode = fake()->randomElement($zone->postal_codes);
+                [$city, $cityStreets] = $streets[$postalCode];
                 $customer->addresses()->create([
                     'label' => $a === 1 ? 'Casa' : 'Trabajo',
-                    'street' => fake()->streetName(),
+                    'street' => fake()->randomElement($cityStreets),
                     'number' => (string) fake()->numberBetween(1, 120),
-                    'floor_door' => fake()->randomElement([null, '1º A', '2º B', '4º izq.', 'Bajo']),
-                    'postal_code' => fake()->randomElement($zone->postal_codes),
-                    'city' => 'Madrid',
-                    'instructions' => fake()->optional(0.3)->randomElement(['Portal verde', 'Dejar en conserjería', 'Segundo portal']),
+                    'floor_door' => fake()->randomElement([null, '1r 1a', '2n 2a', '3r B', 'Baixos']),
+                    'postal_code' => $postalCode,
+                    'city' => $city,
+                    'instructions' => fake()->optional(0.3)->randomElement(['Portal verde', 'Dejar en conserjería', 'Segundo portal', 'Casa con jardín, timbre en la verja']),
                     'delivery_zone_id' => $zone->id,
                     'is_default' => $a === 1,
                 ]);
