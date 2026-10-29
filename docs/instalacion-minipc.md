@@ -3,10 +3,16 @@
 Del USB de Debian al TPV funcionando en la pantalla táctil. Para cada cliente,
 usa además [checklist-instalacion.md](checklist-instalacion.md).
 
-**Equipo previsto:** mini PC Intel N100/N150, 8-16 GB, SSD, pantalla táctil
+**Equipo previsto:** mini PC Intel N100/N150, 8-16 GB, **disco SSD** (SATA o
+NVMe; no eMMC ni HDD: la base de datos escribe a menudo), pantalla táctil
 (HDMI + USB), impresoras de red y/o USB, SAI opcional ([sai-nut.md](sai-nut.md)).
 
-**Qué se instala:** Debian 12 sin escritorio · Docker · el TPV en contenedores
+**Paquetes de Debian 13 que usa:** cage, chromium, wlr-randr, nut (SAI),
+ufw, unattended-upgrades, systemd-timesyncd; Docker CE del repositorio de
+Docker; Tailscale de su repositorio. age y rclone van dentro de la imagen del
+TPV (en el host solo hacen falta para descifrar una copia: `apt install age`).
+
+**Qué se instala:** Debian 13 (trixie) sin escritorio · Docker · el TPV en contenedores
 (`/opt/tpv`) · kiosko (usuario `kiosk`: cage + Chromium a pantalla completa) ·
 Tailscale para el soporte remoto · copias de seguridad cifradas.
 
@@ -30,8 +36,9 @@ Tailscale para el soporte remoto · copias de seguridad cifradas.
 4. **Claves de las copias (age)** — una vez, en tu Mac (ver [§9](#9-copias-de-seguridad)).
 5. **Clave de Tailscale** de un solo uso: admin.tailscale.com → Settings → Keys
    → *Generate auth key* (reusable: no; ephemeral: no; con *tag* `tag:tpv`).
-6. Copia el paquete a un USB junto con el **USB de instalación de Debian 12**
-   (debian-12.x.x-amd64-netinst.iso grabada con balenaEtcher o `dd`).
+6. Copia el paquete a un USB junto con el **USB de instalación de Debian 13**
+   (`debian-13.x.x-amd64-netinst.iso` de debian.org, grabada con balenaEtcher
+   o `dd`). Debian 12 ya no tiene soporte de seguridad normal (julio de 2026).
 
 ## 1. BIOS / UEFI del mini PC
 
@@ -44,7 +51,7 @@ Entra con `Supr` o `F2` al encender:
 - Fecha y hora correctas (luego las mantiene NTP).
 - (Opcional) Wake-on-LAN activado para el soporte remoto.
 
-## 2. Instalar Debian 12
+## 2. Instalar Debian 13
 
 Arranca desde el USB (`F7`/`F11`/`F12` según la marca) → *Install* (no la
 gráfica):
@@ -57,6 +64,9 @@ gráfica):
 - **Selección de programas**: desmarca todo el escritorio; deja solo
   **servidor SSH** y **utilidades estándar**.
 - GRUB en el disco interno. Reinicia y quita el USB.
+- Comprueba que el disco es un SSD: `lsblk -d -o NAME,ROTA,TRAN,SIZE` → `ROTA 0`
+  y `TRAN sata` o `nvme` (un `mmcblk0` es eMMC: no sirve). El instalador activa
+  `fstrim.timer` (TRIM semanal).
 
 ## 3. Red: IP fija reservada en el router
 
@@ -95,8 +105,9 @@ horario de pantalla y actualización automática (vacíos = nunca).
 El instalador (se puede volver a lanzar sin perder nada):
 
 1. Zona horaria **Europe/Madrid**, NTP, actualizaciones de seguridad
-   automáticas (sin reinicios) y cortafuegos **ufw** (SSH, 80 y Tailscale).
-2. **Docker** (repositorio oficial) con logs rotados.
+   automáticas (sin reinicios), TRIM semanal del SSD (`fstrim.timer`) y
+   cortafuegos **ufw** (SSH, 80 y Tailscale).
+2. **Docker CE** (repositorio oficial para trixie) con logs rotados.
 3. **Kiosko**: usuario `kiosk` sin contraseña ni sudo, autologin en tty1, cage
    + Chromium en `http://localhost/?kiosk=1` sin barras, menús, traducción ni
    "restaurar páginas", sin pellizcar para hacer zoom. Si Chromium se cierra o

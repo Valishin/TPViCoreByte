@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instalador del TPV en un mini PC con Debian 12 recién instalado (sin escritorio).
+# Instalador del TPV en un mini PC con Debian 13 (trixie) recién instalado (sin escritorio).
 #
 #   sudo ./install.sh --config tpv-install.conf
 #   sudo ./install.sh --dry-run --config tpv-install.conf     # solo muestra lo que haría
@@ -71,8 +71,9 @@ compose() { (cd "$TPV_DIR" && docker compose "$@"); }
 if [ -r /etc/os-release ]; then
     # shellcheck disable=SC1091
     . /etc/os-release
-    [ "${ID:-}" = debian ] && [ "${VERSION_ID:-}" = 12 ] || warn "Pensado para Debian 12 (esto es ${PRETTY_NAME:-desconocido})."
+    [ "${ID:-}" = debian ] && [ "${VERSION_ID:-}" = 13 ] || warn "Pensado para Debian 13 trixie (esto es ${PRETTY_NAME:-desconocido})."
 fi
+CODENAME="${VERSION_CODENAME:-trixie}"
 # shellcheck disable=SC1090
 [ -f "$CONFIG" ] && . "$CONFIG"
 
@@ -88,11 +89,13 @@ SLUG="$(slug "$LOCAL_NAME")"
 ok "Local: $LOCAL_NAME · IP $LAN_IP · admin $ADMIN_EMAIL · $TPV_IMAGE:$TPV_VERSION"
 
 # --- 1. Sistema -------------------------------------------------------------------
-say "Sistema: zona horaria, NTP, actualizaciones de seguridad"
+say "Sistema: zona horaria, NTP, actualizaciones de seguridad, TRIM del SSD"
 run apt-get update -qq
-run apt-get install -y -qq ca-certificates curl gnupg openssl ufw unattended-upgrades apt-listchanges iproute2
+run apt-get install -y -qq ca-certificates curl gnupg openssl ufw unattended-upgrades apt-listchanges iproute2 systemd-timesyncd util-linux
 run timedatectl set-timezone Europe/Madrid
 run timedatectl set-ntp true
+# SSD: TRIM semanal (alarga la vida del disco y mantiene el rendimiento).
+run systemctl enable --now fstrim.timer
 put /etc/apt/apt.conf.d/20auto-upgrades 644 <<'CONF'
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
@@ -103,7 +106,7 @@ Unattended-Upgrade::Origins-Pattern { "origin=Debian,codename=${distro_codename}
 Unattended-Upgrade::Automatic-Reboot "false";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
 CONF
-ok "Europe/Madrid, NTP y unattended-upgrades (solo seguridad)"
+ok "Europe/Madrid, NTP, unattended-upgrades (solo seguridad) y fstrim.timer"
 
 say "Cortafuegos (ufw): SSH y el TPV (80)"
 run ufw default deny incoming
@@ -118,13 +121,20 @@ say "Docker"
 if command -v docker >/dev/null 2>&1; then
     ok "Docker ya instalado ($(docker --version 2>/dev/null))"
 else
+    # Repositorio oficial de Docker CE para Debian 13 (formato deb822 de trixie).
     run install -m 0755 -d /etc/apt/keyrings
-    run sh -c 'curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg'
-    put /etc/apt/sources.list.d/docker.list 644 <<CONF
-deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable
+    run curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    run chmod a+r /etc/apt/keyrings/docker.asc
+    put /etc/apt/sources.list.d/docker.sources 644 <<CONF
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: ${CODENAME}
+Components: stable
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/docker.asc
 CONF
     run apt-get update -qq
-    run apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    run apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     run systemctl enable --now docker
     ok "Docker instalado"
 fi

@@ -1,4 +1,4 @@
-# TPV Hostelería — producción en el mini PC (Debian 12, linux/amd64).
+# TPV Hostelería — producción en el mini PC (Debian 13, linux/amd64).
 #
 # El instalador lo copia a /opt/tpv/compose.yaml junto al .env de la
 # instalación; las impresoras USB van en compose.override.yaml (lo genera el

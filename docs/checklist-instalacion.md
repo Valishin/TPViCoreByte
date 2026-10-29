@@ -4,7 +4,7 @@ Local: ____________________  Fecha: __________  Versión: ________  Técnico: __
 
 ## Antes de ir
 - [ ] Imagen publicada en GHCR (o `.tar.gz` en el USB) — versión ______
-- [ ] `dist/tpv-instalador-<versión>.tar.gz` en el USB + USB de Debian 12
+- [ ] `dist/tpv-instalador-<versión>.tar.gz` en el USB + USB de Debian 13 (trixie)
 - [ ] Token GHCR de solo lectura para este cliente
 - [ ] Clave pública age (`age1…`) y destino remoto de las copias (en la UE)
 - [ ] Clave de Tailscale de un solo uso
@@ -13,7 +13,9 @@ Local: ____________________  Fecha: __________  Versión: ________  Técnico: __
 ## Equipo
 - [ ] BIOS: **encender al recibir corriente** (Power On after AC loss)
 - [ ] BIOS: sin suspensión / ErP; arranque desde el disco interno
-- [ ] Debian 12 sin escritorio, con SSH; equipo `tpv-<local>`; contraseña root guardada
+- [ ] **Disco SSD** (SATA o NVMe), no eMMC ni HDD: `lsblk -d -o NAME,ROTA,TRAN` → ROTA 0
+- [ ] Debian 13 sin escritorio, con SSH; equipo `tpv-<local>`; contraseña root guardada
+- [ ] `systemctl is-enabled fstrim.timer` → enabled
 - [ ] Mini PC por **cable**; IP **reservada** en el router: ______________ (MAC ______________)
 - [ ] IP de las impresoras de red reservadas: ______________________________
 - [ ] `lsusb` de las impresoras USB: ______________________________

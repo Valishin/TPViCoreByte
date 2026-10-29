@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Imagen de producción del TPV (mini PC Debian 12, linux/amd64).
+# Imagen de producción del TPV (mini PC Debian 13, linux/amd64). Base Debian 13 (trixie).
 #
 #   docker buildx build --platform linux/amd64 -f docker/production/Dockerfile \
 #     --build-arg APP_VERSION=$(cat VERSION) --build-arg APP_COMMIT=$(git rev-parse --short HEAD) \
@@ -12,7 +12,7 @@
 ARG PHP_VERSION=8.4
 
 # --- 1. Assets (Vite). Son iguales en cualquier arquitectura: se compilan en la nativa del Mac.
-FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS assets
+FROM --platform=$BUILDPLATFORM node:22-trixie-slim AS assets
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -32,7 +32,7 @@ COPY . .
 RUN composer dump-autoload --no-dev --optimize --no-scripts
 
 # --- 3. Imagen final: FrankenPHP (Caddy + PHP 8.4) con opcache.
-FROM dunglas/frankenphp:1-php${PHP_VERSION}-bookworm AS app
+FROM dunglas/frankenphp:1-php${PHP_VERSION}-trixie AS app
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
@@ -51,7 +51,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends ca-certificates curl gnupg procps age rclone; \
     install -d /usr/share/keyrings; \
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg; \
-    echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list; \
+    echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends postgresql-client-18; \
     apt-get purge -y gnupg; apt-get autoremove -y; rm -rf /var/lib/apt/lists/*
