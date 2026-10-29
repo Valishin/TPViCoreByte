@@ -361,33 +361,31 @@ de Vite.
 `admin`, `api`, `livewire`, `filament`, `broadcasting`, `sanctum`, `storage`,
 `build`, `up` y los assets estáticos.
 
-## Paso al mini PC (producción)
+## Producción (mini PC)
 
-Lo que cambia respecto a desarrollo:
+Guía paso a paso: **[docs/instalacion-minipc.md](docs/instalacion-minipc.md)**
+(BIOS, Debian 12, IP reservada, instalador, impresoras, Tailscale, copias,
+actualizaciones) y **[docs/checklist-instalacion.md](docs/checklist-instalacion.md)**
+para cada cliente. SAI: [docs/sai-nut.md](docs/sai-nut.md).
 
-1. **IP fija del mini PC**: reserva una IP en el router (DHCP estático), p. ej.
-   `192.168.1.10`.
-2. `.env`:
-   - `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=http://192.168.1.10`
-     (o el puerto que se use).
-   - `SANCTUM_STATEFUL_DOMAINS=localhost,127.0.0.1,192.168.1.10` (más
-     `:puerto` si no es el 80). Ya no hace falta la IP del Mac.
-   - `SESSION_DOMAIN=null` se mantiene.
-   - `VITE_HMR_HOST` / `VITE_PORT` dejan de usarse: no hay Vite en producción.
-   - `PRINTER_MODE=real` con la IP de la impresora.
-   - Contraseñas reales para PostgreSQL y claves nuevas de Reverb
-     (`REVERB_APP_ID/KEY/SECRET`).
-3. Assets compilados: `npm ci && npm run build` (sin `public/hot`). Las
-   variables `VITE_REVERB_*` se fijan en el build, así que cualquier cambio de
-   puerto de Reverb requiere volver a compilar. El host no, porque es
-   `window.location.hostname`.
-4. Worker: **`queue:work`** en lugar de `queue:listen`, y
-   `php artisan queue:restart` tras cada despliegue.
-5. Imagen de producción propia (PHP 8.4 + nginx/FrankenPHP) en lugar de la de
-   Sail, con `php artisan optimize` y `filament:optimize`.
-6. Crear el admin real con `php artisan make:filament-user` (el seeder de
-   desarrollo no se ejecuta en producción).
-7. Chromium en kiosko en el mini PC apuntando a `http://localhost`.
+- **Imagen** (FrankenPHP + PHP 8.4, linux/amd64) desde el Mac:
+  `TPV_IMAGE=ghcr.io/<usuario>/tpv-hosteleria scripts/build-image.sh --push`
+  (o `--tar`). La versión sale de `VERSION` (semver a mano) más el commit, y se
+  ve al pie de /admin, en /estado y en `/api/health`.
+- **Paquete del instalador** para el USB: `scripts/make-install-bundle.sh`
+  (`--with-image` para incluir la imagen).
+- **Servicios** (`docker-compose.prod.yml`): app (puerto 80; FrankenPHP pasa
+  `/app` a Reverb), reverb, queue, printing, scheduler y postgres 18.
+- **En el mini PC**: `install.sh` (una vez), `tpv-update <versión>` (con vuelta
+  atrás automática), `tpv-restore <copia>`.
+- **Copias**: `tpv:backup` cifrado con age, tras cada Z, al arrancar si hace
+  más de 24 h de la última y a las 05:00; rotación 7/4/6 y subida con rclone.
+
+Probar la producción en el Mac: `scripts/build-image.sh` y levantar
+`docker-compose.prod.yml` con un `.env` sacado de `docker/production/env.example`
+(`APP_HTTP_PORT=8090`, `PRINTER_MODE=simulated`). La imagen no incluye Faker:
+los datos de demo se cargan con un volcado de la base de datos de desarrollo y
+`tpv-restore`.
 
 ## Problemas típicos
 
