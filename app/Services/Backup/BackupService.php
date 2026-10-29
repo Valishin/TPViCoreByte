@@ -35,13 +35,14 @@ class BackupService
             $target = "{$dir}/{$file}";
 
             // pg_dump | age: el volcado sin cifrar nunca toca el disco.
+            // bash (no sh/dash): pipefail para que un fallo de pg_dump no deje una copia vacía.
             $result = Process::timeout(900)
                 ->env(['PGPASSWORD' => $db['password']])
-                ->run(sprintf(
+                ->run(['bash', '-c', sprintf(
                     'set -o pipefail; pg_dump -h %s -p %s -U %s -d %s -Fc --no-owner --no-acl | age -r %s -o %s',
                     escapeshellarg($db['host']), escapeshellarg((string) $db['port']), escapeshellarg($db['username']),
                     escapeshellarg($db['database']), escapeshellarg($recipient), escapeshellarg($target),
-                ), null);
+                )]);
             if (! $result->successful()) {
                 File::delete($target);
                 throw new RuntimeException(trim($result->errorOutput()) ?: 'pg_dump o age han fallado.');

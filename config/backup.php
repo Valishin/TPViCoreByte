@@ -7,8 +7,8 @@ return [
     // Clave PÚBLICA age (age1…). La privada se guarda fuera del mini PC.
     'age_recipient' => env('BACKUP_AGE_RECIPIENT'),
 
-    // Destino rclone (vacío = solo local), p. ej. ":s3,provider=Minio,endpoint=http://…:bucket/tpv"
-    // o ":sftp,host=copias.example.com,user=tpv:/srv/copias/local1".
+    // Destino rclone (vacío = solo local): "remoto:ruta", con el remoto definido por
+    // variables RCLONE_CONFIG_<NOMBRE>_* en el .env (S3 compatible o SFTP).
     'remote' => env('BACKUP_REMOTE'),
 
     // Rotación: N diarias, N semanales (última de cada semana), N mensuales (última de cada mes).

@@ -39,7 +39,7 @@ class BackupTest extends TestCase
     private function fakeDump(bool $ok = true, bool $uploadOk = true): void
     {
         Process::fake(function (PendingProcess $process) use ($ok, $uploadOk) {
-            $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+            $command = is_array($process->command) ? implode(' ', $process->command) : $process->command; // bash -c '…'
             if (str_contains($command, 'pg_dump')) {
                 if ($ok && preg_match("/-o '([^']+)'/", $command, $m)) {
                     file_put_contents($m[1], 'cifrado');
@@ -62,8 +62,8 @@ class BackupTest extends TestCase
         $this->assertSame('sin_destino', $run->remote_status);
         $this->assertFileExists("{$this->dir}/{$run->file}");
         $this->assertMatchesRegularExpression(BackupService::PATTERN, $run->file);
-        Process::assertRan(fn (PendingProcess $p) => str_contains($p->command, 'pg_dump') && str_contains($p->command, '| age -r ')
-            && str_contains($p->command, '-Fc') && ($p->environment['PGPASSWORD'] ?? null) !== null);
+        Process::assertRan(fn (PendingProcess $p) => $p->command[0] === 'bash' && str_contains($p->command[2], 'set -o pipefail; pg_dump')
+            && str_contains($p->command[2], '| age -r ') && str_contains($p->command[2], '-Fc') && ($p->environment['PGPASSWORD'] ?? null) !== null);
     }
 
     public function test_refuses_to_store_unencrypted_backups(): void
