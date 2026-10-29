@@ -64,10 +64,10 @@ nueva debe cumplirlos.
   para una letra, dos para bloquear. Pone mayúscula al empezar el campo o la
   frase (no en email/URL).
   - Teclas de **64 px de alto** como mínimo.
-  - **Aparece al enfocar cualquier campo de texto en la caja**, sin tapar el
-    campo: las hojas y modales suben por encima del teclado, el contenido se
-    desplaza hasta el campo y, además, el teclado muestra arriba el campo que
-    se edita (etiqueta y texto).
+  - **Aparece al enfocar cualquier campo de texto en la caja**. **El scroll no
+    se mueve al tocar un campo**: las hojas y modales suben por encima del
+    teclado y el teclado muestra arriba el campo que se edita (etiqueta y
+    texto), así que siempre se ve lo que se escribe.
   - **Más scroll con el teclado abierto:** la pantalla gana abajo el alto del
     teclado, así que se puede bajar hasta el final y ver lo que se escribe
     aunque el campo esté abajo del todo.

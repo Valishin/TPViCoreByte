@@ -119,25 +119,11 @@ function keyboardHeight() {
     return root.value?.offsetHeight ?? 0;
 }
 
-/** Si el teclado (o el borde de su contenedor) tapa el campo, desplaza lo justo. */
-function ensureVisible() {
-    const el = keyboard.target;
-    if (!el || !visible.value) return;
-    const scroller = scrollParent(el);
-    const box = scroller?.getBoundingClientRect() ?? { top: 0, bottom: window.innerHeight };
-    const top = Math.max(0, box.top) + 8;
-    const bottom = Math.min(window.innerHeight - keyboardHeight(), box.bottom) - 8;
-    const rect = el.getBoundingClientRect();
-    const by = rect.bottom > bottom ? rect.bottom - bottom : rect.top < top ? rect.top - top : 0;
-    if (by) (scroller ?? window).scrollBy({ top: by });
-}
-
+// El scroll no se toca al enfocar un campo: solo se añade espacio abajo para
+// poder bajar a mano (y el teclado enseña arriba lo que se escribe).
 // setTimeout y no requestAnimationFrame: rAF no corre si la ventana no está en primer plano.
-function scheduleEnsureVisible() {
-    nextTick(() => setTimeout(() => {
-        padScroller();
-        ensureVisible();
-    }, 0));
+function schedulePad() {
+    nextTick(() => setTimeout(padScroller, 0));
 }
 
 /**
@@ -185,7 +171,7 @@ watch(visible, async (open) => {
     html.dataset.keyboard = 'open';
     const update = () => {
         html.style.setProperty('--keyboard-height', `${keyboardHeight()}px`);
-        scheduleEnsureVisible();
+        schedulePad();
     };
     resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(root.value);
@@ -199,7 +185,7 @@ function onFocusIn(e) {
     applyInputMode(el);
     if (keyboardEnabled.value) {
         openKeyboard(el);
-        scheduleEnsureVisible();
+        schedulePad();
     }
 }
 
@@ -207,7 +193,7 @@ function onFocusIn(e) {
 function onPointerDown(e) {
     if (keyboard.hidden && e.target === keyboard.target) {
         keyboard.hidden = false;
-        scheduleEnsureVisible();
+        schedulePad();
     }
 }
 
