@@ -182,7 +182,11 @@ let idempotencyKey = uid();
 
 const o = computed(() => (order.order?.id === Number(route.params.orderId) ? order.order : null));
 const activeLines = computed(() => (o.value?.lines ?? []).filter((l) => !l.voided_at));
-const where = computed(() => (o.value?.table ? `Mesa ${o.value.table.name}` : 'Venta rápida'));
+const where = computed(() => {
+    if (o.value?.table) return `Mesa ${o.value.table.name}`;
+    if (o.value?.takeaway) return `Para llevar${o.value.takeaway.customer_name ? ` · ${o.value.takeaway.customer_name}` : ''}`;
+    return 'Venta rápida';
+});
 const paid = computed(() => payments.value.reduce((t, p) => t + p.amount, 0));
 const remaining = computed(() => (o.value?.total ?? 0) - paid.value);
 

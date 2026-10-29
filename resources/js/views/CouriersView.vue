@@ -162,10 +162,14 @@ async function giveFloat() {
     }
 }
 
-/** Por defecto, cada ticket con el método previsto. */
+/** Por defecto, cada ticket como lo declaró el repartidor (o con el método previsto). */
 function startSettle(row, keepChoices = false) {
     for (const o of row.orders) {
-        if (!keepChoices || !choice[o.id]) choice[o.id] = { method: o.planned_payment_method === 'tarjeta' ? 'tarjeta' : 'efectivo', cash: 0 };
+        if (keepChoices && choice[o.id]) continue;
+        const rows = o.expected_rows ?? [];
+        choice[o.id] = rows.length > 1
+            ? { method: 'mixto', cash: rows.filter((r) => r.method === 'efectivo').reduce((a, r) => a + r.amount, 0) }
+            : { method: rows[0]?.method ?? (o.planned_payment_method === 'tarjeta' ? 'tarjeta' : 'efectivo'), cash: 0 };
     }
     settling.value = row;
     if (!keepChoices) handed.value = summary.value.expected;

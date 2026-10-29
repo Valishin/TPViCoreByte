@@ -116,6 +116,25 @@ class CourierService
         });
     }
 
+    /**
+     * Lo que se espera cobrar de un pedido: lo que declaró el repartidor al
+     * entregar o, si no, el pago previsto.
+     *
+     * @return array{cash: int, other: int, rows: list<array{method: string, amount: int}>}
+     */
+    public static function expectedCollection(Order $order): array
+    {
+        $pending = self::pendingAmount(self::ticketOf($order));
+        if ($pending === 0) {
+            return ['cash' => 0, 'other' => 0, 'rows' => []];
+        }
+        $rows = $order->courier_reported_payments
+            ?? [['method' => ($order->planned_payment_method ?? PaymentMethod::Cash)->value, 'amount' => $pending]];
+        $cash = (int) collect($rows)->where('method', PaymentMethod::Cash->value)->sum('amount');
+
+        return ['cash' => $cash, 'other' => $pending - $cash, 'rows' => $rows];
+    }
+
     /** @return list<array<string, mixed>> por repartidor activo */
     public function overview(): array
     {
@@ -123,8 +142,8 @@ class CourierService
             ->map(function (User $courier) {
                 $orders = self::unsettled($courier)->get();
                 $float = self::outstandingFloat($courier);
-                $cash = $orders->sum(fn (Order $o) => $o->planned_payment_method === PaymentMethod::Cash ? self::pendingAmount(self::ticketOf($o)) : 0);
-                $other = $orders->sum(fn (Order $o) => $o->planned_payment_method !== PaymentMethod::Cash ? self::pendingAmount(self::ticketOf($o)) : 0);
+                $cash = $orders->sum(fn (Order $o) => self::expectedCollection($o)['cash']);
+                $other = $orders->sum(fn (Order $o) => self::expectedCollection($o)['other']);
 
                 return [
                     'courier' => ['id' => $courier->id, 'name' => $courier->name, 'color' => $courier->color, 'initials' => $courier->initials()],

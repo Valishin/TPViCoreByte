@@ -46,7 +46,7 @@ class TakeawayOrderResource extends JsonResource
             'delivery_fee' => $this->delivery_fee,
             'pending_count' => $this->whenLoaded('lines', fn () => $this->lines->whereNull('parent_line_id')->whereNull('sent_at')->whereNull('voided_at')->count()),
             'ticket' => $ticket ? [
-                'id' => $ticket->id, 'number' => $ticket->series_code.'-'.$ticket->number,
+                'id' => $ticket->id, 'number' => $ticket->fullNumber(),
                 'payment_status' => $ticket->payment_status->value, 'status' => $ticket->status->value,
             ] : null,
             'settled' => $this->courier_settlement_id !== null,

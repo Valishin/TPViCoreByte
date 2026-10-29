@@ -1,7 +1,7 @@
 <template>
     <main class="v-cash">
         <header class="v-order__header">
-            <TpvButton variant="secondary" @click="router.push('/mesas')">← Mesas</TpvButton>
+            <TpvButton variant="secondary" @click="router.push(session.home)">{{ session.hasFloor ? '← Mesas' : '← Pedidos' }}</TpvButton>
             <div class="v-order__where">Caja</div>
         </header>
 
@@ -92,11 +92,13 @@ import TextField from '@/components/TextField.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import VoidTicketSheet from '@/components/VoidTicketSheet.vue';
 import pos, { errorCode, errorMessage } from '@/services/pos';
+import { useSessionStore } from '@/stores/session';
 import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
 import { money, time } from '@/utils/format';
 
 const router = useRouter();
+const session = useSessionStore();
 const notices = useNoticesStore();
 const authorize = useAuthorizeStore();
 

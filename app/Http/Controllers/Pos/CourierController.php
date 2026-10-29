@@ -25,6 +25,7 @@ class CourierController extends Controller
             'orders' => $row['orders']->map(fn (Order $o) => [
                 ...(new TakeawayOrderResource($o))->resolve($request),
                 'pending_amount' => CourierService::pendingAmount(CourierService::ticketOf($o)),
+                'expected_rows' => CourierService::expectedCollection($o)['rows'], // la caja lo propone al liquidar
             ])->values(),
         ])->values()]);
     }

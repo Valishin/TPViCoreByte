@@ -79,4 +79,17 @@ class MyDeliveriesTest extends TakeawayTestCase
         $this->asPos($this->javi)->postJson("/api/my-deliveries/{$id}/not-delivered", ['reason' => 'Dirección errónea', 'authorization_token' => $token])
             ->assertOk()->assertJsonPath('data.delivery_status', 'no_entregado');
     }
+
+    public function test_overview_expects_what_the_courier_reported(): void
+    {
+        $this->openCash();
+        $id = $this->outFor($this->javi); // previsto en efectivo
+        $this->asPos($this->javi)->postJson("/api/my-deliveries/{$id}/delivered", ['payments' => [['method' => 'efectivo', 'amount' => 1000], ['method' => 'tarjeta', 'amount' => 1150]]])->assertOk();
+
+        $javi = collect($this->asWaiter()->getJson('/api/couriers/settlement')->json('data'))->firstWhere('courier.name', 'Javi');
+        $this->assertSame(1000, $javi['expected_cash']);
+        $this->assertSame(1150, $javi['expected_other']);
+        $this->assertSame([['method' => 'efectivo', 'amount' => 1000], ['method' => 'tarjeta', 'amount' => 1150]], $javi['orders'][0]['expected_rows']);
+        $this->assertMatchesRegularExpression('/^[A-Z]+-\d{6}$/', $javi['orders'][0]['ticket']['number']); // con su formato (T-000001)
+    }
 }

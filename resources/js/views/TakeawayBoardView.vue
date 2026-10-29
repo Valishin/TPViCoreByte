@@ -85,6 +85,7 @@ const visibleColumns = computed(() => (ui.isPos ? COLUMNS : COLUMNS.filter((c) =
 
 let timer = null;
 onMounted(() => {
+    store.tick();
     store.load().catch((e) => notices.error(errorMessage(e)));
     timer = setInterval(() => store.tick(), 30000);
 });
