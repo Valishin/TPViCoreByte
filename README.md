@@ -163,10 +163,11 @@ volver a sembrar.
 La SPA en <http://localhost:8081> (o la IP del ordenador desde el móvil).
 
 - **Entrar:** se elige el usuario y se teclea su PIN (4 dígitos). Usan el TPV
-  camareros, encargados y admin; los repartidores no. 5 intentos fallidos por
+  camareros, encargados y admin, y los repartidores (sección aparte, solo ven
+  "Mis repartos"). 5 intentos fallidos por
   usuario bloquean 5 minutos. La sesión del TPV es independiente de la de /admin.
 - **PINs de demo:** bar → Ana 1111, Luis 2222, Marta 3333; pizzería → Carlos
-  1111; admin 0000 y encargado 9999.
+  1111, repartidores Javi 4444 y Sara 5555; admin 0000 y encargado 9999.
 - **Disposiciones:** caja (pantalla horizontal ≥ 1024 px: plano según la
   posición de las mesas, y categorías, productos y pedido a la vez) y móvil
   (rejilla de mesas, y el pedido en una hoja inferior). Tema oscuro/claro con
@@ -208,16 +209,44 @@ La SPA en <http://localhost:8081> (o la IP del ordenador desde el móvil).
   rectificativo por diferencias en la serie R (total o parcial) y registra la
   devolución en la caja. En /admin también "por sustitución".
 - **Cierre Z**: arqueo con importe o contando billetes y monedas; avisa si hay
-  pedidos abiertos. Imprime el Z (correlativo) con ventas, formas de pago,
+  pedidos abiertos o domicilios sin cobrar. Imprime el Z (correlativo) con ventas, formas de pago,
   propinas, IVA, camareros y tipos de pedido.
 - **Exportación fiscal** (/admin → Ventas → Exportación fiscal, o
   `sail artisan tpv:export-fiscal --from=AAAA-MM-DD --to=AAAA-MM-DD`): ZIP con
   CSV y PDF de tickets, rectificativos y cierres Z.
 
-> Fuera de alcance por ahora: pantallas de para llevar y
-> domicilio, editor visual del plano y modo sin conexión. El dataset
-> **pizzería** no tiene salas: para probar su carta en sala, crea una sala en
-> /admin → Sala y activa "Mesa" en Ajustes del local.
+## Para llevar y domicilio
+
+Se ven si esos tipos están activos en Ajustes del local (la pizzería de demo
+no tiene sala: entra directamente en **Pedidos**).
+
+- **Pedidos** (barra superior): columnas Pendiente · En cocina · Listo · En
+  reparto y "Entregados hoy" plegado (pestañas en el móvil). Cada tarjeta
+  avisa con texto si quedan menos de 10 min o si va tarde.
+- **Nuevo pedido:** Para llevar (nombre y teléfono opcionales) o Domicilio
+  (teléfono con el teclado numérico → ficha con notas, direcciones y últimos
+  pedidos, "repetir" con la carta de hoy; o alta rápida con la zona sugerida
+  por el CP). Hora: "Lo antes posible" (tiempos en Ajustes) o +20…+60 min.
+  Pago previsto: efectivo (con "cambio para"), tarjeta o ya pagado.
+- **Estados:** enviar la comanda pasa a En cocina; Listo a mano. Domicilio:
+  **Dar salida** con el repartidor → se emite el ticket (pendiente de cobro,
+  o pagado si ya lo estaba) y se imprime el ticket de domicilio (y la copia
+  con QR de Google Maps si está activada). Para llevar: se cobra al recogerlo.
+- **Pedido mínimo** de la zona: aviso al enviar; se puede seguir con la
+  autorización de un encargado.
+- **Cancelar** antes del ticket, con motivo (autorización y anulación impresa
+  si ya se envió a cocina). Con ticket, solo con rectificativo.
+- **Repartidores** (caja): fondo de cambio (movimiento de caja, no es venta),
+  sus repartos y lo que debe entregar (cobrado en efectivo + fondo).
+  **Liquidar** cobra cada ticket con su método real en la caja abierta y
+  muestra la diferencia. **No entregado**: rectificativo total sin devolución.
+- **Mis repartos** (móvil del repartidor): dirección e indicaciones, abrir en
+  Maps, llamar, importe y cambio; Entregado con el cobro real (lo propone la
+  caja al liquidar) o No entregado.
+- Los informes X y Z muestran los domicilios pendientes de cobro y los
+  movimientos de caja; cerrar el Z con pendientes pide confirmación.
+
+> Fuera de alcance por ahora: editor visual del plano y modo sin conexión.
 
 ## Entrar desde el móvil (red local)
 
