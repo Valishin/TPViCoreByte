@@ -12,12 +12,16 @@ window.Pusher = Pusher;
  * configurar IPs fijas en el build. Los canales privados se autorizan con la
  * sesión del TPV (cookie + XSRF) a través de axios.
  */
-const scheme = import.meta.env.VITE_REVERB_SCHEME ?? window.location.protocol.replace(':', '');
-const port = Number(import.meta.env.VITE_REVERB_PORT ?? 8080);
+const meta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || null;
+const scheme = import.meta.env.VITE_REVERB_SCHEME || window.location.protocol.replace(':', '');
+// Desarrollo: puerto propio de Reverb (VITE_REVERB_PORT). Producción: el mismo
+// de la página, porque FrankenPHP pasa /app a Reverb (un solo puerto que abrir).
+const port = Number(import.meta.env.VITE_REVERB_PORT || window.location.port || (scheme === 'https' ? 443 : 80));
 
 const echo = new Echo({
     broadcaster: 'reverb',
-    key: import.meta.env.VITE_REVERB_APP_KEY,
+    // La clave de la instalación viene en la página; la de build solo en desarrollo.
+    key: meta('reverb-key') || import.meta.env.VITE_REVERB_APP_KEY,
     wsHost: window.location.hostname,
     wsPort: port,
     wssPort: port,

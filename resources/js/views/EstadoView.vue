@@ -2,7 +2,7 @@
     <main class="v-estado">
         <header class="v-estado__header">
             <h1 class="v-estado__title">Estado del sistema</h1>
-            <p class="v-estado__host">Conectado a <strong>{{ host }}</strong></p>
+            <p class="v-estado__host">Conectado a <strong>{{ host }}</strong> · versión <strong>{{ version }}</strong></p>
         </header>
 
         <div class="v-estado__grid">
@@ -42,6 +42,7 @@ import TpvButton from '@/components/TpvButton.vue';
 import { useDiagnosticsStore } from '@/stores/diagnostics';
 
 const store = useDiagnosticsStore();
+const version = document.querySelector('meta[name="app-version"]')?.content || 'dev';
 const host = `${window.location.hostname}:${window.location.port || 80}`;
 
 onMounted(() => {

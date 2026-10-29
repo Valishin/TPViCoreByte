@@ -10,6 +10,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -27,6 +28,9 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('TPV · Backoffice')
+            // Versión instalada, al pie de todas las páginas.
+            ->renderHook(PanelsRenderHook::FOOTER, fn (): string => '<div style="padding:1rem;text-align:center;font-size:.75rem;opacity:.6">TPV '
+                .e(config('app.version')).(config('app.commit') ? ' · '.e(config('app.commit')) : '').'</div>')
             ->colors([
                 'primary' => Color::Orange,
             ])

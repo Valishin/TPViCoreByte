@@ -58,6 +58,11 @@ return [
     // móviles (en Docker no se puede averiguar sola). En desarrollo la da Vite.
     'lan_ip' => env('APP_LAN_IP'),
 
+    // Versión (semver a mano en VERSION) y commit, que la imagen de
+    // producción fija al construirse. Se ve en /admin y en /estado.
+    'version' => env('APP_VERSION') ?: trim((string) @file_get_contents(base_path('VERSION'))) ?: 'dev',
+    'commit' => env('APP_COMMIT'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

@@ -1,77 +1,111 @@
-# EJEMPLO de despliegue en el mini PC (Debian). No es el entorno de desarrollo
-# (ese es compose.yaml con Sail). Ajusta la imagen, las contraseñas y los
-# dispositivos a tu instalación.
+# TPV Hostelería — producción en el mini PC (Debian 12, linux/amd64).
 #
-#   docker compose -f docker-compose.prod.yml up -d
+# El instalador lo copia a /opt/tpv/compose.yaml junto al .env de la
+# instalación; las impresoras USB van en compose.override.yaml (lo genera el
+# instalador con los dispositivos de cada local). Desde /opt/tpv:
 #
-# Impresoras USB: ver docs/impresoras-usb.md. Resumen:
-#   1. Regla udev en el host → enlace fijo /dev/impresora-ticket (y /dev/impresora-cocina…).
-#   2. Esos dispositivos se pasan al contenedor que imprime: `printing` (cola
-#      `printing`: comandas, tickets, cajón, informes y "Imprimir prueba" de
-#      /admin). Las peticiones web nunca imprimen directamente.
-#   3. Permisos: el dispositivo pertenece al grupo `lp` del host (GID 7 en
-#      Debian). El usuario del contenedor debe tener ese grupo (group_add).
-#      Comprueba el GID con:  stat -c '%g %G' /dev/impresora-ticket
+#   docker compose up -d          docker compose ps          docker compose logs -f app
 #
-# Si la impresora no está enchufada al arrancar, Docker no puede crear el
-# contenedor con `devices:`. Para tolerar enchufar/desenchufar en caliente, usa
-# la alternativa comentada (device_cgroup_rules + montar /dev/usb).
+# Un solo puerto (80): FrankenPHP sirve la app y pasa /app y /apps a Reverb
+# (websockets). Sin Vite: los assets van compilados dentro de la imagen.
+
+x-logging: &logging
+    driver: local            # comprimido y con rotación
+    options:
+        max-size: '10m'
+        max-file: '3'
 
 x-app: &app
-    image: 'tpv-hosteleria:latest'   # imagen de producción (PHP 8.4), construida aparte
+    image: '${TPV_IMAGE:-ghcr.io/CAMBIAR/tpv-hosteleria}:${TPV_VERSION:-latest}'
     restart: unless-stopped
-    env_file: .env                   # APP_ENV=production, PRINTER_MODE=real, …
+    env_file: .env
+    logging: *logging
     volumes:
-        - 'storage:/var/www/html/storage'
-    networks:
-        - tpv
+        - 'storage:/app/storage/app'   # logo, impresiones simuladas, exportaciones
+        - 'backups:/backups'           # copias cifradas (rotación local)
+    networks: [tpv]
+    depends_on:
+        pgsql:
+            condition: service_healthy
 
-x-usb-printers: &usb-printers
-    devices:
-        - '/dev/impresora-ticket:/dev/impresora-ticket'
-        # - '/dev/impresora-cocina:/dev/impresora-cocina'
-    group_add:
-        - '7'                        # grupo `lp` del host (Debian)
-    # Alternativa con enchufado en caliente (sustituye a `devices:`):
-    # device_cgroup_rules:
-    #     - 'c 180:* rmw'            # 180 = major de usblp (/dev/usb/lp*)
-    # volumes:
-    #     - '/dev/usb:/dev/usb'
-    #     - '/dev/impresora-ticket:/dev/impresora-ticket'
+# Los workers solo comprueban que su proceso sigue vivo.
+x-worker-health: &worker-health
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 30s
 
 services:
     app:
         <<: *app
         ports:
-            - '80:80'
-        depends_on:
-            - pgsql
+            - '${APP_HTTP_PORT:-80}:80'
+        mem_limit: 768m
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', '-o', '/dev/null', 'http://localhost/api/health']
+            interval: 15s
+            timeout: 5s
+            retries: 4
+            start_period: 40s
 
     reverb:
         <<: *app
         command: ['php', 'artisan', 'reverb:start', '--host=0.0.0.0', '--port=8080']
-        ports:
-            - '8080:8080'
+        mem_limit: 384m
+        healthcheck:
+            # Cualquier respuesta HTTP vale: el servidor de websockets está escuchando.
+            test: ['CMD-SHELL', 'curl -s -o /dev/null http://localhost:8080/ || exit 1']
+            <<: *worker-health
 
     queue:
         <<: *app
-        command: ['php', 'artisan', 'queue:work', '--queue=default', '--tries=3', '--timeout=60']
+        command: ['php', 'artisan', 'queue:work', '--queue=default', '--sleep=1', '--tries=3', '--timeout=60', '--max-time=3600']
+        mem_limit: 384m
+        healthcheck:
+            test: ['CMD', 'pgrep', '-f', 'queue:work']
+            <<: *worker-health
 
+    # Impresión (comandas, tickets, cajón, informes). Las impresoras USB se le
+    # pasan en compose.override.yaml (devices + group_add del grupo lp).
     printing:
-        <<: [*app, *usb-printers]
-        command: ['php', 'artisan', 'queue:work', '--queue=printing', '--timeout=30', '--sleep=1']
+        <<: *app
+        command: ['php', 'artisan', 'queue:work', '--queue=printing', '--sleep=1', '--timeout=30', '--max-time=3600']
+        mem_limit: 384m
+        healthcheck:
+            test: ['CMD', 'pgrep', '-f', 'queue:work']
+            <<: *worker-health
+
+    # Tareas programadas: copias de seguridad, avisos…
+    scheduler:
+        <<: *app
+        command: ['php', 'artisan', 'schedule:work']
+        mem_limit: 256m
+        healthcheck:
+            test: ['CMD', 'pgrep', '-f', 'schedule:work']
+            <<: *worker-health
 
     pgsql:
         image: 'postgres:18-alpine'
         restart: unless-stopped
+        logging: *logging
         environment:
             POSTGRES_DB: '${DB_DATABASE}'
             POSTGRES_USER: '${DB_USERNAME}'
             POSTGRES_PASSWORD: '${DB_PASSWORD}'
+            TZ: 'Europe/Madrid'
+        # Ajuste para un mini PC de 8-16 GB con un solo local.
+        command: ['postgres', '-c', 'shared_buffers=256MB', '-c', 'effective_cache_size=1GB', '-c', 'work_mem=8MB', '-c', 'max_connections=50']
+        shm_size: 128m
+        mem_limit: 1g
         volumes:
             - 'pgsql:/var/lib/postgresql'
-        networks:
-            - tpv
+        networks: [tpv]
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+            interval: 10s
+            timeout: 5s
+            retries: 6
+            start_period: 20s
 
 networks:
     tpv:
@@ -80,3 +114,4 @@ networks:
 volumes:
     pgsql:
     storage:
+    backups:

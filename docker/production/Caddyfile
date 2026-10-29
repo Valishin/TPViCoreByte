@@ -1,0 +1,31 @@
+# FrankenPHP (Caddy) del TPV en producción. HTTP en la red local (HTTPS solo
+# por Tailscale). Un solo puerto: /app y /apps van a Reverb (websockets).
+{
+	frankenphp
+	auto_https off
+	admin off
+}
+
+:80 {
+	root * /app/public
+	encode zstd gzip
+
+	# Tiempo real: Reverb (Pusher) escucha /app/{key} (websocket) y /apps/{id} (API).
+	@reverb path /app/* /apps/*
+	handle @reverb {
+		reverse_proxy reverb:8080
+	}
+
+	handle {
+		# Assets con hash de Vite: caché larga.
+		@build path /build/*
+		header @build Cache-Control "public, max-age=31536000, immutable"
+		php_server
+	}
+
+	log {
+		output stderr
+		format console
+		level WARN
+	}
+}

@@ -1,0 +1,26 @@
+# Contexto mínimo para la imagen de producción
+.git
+.env
+.env.*
+!.env.example
+node_modules
+vendor
+public/build
+public/hot
+public/storage
+public/css/filament
+public/js/filament
+public/fonts/filament
+storage/app/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*.php
+tests
+.phpunit.cache
+.idea
+.vscode
+.DS_Store
+docker-compose*.yml
+compose.yaml

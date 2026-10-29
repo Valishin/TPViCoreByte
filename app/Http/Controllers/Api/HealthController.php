@@ -35,6 +35,8 @@ class HealthController extends Controller
         return response()->json([
             'status' => $ok ? 'ok' : 'error',
             'app' => config('app.name'),
+            'version' => config('app.version'),
+            'commit' => config('app.commit'),
             'time' => now()->toIso8601String(),
             'database' => $database,
         ], $ok ? 200 : 503);
