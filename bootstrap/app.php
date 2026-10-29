@@ -25,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // SANCTUM_STATEFUL_DOMAINS se autentican con la cookie de sesión.
         $middleware->statefulApi();
         $middleware->alias(['pos.staff' => EnsurePosStaff::class]);
+        // Acceso remoto con HTTPS por Tailscale ("tailscale serve" hace de proxy
+        // hacia :80): respetar X-Forwarded-Proto para generar enlaces https.
+        // Solo desde redes privadas (el proxy llega por la red de Docker).
+        $middleware->trustProxies(at: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

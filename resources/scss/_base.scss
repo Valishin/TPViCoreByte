@@ -81,3 +81,9 @@ pre {
         animation: none !important;
     }
 }
+
+// Kiosko: cursor oculto tras unos segundos sin mover el ratón (useKioskCursor).
+html[data-cursor='hidden'],
+html[data-cursor='hidden'] * {
+    cursor: none !important;
+}

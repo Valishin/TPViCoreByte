@@ -1,0 +1,44 @@
+# Datos de la instalación del TPV en el mini PC. Copia este fichero a
+# tpv-install.conf, rellénalo y ejecuta:  sudo ./install.sh --config tpv-install.conf
+# Lo que falte se pregunta. Las contraseñas y claves se generan solas.
+
+# --- Local ---
+LOCAL_NAME="Pizzería Bella Napoli"
+# IP fija del mini PC (resérvala en el router por su MAC)
+LAN_IP="192.168.1.10"
+# Email del administrador (entra en /admin). La contraseña se genera.
+ADMIN_EMAIL="jefa@ejemplo.cat"
+# Tipos de pedido: mesa,barra,para_llevar,domicilio
+ORDER_TYPES="mesa,barra"
+
+# --- Imagen ---
+TPV_IMAGE="ghcr.io/CAMBIAR/tpv-hosteleria"
+TPV_VERSION="1.0.0"
+# GHCR privado: usuario y token de SOLO LECTURA (read:packages)
+GHCR_USER=""
+GHCR_TOKEN=""
+# …o una imagen copiada a mano (docker save | gzip). Si se indica, no se descarga.
+IMAGE_TAR=""
+
+# --- Impresoras USB (vacío si son de red) ---
+# Una por línea "nombre:idVendor:idProduct[:serial]" (ver lsusb). Quedan en /dev/usb/impresora-<nombre>.
+PRINTERS_USB="
+ticket:04b8:0202
+"
+
+# --- Copias de seguridad ---
+# Tu clave PÚBLICA age (age1…). La privada la guardas tú, fuera del mini PC.
+BACKUP_AGE_RECIPIENT=""
+# Destino remoto rclone (vacío = solo copias locales). Ver docker/production/env.example.
+BACKUP_REMOTE=""
+
+# --- Soporte remoto (Tailscale) ---
+# Clave de autenticación (de un solo uso) para unir el equipo sin pantalla. Vacío = a mano luego.
+TAILSCALE_AUTHKEY=""
+
+# --- Pantalla y actualizaciones (vacío = nunca) ---
+# Apagar y encender la pantalla del kiosko a estas horas (HH:MM).
+SCREEN_OFF=""
+SCREEN_ON=""
+# Actualizar sola a la última imagen a esta hora (HH:MM). Vacío = solo a mano con tpv-update.
+AUTO_UPDATE_AT=""

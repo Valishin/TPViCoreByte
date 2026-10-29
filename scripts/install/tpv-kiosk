@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Kiosko del TPV: cage (compositor Wayland de una sola aplicación) + Chromium a
+# pantalla completa en http://localhost. Lo lanza el autologin de tty1.
+#
+# Si Chromium se cierra, se cuelga o el sistema lo mata, vuelve a arrancar tras
+# una pequeña espera (más larga si falla seguido, para no entrar en un bucle
+# rápido). "Colgado": la página no responde a /api/health durante 2 minutos.
+#
+#   tpv-kiosk               bucle del kiosko (tty1)
+#   tpv-kiosk --screen off  apagar la pantalla (cron de horario, opcional)
+#   tpv-kiosk --screen on   encenderla
+set -u
+
+URL="${TPV_KIOSK_URL:-http://localhost/?kiosk=1}"
+PROFILE="$HOME/.config/chromium"
+
+if [ "${1:-}" = "--screen" ]; then
+    XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    export XDG_RUNTIME_DIR WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+    for output in $(wlr-randr 2>/dev/null | awk '/^[^ ]/ {print $1}'); do
+        wlr-randr --output "$output" "--${2:-on}"
+    done
+    exit 0
+fi
+
+# shellcheck disable=SC2054  # las comas de --disable-features son de Chromium
+flags=(
+    --kiosk "$URL"
+    --ozone-platform=wayland
+    --noerrdialogs --disable-infobars --no-first-run --disable-session-crashed-bubble
+    --disable-translate --disable-features=Translate,TranslateUI,HardwareMediaKeyHandling
+    --disable-pinch --overscroll-history-navigation=0 --disable-gesture-typing
+    --check-for-update-interval=31536000 --password-store=basic
+    --autoplay-policy=no-user-gesture-required
+)
+
+# Espera a que el TPV responda (tras un arranque en frío los contenedores tardan).
+wait_tpv() {
+    for _ in $(seq 1 90); do
+        curl -fsS -o /dev/null --max-time 3 http://localhost/api/health && return 0
+        sleep 2
+    done
+}
+
+# Chromium "colgado": la app deja de responder → se mata y el bucle lo relanza.
+watchdog() {
+    local fails=0
+    while sleep 30; do
+        if curl -fsS -o /dev/null --max-time 5 http://localhost/api/health; then fails=0; else fails=$((fails + 1)); fi
+        # Solo si el TPV responde y Chromium no avanza (proceso parado/zombi) o la app no responde 2 min.
+        if [ "$fails" -ge 4 ] || pgrep -r T,Z chromium >/dev/null 2>&1; then
+            pkill -KILL -f 'chromium.*--kiosk' ; fails=0
+        fi
+    done
+}
+
+backoff=3
+while true; do
+    started=$(date +%s)
+    wait_tpv
+    # Cierre limpio a ojos de Chromium: sin "¿Restaurar páginas?".
+    if [ -f "$PROFILE/Default/Preferences" ]; then
+        sed -i -e 's/"exited_cleanly":false/"exited_cleanly":true/' -e 's/"exit_type":"[^"]*"/"exit_type":"Normal"/' "$PROFILE/Default/Preferences"
+    fi
+    watchdog & wd=$!
+    cage -s -- chromium "${flags[@]}"
+    kill "$wd" 2>/dev/null
+    # Si ha durado poco, esperar más la próxima vez (máximo 60 s).
+    if [ $(( $(date +%s) - started )) -lt 30 ]; then backoff=$(( backoff * 2 > 60 ? 60 : backoff * 2 )); else backoff=3; fi
+    sleep "$backoff"
+done
