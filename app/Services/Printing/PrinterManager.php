@@ -28,7 +28,7 @@ class PrinterManager
     public function forPrinter(PrinterModel $printer): self
     {
         $config = $this->config;
-        $config['connection'] = $printer->connectionType()->value;
+        $config['connection'] = $printer->connection_type->value;
         $config['usb']['device_path'] = $printer->device_path ?? $config['usb']['device_path'];
         $config['network']['host'] = $printer->host ?? $config['network']['host'];
         $config['network']['port'] = $printer->port ?: $config['network']['port'];

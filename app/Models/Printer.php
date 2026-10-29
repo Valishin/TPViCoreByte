@@ -40,21 +40,9 @@ class Printer extends Model
         });
     }
 
-    /**
-     * Tipo de conexión. OJO: dentro del modelo `$this->connection` es la
-     * propiedad de Eloquent con el nombre de la conexión a la BD, no la
-     * columna; por eso se lee el atributo explícitamente.
-     */
-    public function connectionType(): PrinterConnection
-    {
-        $value = $this->getAttribute('connection');
-
-        return $value instanceof PrinterConnection ? $value : (PrinterConnection::tryFrom((string) $value) ?? PrinterConnection::Network);
-    }
-
     public function isUsb(): bool
     {
-        return $this->connectionType() === PrinterConnection::Usb;
+        return $this->connection_type === PrinterConnection::Usb;
     }
 
     /** "192.168.1.200:9100" o "/dev/impresora-ticket". */
@@ -67,7 +55,7 @@ class Printer extends Model
     {
         return [
             'type' => PrinterType::class,
-            'connection' => PrinterConnection::class,
+            'connection_type' => PrinterConnection::class,
             'status' => PrinterStatus::class,
             'last_status_at' => 'datetime',
             'is_active' => 'boolean',

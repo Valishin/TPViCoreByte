@@ -44,14 +44,14 @@ class UsbPrinterTest extends PosTestCase
     {
         return Printer::factory()->create($attributes + [
             'name' => 'Tickets USB', 'type' => PrinterType::Ticket,
-            'connection' => PrinterConnection::Usb, 'device_path' => $this->device, 'host' => null,
+            'connection_type' => PrinterConnection::Usb, 'device_path' => $this->device, 'host' => null,
         ]);
     }
 
     public function test_network_printer_requires_host_and_port(): void
     {
         $this->expectException(ValidationException::class);
-        Printer::factory()->create(['connection' => PrinterConnection::Network, 'host' => null]);
+        Printer::factory()->create(['connection_type' => PrinterConnection::Network, 'host' => null]);
     }
 
     public function test_usb_printer_requires_absolute_device_path_but_not_host(): void
@@ -74,15 +74,15 @@ class UsbPrinterTest extends PosTestCase
         Filament::setCurrentPanel('admin');
 
         Livewire::test(CreatePrinter::class)
-            ->fillForm(['name' => 'Cocina', 'type' => 'cocina', 'connection' => 'usb', 'device_path' => null, 'columns' => 48, 'profile' => 'default'])
+            ->fillForm(['name' => 'Cocina', 'type' => 'cocina', 'connection_type' => 'usb', 'device_path' => null, 'columns' => 48, 'profile' => 'default'])
             ->call('create')->assertHasFormErrors(['device_path' => 'required']);
 
         Livewire::test(CreatePrinter::class)
-            ->fillForm(['name' => 'Cocina', 'type' => 'cocina', 'connection' => 'red', 'host' => null, 'columns' => 48, 'profile' => 'default'])
+            ->fillForm(['name' => 'Cocina', 'type' => 'cocina', 'connection_type' => 'red', 'host' => null, 'columns' => 48, 'profile' => 'default'])
             ->call('create')->assertHasFormErrors(['host' => 'required']);
 
         Livewire::test(CreatePrinter::class)
-            ->fillForm(['name' => 'Cocina USB', 'type' => 'cocina', 'connection' => 'usb', 'device_path' => '/dev/impresora-cocina', 'columns' => 32, 'profile' => 'default'])
+            ->fillForm(['name' => 'Cocina USB', 'type' => 'cocina', 'connection_type' => 'usb', 'device_path' => '/dev/impresora-cocina', 'columns' => 32, 'profile' => 'default'])
             ->call('create')->assertHasNoFormErrors();
 
         $this->assertSame('/dev/impresora-cocina', Printer::where('name', 'Cocina USB')->first()->device_path);

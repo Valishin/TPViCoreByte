@@ -20,7 +20,7 @@ class PrinterForm
             Section::make()->columns(2)->columnSpanFull()->schema([
                 TextInput::make('name')->label('Nombre')->required()->maxLength(255)->placeholder('Cocina'),
                 ToggleButtons::make('type')->label('Uso')->options(PrinterType::class)->default(PrinterType::Kitchen)->inline()->required(),
-                ToggleButtons::make('connection')->label('Conexión')->options(PrinterConnection::class)
+                ToggleButtons::make('connection_type')->label('Conexión')->options(PrinterConnection::class)
                     ->default(PrinterConnection::Network)->inline()->required()->live()->columnSpanFull(),
                 TextInput::make('host')->label('Dirección IP')->placeholder('192.168.1.200')
                     ->ipv4()
@@ -48,7 +48,7 @@ class PrinterForm
 
     private static function usb(Get $get): bool
     {
-        $value = $get('connection');
+        $value = $get('connection_type');
 
         return ($value instanceof PrinterConnection ? $value : PrinterConnection::tryFrom((string) $value)) === PrinterConnection::Usb;
     }

@@ -24,7 +24,7 @@ class PrintersTable
             ->columns([
                 TextColumn::make('name')->label('Impresora')->searchable(),
                 TextColumn::make('type')->label('Uso')->badge(),
-                TextColumn::make('connection')->label('Conexión')->badge(),
+                TextColumn::make('connection_type')->label('Conexión')->badge(),
                 TextColumn::make('host')->label('Dirección')->state(fn (Printer $record) => $record->address()),
                 TextColumn::make('columns')->label('Papel')->formatStateUsing(fn (int $state) => $state === 32 ? '58 mm' : '80 mm'),
                 TextColumn::make('status')->label('Estado')->badge()
