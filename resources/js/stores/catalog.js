@@ -7,7 +7,9 @@ function readCache() {
     try {
         const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
         // Descartar cachés con otra forma (versiones antiguas).
-        return Array.isArray(cached?.data?.categories) && Array.isArray(cached?.data?.products) ? cached : null;
+        return Array.isArray(cached?.data?.categories) && Array.isArray(cached?.data?.products) && Array.isArray(cached?.data?.quick_notes)
+            ? cached
+            : null;
     } catch {
         return null;
     }
@@ -27,6 +29,13 @@ export const useCatalogStore = defineStore('catalog', {
         groupById: (s) => (id) => s.data?.modifier_groups.find((g) => g.id === id),
         groupsOf() {
             return (product) => (product?.modifier_group_ids ?? []).map((id) => this.groupById(id)).filter(Boolean);
+        },
+        /** Notas rápidas de un producto: las de su categoría y después las generales del local. */
+        quickNotesFor: (s) => (productId) => {
+            const product = s.data?.products.find((p) => p.id === productId);
+            const category = s.data?.categories.find((c) => c.id === product?.category_id);
+            const all = [...(category?.quick_notes ?? []), ...(s.data?.quick_notes ?? [])];
+            return all.filter((n, i) => all.findIndex((m) => m.toLocaleLowerCase('es') === n.toLocaleLowerCase('es')) === i);
         },
         halfCandidates: (s) => (product) =>
             (s.data?.products ?? []).filter((p) => p.allows_half_and_half && p.available && p.id !== product.id),

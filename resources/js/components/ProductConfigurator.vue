@@ -116,13 +116,7 @@
                         <TpvButton variant="secondary" icon aria-label="Más" @click="d.quantity++">+</TpvButton>
                     </span>
                 </div>
-                <div class="c-chips">
-                    <button v-for="n in quickNotes" :key="n" type="button" :class="['c-option', { 'c-option--selected': d.notes === n }]" @click="d.notes = d.notes === n ? '' : n">{{ n }}</button>
-                </div>
-                <label class="c-field">
-                    <span class="c-field__label">Nota para cocina</span>
-                    <input v-model="d.notes" class="c-field__input" maxlength="200" placeholder="Opcional" />
-                </label>
+                <QuickNotes v-model="d.notes" :notes="quickNotes" />
             </section>
         </div>
 
@@ -142,6 +136,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 import BottomSheet from './BottomSheet.vue';
+import QuickNotes from './QuickNotes.vue';
 import TpvButton from './TpvButton.vue';
 import { useCatalogStore } from '@/stores/catalog';
 import { useOrderStore } from '@/stores/order';
@@ -160,7 +155,7 @@ const emit = defineEmits(['add', 'close']);
 const catalog = useCatalogStore();
 const order = useOrderStore();
 const showErrors = ref(false);
-const quickNotes = ['Sin sal', 'Poco hecho', 'Al punto', 'Muy hecho', 'Para compartir', 'Sin gluten'];
+const quickNotes = computed(() => catalog.quickNotesFor(props.product?.id));
 
 watch(
     () => props.product?.id,
