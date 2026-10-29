@@ -50,30 +50,44 @@ nueva debe cumplirlos.
   app.
 - **Números** (PIN, importes, cantidades, comensales, fondo y arqueo):
   **teclado numérico propio**.
-- **Notas rápidas configurables por categoría en Filament:** cada categoría
-  tiene su lista de notas ("Sin sal", "Poco hecho"…), que salen como botones
-  al añadir un producto o editar una línea. Se pueden tocar varias, y el
-  texto libre queda para los casos raros.
-- **Teclado en pantalla propio para texto** (QWERTY español con **ñ** y
-  **acentos**: á é í ó ú ü, y mayúsculas). **Aparece al enfocar un campo de
-  texto en la caja** (notas, motivos, nombres) y **convive con el teclado
-  físico**: si hay uno conectado, se puede escribir con los dos y no se pierde
-  nada.
-- **Ajuste "Mostrar teclado en pantalla en caja"** (Ajustes en Filament,
-  activado por defecto). Desactivado, en la caja solo se usa el teclado físico.
-  En **móvil** se usa el teclado del propio teléfono.
+- **Notas rápidas configurables en Filament:** cada categoría tiene su lista
+  ordenable ("Sin hielo", "Poco hecha"…) y hay unas **generales del local**
+  (Ajustes del local) para todas. En la línea del pedido salen como botones,
+  primero las de la categoría y después las generales: **un toque añade o
+  quita**, se pueden marcar varias, y **"Nota libre"** queda para lo demás. La
+  nota de la línea es un solo texto: las rápidas en su orden y detrás la libre.
+- **Teclado en pantalla propio para texto** (`c-keyboard`): QWERTY español
+  con **ñ**, fila de números, signos básicos (`, . - / @ º ª #`), espacio
+  grande, borrar y **"Hecho"**. **Acentos con tecla muerta:** `´` y después la
+  vocal da á é í ó ú (mientras está pendiente, las vocales ya se ven con
+  tilde); `¨` + u da ü; dos pulsaciones escriben el signo. Mayúsculas: un toque
+  para una letra, dos para bloquear. Pone mayúscula al empezar el campo o la
+  frase (no en email/URL).
+  - Teclas de **64 px de alto** como mínimo.
+  - **Aparece al enfocar cualquier campo de texto en la caja**, sin tapar el
+    campo: las hojas y modales suben por encima del teclado, el contenido se
+    desplaza hasta el campo y, además, el teclado muestra arriba el campo que
+    se edita (etiqueta y texto).
+  - **Modo numérico** (1-9, 0, `+`, `-`, `.`, espacio) para teléfono, código
+    postal…
+  - **Convive con el teclado físico:** se puede escribir con los dos en el
+    mismo campo.
+  - **En caja nunca se abre el teclado del sistema** (`inputmode="none"` en
+    todos los campos de texto, también con el ajuste desactivado).
+  - **En móvil no se usa:** se usa el teclado del teléfono (numérico en los
+    campos numéricos).
+- **Ajuste "Mostrar teclado en pantalla en caja"** (Ajustes del local → TPV,
+  activado por defecto). Desactivado, en la caja solo se escribe con el
+  teclado físico.
 - **El ratón no puede romper nada:** todo funciona igual con un clic que con
   un toque (sin gestos que solo existan en táctil, sin dobles disparos con
   dobles clics). **Nada depende del hover:** ninguna acción ni información se
   ve solo al pasar el ratón por encima. El hover puede cambiar el color, pero
   nada más.
 
-> **Estado (29/10/2026):** de esto ya están hechos los teclados numéricos
-> (`NumericKeypad`, `AmountKeypad`) y que nada dependa del hover. **Falta**:
-> el teclado QWERTY en pantalla, el ajuste "Mostrar teclado en pantalla en
-> caja" y que las notas rápidas sean por categoría. Hoy son una lista fija en
-> `ProductConfigurator.vue` y `LineActions.vue`, y los campos de texto abren
-> el teclado del sistema.
+> **Estado (29/10/2026):** todo lo anterior está implementado (teclados
+> numéricos, teclado en pantalla con modo numérico, ajuste del local y notas
+> rápidas por categoría y generales).
 
 ### PIN (entrada y autorización de encargado)
 
@@ -140,6 +154,14 @@ nueva debe cumplirlos.
   pantalla es horizontal y de al menos 1024 px).
 - Componentes BEM en `resources/scss/components/` (`c-…`) y vistas en
   `resources/scss/views/` (`v-…`). Teclados: `NumericKeypad.vue` (PIN y
-  números) y `AmountKeypad.vue` (importes en euros). Teclado de texto previsto:
-  un componente `OnScreenKeyboard.vue` que se abra al enfocar un campo
-  (`c-field__input`) en la disposición de caja, según el ajuste del local.
+  números) y `AmountKeypad.vue` (importes en euros).
+- Teclado en pantalla: `components/OnScreenKeyboard.vue` (montado una vez en
+  `App.vue`, escucha el foco de **cualquier** `<input>` de texto o
+  `<textarea>`) con la lógica en `composables/useOnScreenKeyboard.js`. Para un
+  campo nuevo no hay que hacer nada; para elegir el modo:
+  `<TextField v-model="…" label="Teléfono" keyboard="numeric" />` o la
+  directiva `v-keyboard="'numeric'"` (`'off'` lo desactiva en ese campo).
+  Estilos en `scss/components/_keyboard.scss`.
+- Notas rápidas: `components/QuickNotes.vue` con `catalog.quickNotesFor(productId)`
+  y `utils/notes.js`; vienen en la carta (`/api/catalog`: `categories[].quick_notes`
+  y `quick_notes` generales).
