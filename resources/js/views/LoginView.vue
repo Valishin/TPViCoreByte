@@ -1,9 +1,9 @@
 <template>
     <main class="v-login">
         <h1 class="v-login__brand">{{ locked ? 'Pantalla bloqueada' : 'TPV' }}</h1>
-        <p class="v-login__hint">{{ selected ? 'Introduce tu PIN' : '¿Quién eres?' }}</p>
 
         <!-- En móvil, al elegir nombre el teclado sustituye a la lista -->
+        <h2 v-if="ui.isPos || !selected" class="v-login__title">Seleccione el usuario</h2>
         <div v-if="ui.isPos || !selected" class="v-login__staff">
             <button
                 v-for="p in staff"
@@ -19,9 +19,10 @@
         </div>
 
         <div v-if="selected || ui.isPos" class="v-login__pad">
-            <p class="v-login__who">
-                {{ selected ? selected.name : 'Elige tu nombre' }}
-                <TpvButton v-if="selected && !ui.isPos" variant="ghost" size="sm" @click="select(null)">Cambiar</TpvButton>
+            <h2 class="v-login__title">Introduce tu PIN</h2>
+            <p v-if="selected" class="v-login__who">
+                {{ selected.name }}
+                <TpvButton v-if="!ui.isPos" variant="ghost" size="sm" @click="select(null)">Cambiar</TpvButton>
             </p>
             <NumericKeypad v-model="pin" masked :length="4" :error="!!error" :disabled="!selected" @complete="submit" />
             <p class="v-login__error" role="alert">{{ error }}</p>

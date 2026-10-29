@@ -13,6 +13,12 @@
         text-align: center;
     }
 
+    &__title {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+        text-align: center;
+    }
+
     &__hint {
         color: $color-text-muted;
         text-align: center;
