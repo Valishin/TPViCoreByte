@@ -182,7 +182,36 @@ La SPA en <http://localhost:8081> (o la IP del ordenador desde el móvil).
 - **Tiempo real:** todo cambio (mesas, pedidos, impresoras, carta) llega al
   momento a las demás pantallas; el punto verde de la barra indica la conexión.
 
-> Fuera de alcance por ahora: cobro y tickets, pantallas de para llevar y
+## Cobro, caja y tickets
+
+- **Caja:** hace falta una caja abierta para cobrar (botón **Caja** en la barra
+  superior). Solo encargado o admin la abren y cierran; si lo intenta un
+  camarero, se pide el PIN de un encargado sin cerrar su sesión.
+- **Cobrar** (desde la comanda, o **Venta rápida** en el plano para barra sin
+  mesa): Efectivo (teclado en euros, billetes rápidos, "Importe exacto" y
+  cambio), Tarjeta y Bizum (datáfono externo: se propone lo pendiente; la
+  tarjeta admite **propina**, que no entra en el ticket ni en el IVA), Otro.
+  Pago mixto hasta cubrir el total. **Dividir a partes iguales** = un solo
+  ticket con varios pagos (justificante de pago opcional por parte, que no es
+  factura). **Dividir por productos** = cuenta nueva con su propio ticket.
+- El cajón solo se abre si se cobra en efectivo. "Abrir cajón" sin venta pide
+  autorización. Un doble toque en "Cobrar" no emite dos tickets (clave de
+  idempotencia).
+- **Autorización de encargado** para: descuentos por encima del límite
+  (Ajustes del local, 10 % por defecto), invitaciones, anular tickets, abrir el
+  cajón sin venta, reimprimir a partir de la 2.ª copia y abrir/cerrar caja.
+  Queda registrado quién la pidió y quién la dio.
+- **Anular un ticket** (Caja → Anular, o en /admin → Tickets): emite un
+  rectificativo por diferencias en la serie R (total o parcial) y registra la
+  devolución en la caja. En /admin también "por sustitución".
+- **Cierre Z**: arqueo con importe o contando billetes y monedas; avisa si hay
+  pedidos abiertos. Imprime el Z (correlativo) con ventas, formas de pago,
+  propinas, IVA, camareros y tipos de pedido.
+- **Exportación fiscal** (/admin → Ventas → Exportación fiscal, o
+  `sail artisan tpv:export-fiscal --from=AAAA-MM-DD --to=AAAA-MM-DD`): ZIP con
+  CSV y PDF de tickets, rectificativos y cierres Z.
+
+> Fuera de alcance por ahora: pantallas de para llevar y
 > domicilio, editor visual del plano y modo sin conexión. El dataset
 > **pizzería** no tiene salas: para probar su carta en sala, crea una sala en
 > /admin → Sala y activa "Mesa" en Ajustes del local.

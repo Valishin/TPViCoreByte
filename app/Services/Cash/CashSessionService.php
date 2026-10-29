@@ -58,10 +58,7 @@ class CashSessionService
             throw new InvalidArgumentException('El desglose no suma el efectivo contado.');
         }
 
-        $open = Order::query()->where('status', OrderStatus::Open)->with('table')->get();
-        if ($open->isNotEmpty() && ! $force) {
-            throw new OpenOrdersException($open->map(fn (Order $o) => ($o->table ? "Mesa {$o->table->name}" : $o->type->label()).' · '.Format::money($o->total))->all());
-        }
+        $this->assertNoOpenOrders($force);
 
         return DB::transaction(function () use ($session, $by, $countedCash, $notes, $breakdown) {
             $session = CashSession::query()->whereKey($session->id)->lockForUpdate()->firstOrFail();
@@ -90,6 +87,21 @@ class CashSessionService
 
             return $session;
         });
+    }
+
+    /**
+     * Con pedidos abiertos, el cierre necesita confirmación ($force). Se llama
+     * también ANTES de pedir la autorización, para no gastar el PIN del
+     * encargado en un intento que va a pedir confirmación.
+     *
+     * @throws OpenOrdersException
+     */
+    public function assertNoOpenOrders(bool $force): void
+    {
+        $open = Order::query()->where('status', OrderStatus::Open)->with('table')->get();
+        if ($open->isNotEmpty() && ! $force) {
+            throw new OpenOrdersException($open->map(fn (Order $o) => ($o->table ? "Mesa {$o->table->name}" : $o->type->label()).' · '.Format::money($o->total))->all());
+        }
     }
 
     /** @param  array<string|int, int>  $breakdown  valor en céntimos => unidades */

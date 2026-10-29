@@ -58,6 +58,7 @@ class CashController extends Controller
             'authorization_token' => ['nullable', 'string'],
         ]);
         $session = CheckoutService::openSession() ?? throw new LogicException('No hay ninguna caja abierta.');
+        $this->cash->assertNoOpenOrders($data['force'] ?? false); // antes de gastar la autorización
         $manager = $this->authorization->require(AuthorizationAction::CloseCash, $request->user(), $data['authorization_token'] ?? null, $session);
 
         $session = $this->cash->close($session, $manager, $data['counted_cash'], $data['notes'] ?? null, $data['breakdown'] ?? null, $data['force'] ?? false);

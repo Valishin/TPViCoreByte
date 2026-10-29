@@ -65,6 +65,16 @@ class CashReportTest extends PosTestCase
             ->assertJsonPath('data.report.notes', 'Falta una moneda');
     }
 
+    public function test_open_orders_warning_comes_before_the_authorization(): void
+    {
+        $this->openCash(0);
+        $this->orderWith([[$this->product('Caña', 250, $this->drinks), 1]]);
+
+        // El camarero sin token recibe primero el aviso de pedidos abiertos, no la petición de PIN.
+        $this->asWaiter()->postJson('/api/cash-session/close', ['counted_cash' => 0])->assertStatus(409)->assertJsonPath('code', 'open_orders');
+        $this->asWaiter()->postJson('/api/cash-session/close', ['counted_cash' => 0, 'force' => true])->assertForbidden()->assertJsonPath('code', 'authorization_required');
+    }
+
     public function test_breakdown_must_match_counted_cash(): void
     {
         $this->openCash(0);

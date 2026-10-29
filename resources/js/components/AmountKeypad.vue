@@ -39,7 +39,7 @@ function toText(cents) {
     if (!cents) return '';
     const units = Math.floor(cents / 100);
     const dec = cents % 100;
-    return dec ? `${units},${String(dec).padStart(2, '0').replace(/0$/, '')}` : String(units);
+    return dec ? `${units},${String(dec).padStart(2, '0')}` : String(units);
 }
 function toCents(value) {
     if (!value) return 0;
