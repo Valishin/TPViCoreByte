@@ -41,6 +41,21 @@ class CashSessionInfolist
                         ->all()
                 ),
             ]),
+            Section::make('Informe Z')->columns(3)->columnSpanFull()
+                ->visible(fn (CashSession $record) => filled($record->z_report))
+                ->schema([
+                    TextEntry::make('z_tickets')->label('Tickets / rectificativos')
+                        ->state(fn (CashSession $record) => ($record->z_report['tickets']['count'] ?? 0).' / '.($record->z_report['rectifications']['count'] ?? 0)),
+                    TextEntry::make('z_discounts')->label('Descuentos · invitaciones')
+                        ->state(fn (CashSession $record) => Format::money($record->z_report['discounts']['amount'] ?? 0).' · '.Format::money($record->z_report['invitations']['amount'] ?? 0)),
+                    TextEntry::make('z_tips')->label('Propinas (fuera de ventas)')
+                        ->state(fn (CashSession $record) => Format::money($record->z_report['tips']['total'] ?? 0))
+                        ->helperText(fn (CashSession $record) => collect($record->z_report['tips']['by_waiter'] ?? [])->map(fn ($r) => $r['name'].': '.Format::money($r['amount']))->implode(' · ')),
+                    TextEntry::make('z_waiters')->label('Por camarero')->columnSpanFull()
+                        ->state(fn (CashSession $record) => collect($record->z_report['by_waiter'] ?? [])->map(fn ($r) => "{$r['name']} ({$r['count']}): ".Format::money($r['total']))->implode(' · ') ?: '—'),
+                    TextEntry::make('z_types')->label('Por tipo de pedido')->columnSpanFull()
+                        ->state(fn (CashSession $record) => collect($record->z_report['by_order_type'] ?? [])->map(fn ($r) => "{$r['label']} ({$r['count']}): ".Format::money($r['total']))->implode(' · ') ?: '—'),
+                ]),
             Section::make('Arqueo de efectivo')->columns(5)->columnSpanFull()->schema([
                 MoneyEntry::make('opening_float')->label('Fondo inicial'),
                 TextEntry::make('cash_in')->label('Cobrado en efectivo')
