@@ -153,6 +153,9 @@ class PrinterManager
                 case 'cut':
                     $printer->cut();
                     break;
+                case 'pulse':
+                    $printer->pulse();
+                    break;
             }
         }
         // Sin $printer->close(): finalizaría el conector y perderíamos los
@@ -189,6 +192,9 @@ class PrinterManager
                     break;
                 case 'cut':
                     $out[] = str_repeat('✂ ', intdiv($columns, 2)).' [CORTE]';
+                    break;
+                case 'pulse':
+                    $out[] = '[ABRIR CAJÓN]';
                     break;
             }
         }

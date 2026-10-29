@@ -3,10 +3,13 @@
 use App\Http\Controllers\Api\DiagnosticsController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Pos\AuthController;
+use App\Http\Controllers\Pos\CashController;
 use App\Http\Controllers\Pos\CatalogController;
+use App\Http\Controllers\Pos\CheckoutController;
 use App\Http\Controllers\Pos\OrderController;
 use App\Http\Controllers\Pos\PrintController;
 use App\Http\Controllers\Pos\RoomController;
+use App\Http\Controllers\Pos\TicketController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('api.health');
@@ -38,6 +41,29 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::patch('/orders/{order}/type', [OrderController::class, 'changeType'])->name('pos.orders.type');
     Route::patch('/order-lines/{line}', [OrderController::class, 'updateLine'])->name('pos.lines.update');
     Route::post('/order-lines/{line}/void', [OrderController::class, 'voidLine'])->name('pos.lines.void');
+
+    // Autorización de encargado
+    Route::get('/managers', [AuthController::class, 'managers'])->name('pos.managers');
+    Route::post('/authorize', [AuthController::class, 'grantAuthorization'])->middleware('throttle:30,1')->name('pos.authorize');
+
+    // Cobro, descuentos y división
+    Route::post('/quick-sale', [CheckoutController::class, 'quickSale'])->name('pos.quick-sale');
+    Route::post('/orders/{order}/checkout', [CheckoutController::class, 'checkout'])->name('pos.orders.checkout');
+    Route::post('/orders/{order}/discount', [CheckoutController::class, 'discountOrder'])->name('pos.orders.discount');
+    Route::post('/orders/{order}/split', [CheckoutController::class, 'split'])->name('pos.orders.split');
+    Route::post('/order-lines/{line}/discount', [CheckoutController::class, 'discountLine'])->name('pos.lines.discount');
+    Route::post('/order-lines/{line}/invite', [CheckoutController::class, 'inviteLine'])->name('pos.lines.invite');
+
+    // Caja y tickets
+    Route::get('/cash-session', [CashController::class, 'show'])->name('pos.cash.show');
+    Route::post('/cash-session/open', [CashController::class, 'open'])->name('pos.cash.open');
+    Route::post('/cash-session/close', [CashController::class, 'close'])->name('pos.cash.close');
+    Route::post('/cash-session/print-x', [CashController::class, 'printX'])->name('pos.cash.print-x');
+    Route::post('/drawer/open', [CashController::class, 'openDrawer'])->name('pos.drawer.open');
+    Route::get('/tickets', [CashController::class, 'tickets'])->name('pos.tickets');
+    Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('pos.tickets.show');
+    Route::post('/tickets/{ticket}/reprint', [TicketController::class, 'reprint'])->name('pos.tickets.reprint');
+    Route::post('/tickets/{ticket}/rectify', [TicketController::class, 'rectify'])->name('pos.tickets.rectify');
 
     Route::get('/printers', [PrintController::class, 'printers'])->name('pos.printers');
     Route::get('/print-jobs/failed', [PrintController::class, 'failed'])->name('pos.print-jobs.failed');

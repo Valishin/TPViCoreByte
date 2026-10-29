@@ -1,5 +1,8 @@
 <?php
 
+use App\Exceptions\AuthorizationRequiredException;
+use App\Exceptions\CashSessionRequiredException;
+use App\Exceptions\OpenOrdersException;
 use App\Exceptions\TableUnavailableException;
 use App\Http\Middleware\EnsurePosStaff;
 use Illuminate\Foundation\Application;
@@ -26,6 +29,24 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Autorización de encargado / caja: códigos que la SPA reconoce.
+        $exceptions->render(function (AuthorizationRequiredException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage(), 'code' => 'authorization_required', 'action' => $e->action->value], 403);
+            }
+        });
+        $exceptions->render(function (CashSessionRequiredException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage(), 'code' => 'cash_session_required'], 409);
+            }
+        });
+
+        $exceptions->render(function (OpenOrdersException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage(), 'code' => 'open_orders', 'orders' => $e->orders], 409);
+            }
+        });
 
         // Reglas de negocio de los servicios de la app → JSON legible en la API.
         $exceptions->render(function (TableUnavailableException $e, Request $request) {

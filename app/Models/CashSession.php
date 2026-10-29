@@ -26,6 +26,9 @@ class CashSession extends Model
             'counted_cash' => 'integer',
             'difference' => 'integer',
             'z_number' => 'integer',
+            'opening_breakdown' => 'array',
+            'counted_breakdown' => 'array',
+            'z_report' => 'array',
         ];
     }
 

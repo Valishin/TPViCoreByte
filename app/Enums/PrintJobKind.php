@@ -10,6 +10,10 @@ enum PrintJobKind: string implements HasLabel
     case Kitchen = 'comanda';
     case Void = 'anulacion';
     case Precheck = 'cuenta';
+    case Receipt = 'ticket';
+    case PaymentReceipt = 'justificante';
+    case Drawer = 'cajon';
+    case Report = 'informe';
 
     public function label(): string
     {
@@ -17,6 +21,10 @@ enum PrintJobKind: string implements HasLabel
             self::Kitchen => 'Comanda',
             self::Void => 'Anulación',
             self::Precheck => 'Cuenta',
+            self::Receipt => 'Ticket',
+            self::PaymentReceipt => 'Justificante de pago',
+            self::Drawer => 'Apertura de cajón',
+            self::Report => 'Informe de caja',
         };
     }
 

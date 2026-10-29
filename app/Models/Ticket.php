@@ -76,6 +76,7 @@ class Ticket extends Model
             'issuer' => 'array',
             'customer' => 'array',
             'delivery_address' => 'array',
+            'rectified_amounts' => 'array',
             'issued_at' => 'datetime',
             'paid_at' => 'datetime',
         ];
@@ -143,6 +144,11 @@ class Ticket extends Model
     public function rectifications(): HasMany
     {
         return $this->hasMany(Ticket::class, 'rectified_ticket_id');
+    }
+
+    public function printJobs(): HasMany
+    {
+        return $this->hasMany(PrintJob::class);
     }
 
     public function fiscalRecords(): HasMany

@@ -21,6 +21,7 @@ class Payment extends Model
             'amount' => 'integer',
             'tendered' => 'integer',
             'change' => 'integer',
+            'tip' => 'integer',
             'paid_at' => 'datetime',
         ];
     }

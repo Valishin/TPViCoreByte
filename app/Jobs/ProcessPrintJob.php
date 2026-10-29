@@ -39,7 +39,7 @@ class ProcessPrintJob implements ShouldQueue
         $job->increment('attempts');
         $printer = $job->printer ?? throw new RuntimeException('La impresora ya no existe.');
 
-        $manager->forPrinter($printer)->print($job->ticket());
+        $manager->forPrinter($printer)->print($job->printable());
 
         $job->update(['status' => PrintJobStatus::Printed, 'printed_at' => now(), 'error' => null]);
 

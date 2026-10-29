@@ -30,6 +30,8 @@ class Setting extends Model
             'auto_lock_minutes_pos' => 'integer',
             'auto_lock_minutes_mobile' => 'integer',
             'lock_pos_after_send' => 'boolean',
+            'discount_limit_bp' => 'integer',
+            'print_ticket_on_checkout' => 'boolean',
         ];
     }
 

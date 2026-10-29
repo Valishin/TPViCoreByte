@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Enums\PrintJobKind;
 use App\Enums\PrintJobStatus;
-use App\Services\Printing\Ticket;
+use App\Services\Printing\Ticket as PrintTicket;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,14 +30,20 @@ class PrintJob extends Model
         ];
     }
 
-    public function ticket(): Ticket
+    /** Contenido listo para imprimir. */
+    public function printable(): PrintTicket
     {
-        return Ticket::fromOperations($this->content);
+        return PrintTicket::fromOperations($this->content);
     }
 
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function ticket(): BelongsTo
+    {
+        return $this->belongsTo(Ticket::class);
     }
 
     public function printer(): BelongsTo

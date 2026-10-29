@@ -5,13 +5,16 @@ namespace Tests\Feature\Pos;
 use App\Enums\PrinterType;
 use App\Enums\ProductType;
 use App\Enums\UserRole;
+use App\Models\CashSession;
 use App\Models\Category;
 use App\Models\Printer;
 use App\Models\Product;
 use App\Models\Table;
 use App\Models\User;
+use App\Services\Cash\CashSessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -53,7 +56,21 @@ abstract class PosTestCase extends TestCase
 
     protected function asWaiter(?User $user = null): static
     {
-        return $this->actingAs($user ?? $this->waiter, 'pos');
+        return $this->asPos($user ?? $this->waiter);
+    }
+
+    /** Cambia de usuario del TPV (el guard de Sanctum cachea el usuario entre peticiones del test). */
+    protected function asPos(User $user): static
+    {
+        $this->app['auth']->forgetGuards();
+
+        return $this->actingAs($user, 'pos');
+    }
+
+    /** Texto de un contenido de impresión (líneas y columnas). */
+    protected function printedText(array $content): string
+    {
+        return collect($content)->map(fn ($op) => $op['type'] === 'columns' ? $op['left'].' '.$op['right'] : ($op['text'] ?? ''))->filter()->implode("\n");
     }
 
     protected function product(string $name, int $price, ?Category $category = null, array $attributes = []): Product
@@ -76,6 +93,29 @@ abstract class PosTestCase extends TestCase
     protected function addLine(int $orderId, array $payload): TestResponse
     {
         return $this->asWaiter()->postJson("/api/orders/{$orderId}/lines", $payload);
+    }
+
+    protected function openCash(int $float = 10000): CashSession
+    {
+        $manager = User::factory()->role(UserRole::Manager)->withPin('9999')->create();
+
+        return app(CashSessionService::class)->open($manager, $float);
+    }
+
+    /** Mesa abierta con líneas ya calculadas; devuelve el id del pedido. */
+    protected function orderWith(array $products): int
+    {
+        $order = $this->openTable(Table::factory()->create());
+        foreach ($products as [$product, $quantity]) {
+            $this->addLine($order['id'], ['product_id' => $product->id, 'quantity' => $quantity])->assertCreated();
+        }
+
+        return $order['id'];
+    }
+
+    protected function checkout(int $orderId, array $payments, ?string $key = null, array $extra = []): TestResponse
+    {
+        return $this->asWaiter()->postJson("/api/orders/{$orderId}/checkout", ['idempotency_key' => $key ?? (string) Str::uuid(), 'payments' => $payments] + $extra);
     }
 
     protected function menu(Product ...$components): Product

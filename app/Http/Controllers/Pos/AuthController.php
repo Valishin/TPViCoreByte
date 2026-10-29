@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Pos;
 
+use App\Enums\AuthorizationAction;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Pos\StaffResource;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Pos\AuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /** Entrada al TPV con PIN (guard `pos`, sesión por cookie). */
@@ -77,8 +80,36 @@ class AuthController extends Controller
                 'auto_lock_minutes_pos' => $settings->auto_lock_minutes_pos,
                 'auto_lock_minutes_mobile' => $settings->auto_lock_minutes_mobile,
                 'lock_pos_after_send' => $settings->lock_pos_after_send,
+                'discount_limit_bp' => $settings->discount_limit_bp,
+                'print_ticket_on_checkout' => $settings->print_ticket_on_checkout,
+            ],
+            'permissions' => [
+                'authorize' => AuthorizationService::canAuthorize($request->user()),
             ],
         ]);
+    }
+
+    /** Encargados que pueden autorizar (para el modal "Autorizar"). */
+    public function managers(): JsonResponse
+    {
+        $managers = User::query()->where('is_active', true)->whereNotNull('pin')->orderBy('name')->get()
+            ->filter(fn (User $u) => AuthorizationService::canAuthorize($u))->values();
+
+        return response()->json(['data' => StaffResource::collection($managers)]);
+    }
+
+    /** El encargado teclea su PIN → token de un solo uso para la acción. */
+    public function grantAuthorization(Request $request, AuthorizationService $authorization): JsonResponse
+    {
+        $data = $request->validate([
+            'manager_id' => ['required', 'integer'],
+            'pin' => ['required', 'string', 'regex:/^\d{4}$/'],
+            'action' => ['required', Rule::enum(AuthorizationAction::class)],
+        ]);
+
+        $token = $authorization->grant($request->user(), $data['manager_id'], $data['pin'], AuthorizationAction::from($data['action']));
+
+        return response()->json(['token' => $token, 'expires_in' => AuthorizationService::TTL_SECONDS]);
     }
 
     /** Cierra solo la sesión del TPV (no la del backoffice si la hubiera). */

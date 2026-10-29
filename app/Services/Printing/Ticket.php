@@ -53,6 +53,14 @@ class Ticket
         return $this;
     }
 
+    /** Pulso al cajón portamonedas conectado a la impresora (RJ11). */
+    public function pulse(): static
+    {
+        $this->operations[] = ['type' => 'pulse'];
+
+        return $this;
+    }
+
     public function cut(): static
     {
         $this->operations[] = ['type' => 'cut'];

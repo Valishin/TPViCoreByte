@@ -29,13 +29,13 @@ class TicketIssuer
         private OrderService $orders,
     ) {}
 
-    public function issue(Order $order, User $by, ?CashSession $session = null): Ticket
+    public function issue(Order $order, User $by, ?CashSession $session = null, ?string $idempotencyKey = null): Ticket
     {
         if (! $order->isOpen()) {
             throw new LogicException('Solo se puede emitir ticket de un pedido abierto.');
         }
 
-        return DB::transaction(function () use ($order, $by, $session) {
+        return DB::transaction(function () use ($order, $by, $session, $idempotencyKey) {
             $settings = Setting::current();
             $series = $settings->defaultTicketSeries ?? throw new LogicException('No hay serie de tickets por defecto.');
 
@@ -73,6 +73,7 @@ class TicketIssuer
                     'phone' => $order->customer_phone,
                 ] : null,
                 'delivery_address' => $order->delivery_address,
+                'idempotency_key' => $idempotencyKey,
                 'payment_status' => $totals->total === 0 ? PaymentStatus::Paid : PaymentStatus::Pending,
                 'paid_at' => $totals->total === 0 ? now() : null,
             ]);

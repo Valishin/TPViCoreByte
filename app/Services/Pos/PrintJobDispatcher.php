@@ -2,12 +2,15 @@
 
 namespace App\Services\Pos;
 
+use App\Enums\PrinterType;
 use App\Enums\PrintJobKind;
 use App\Enums\PrintJobStatus;
 use App\Jobs\ProcessPrintJob;
+use App\Models\CashSession;
 use App\Models\Order;
 use App\Models\Printer;
 use App\Models\PrintJob;
+use App\Models\Ticket as TicketModel;
 use App\Models\User;
 use App\Services\Printing\Ticket;
 use Illuminate\Support\Facades\DB;
@@ -20,10 +23,12 @@ use LogicException;
  */
 class PrintJobDispatcher
 {
-    public function dispatch(Order $order, Printer $printer, PrintJobKind $kind, Ticket $ticket, array $lineIds = [], ?int $sendNumber = null, ?User $by = null): PrintJob
+    public function dispatch(?Order $order, Printer $printer, PrintJobKind $kind, Ticket $ticket, array $lineIds = [], ?int $sendNumber = null, ?User $by = null, ?TicketModel $forTicket = null, ?CashSession $session = null): PrintJob
     {
         $job = PrintJob::create([
-            'order_id' => $order->id,
+            'order_id' => $order?->id ?? $forTicket?->order_id,
+            'ticket_id' => $forTicket?->id,
+            'cash_session_id' => $session?->id,
             'printer_id' => $printer->id,
             'kind' => $kind,
             'send_number' => $sendNumber,
@@ -36,6 +41,12 @@ class PrintJobDispatcher
         $this->queue($job);
 
         return $job;
+    }
+
+    /** Impresora de tickets (y cajón): la primera activa de tipo ticket. */
+    public static function ticketPrinter(): ?Printer
+    {
+        return Printer::query()->where('type', PrinterType::Ticket)->where('is_active', true)->orderBy('id')->first();
     }
 
     public function retry(PrintJob $job): PrintJob
