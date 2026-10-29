@@ -6,6 +6,7 @@ use App\Events\Pos\CatalogChanged;
 use App\Models\Category;
 use App\Models\ModifierGroup;
 use App\Models\Product;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -20,7 +21,7 @@ class CatalogService
 {
     public const CACHE_KEY = 'pos.catalog';
 
-    public const SCHEMA = 'v2';
+    public const SCHEMA = 'v3';
 
     /** @return array{version: string, data: array} */
     public function get(): array
@@ -74,7 +75,10 @@ class CatalogService
         return [
             'categories' => $categories->map(fn (Category $c) => [
                 'id' => $c->id, 'name' => $c->name, 'color' => $c->color,
+                'quick_notes' => $c->quick_notes ?? [],
             ])->values(),
+            // Notas rápidas generales (todas las categorías); en el TPV van detrás de las de la categoría.
+            'quick_notes' => Setting::query()->first()?->quick_notes ?? [],
             'products' => $products->map(fn (Product $p) => [
                 'id' => $p->id,
                 'category_id' => $p->category_id,

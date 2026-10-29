@@ -31,7 +31,7 @@ class DemoPizzeriaSeeder extends DemoSeeder
 
         // Pizzas: [nombre, mediana, familiar, alérgenos]
         $base = [A::Gluten, A::Milk];
-        $pizzaCategory = $this->category('Pizzas', '#dc2626', 1, $kitchen);
+        $pizzaCategory = $this->category('Pizzas', '#dc2626', 1, $kitchen, ['Bien hecha', 'Poco hecha', 'Cortada', 'Sin cortar', 'Sin orégano']);
         $pizzas = [];
         foreach ([
             ['Margarita', 850, 1350, $base],
@@ -72,7 +72,7 @@ class DemoPizzeriaSeeder extends DemoSeeder
             $pizza->modifierGroups()->attach([$extras->id => ['sort_order' => 1], $remove->id => ['sort_order' => 2], $dough->id => ['sort_order' => 3]]);
         }
 
-        $this->products($this->category('Entrantes', '#f97316', 2, $kitchen), [
+        $this->products($this->category('Entrantes', '#f97316', 2, $kitchen, ['Salsa aparte', 'Sin picante', 'Bien caliente']), [
             ['Pan de ajo', 350, [A::Gluten, A::Milk]],
             ['Alitas de pollo (8)', 650, [A::Gluten, A::Celery]],
             ['Nachos con queso', 600, [A::Milk]],
@@ -80,7 +80,7 @@ class DemoPizzeriaSeeder extends DemoSeeder
         ]);
 
         $alcohol = ['vat_rate_takeaway' => 2100];
-        $drinks = $this->products($this->category('Bebidas', '#0ea5e9', 3, $counter), [
+        $drinks = $this->products($this->category('Bebidas', '#0ea5e9', 3, $counter, ['Sin hielo', 'Con limón', 'Del tiempo', 'Bien fría']), [
             ['Coca-Cola 33 cl', 200, []],
             ['Coca-Cola Zero 33 cl', 200, []],
             ['Fanta de naranja 33 cl', 200, []],
@@ -90,7 +90,7 @@ class DemoPizzeriaSeeder extends DemoSeeder
             ['Lambrusco (botella)', 900, [A::Sulphites], $alcohol],
             ['Coca-Cola 2 l', 350, []],
         ]);
-        $desserts = $this->products($this->category('Postres', '#a855f7', 4, $counter), [
+        $desserts = $this->products($this->category('Postres', '#a855f7', 4, $counter, ['Con nata', 'Sin nata', 'Dos cucharas']), [
             ['Tiramisú', 400, [A::Gluten, A::Milk, A::Eggs]],
             ['Brownie', 380, [A::Gluten, A::Milk, A::Eggs, A::Nuts]],
             ['Helado tarrina', 350, [A::Milk]],

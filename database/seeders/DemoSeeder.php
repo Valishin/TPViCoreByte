@@ -50,6 +50,7 @@ abstract class DemoSeeder extends Seeder
             'half_and_half_pricing' => HalfAndHalfPricing::MostExpensive,
             'half_and_half_modifier_pricing' => HalfAndHalfModifierPricing::Full,
             'delivery_fee_vat_rate' => 1000,
+            'quick_notes' => ['Para compartir', 'Sin gluten', 'Sin lactosa', 'Rápido'],
         ]);
     }
 
@@ -66,9 +67,10 @@ abstract class DemoSeeder extends Seeder
         return Printer::create(['name' => $name, 'type' => $type, 'host' => $host, 'port' => 9100, 'columns' => $columns, 'codepage' => 16]);
     }
 
-    protected function category(string $name, string $color, int $order, ?Printer $printer): Category
+    /** @param  list<string>  $quickNotes  notas rápidas de cocina de la categoría */
+    protected function category(string $name, string $color, int $order, ?Printer $printer, array $quickNotes = []): Category
     {
-        return Category::create(['name' => $name, 'color' => $color, 'sort_order' => $order, 'printer_id' => $printer?->id]);
+        return Category::create(['name' => $name, 'color' => $color, 'sort_order' => $order, 'printer_id' => $printer?->id, 'quick_notes' => $quickNotes]);
     }
 
     /**

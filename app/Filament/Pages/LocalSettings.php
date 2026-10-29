@@ -6,6 +6,7 @@ use App\Enums\HalfAndHalfModifierPricing;
 use App\Enums\HalfAndHalfPricing;
 use App\Enums\OrderType;
 use App\Filament\Components\VatRateSelect;
+use App\Filament\Resources\Categories\Schemas\CategoryForm;
 use App\Models\Setting;
 use App\Models\TicketSeries;
 use BackedEnum;
@@ -125,7 +126,12 @@ class LocalSettings extends Page
                             ->numeric()->integer()->minValue(0)->maxValue(120)->required()
                             ->helperText('0 = no bloquear nunca.'),
                         Toggle::make('lock_pos_after_send')->label('Bloquear la caja tras enviar una comanda')->inline(false),
+                        Toggle::make('show_onscreen_keyboard_pos')->label('Mostrar teclado en pantalla en caja')->inline(false)
+                            ->helperText('Desactivado, en caja solo se escribe con el teclado físico. En los móviles se usa siempre el del teléfono.'),
                     ]),
+                Section::make('Notas rápidas generales')->columnSpanFull()
+                    ->description('Salen en todos los productos, detrás de las notas de su categoría. Arrastra para ordenarlas.')
+                    ->schema([CategoryForm::quickNotes()]),
                 Section::make('Reparto')->columnSpanFull()->schema([
                     VatRateSelect::make('delivery_fee_vat_rate')->label('IVA de los gastos de envío')->required()
                         ->helperText('Normalmente el mismo que la comida (10 %).'),

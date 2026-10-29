@@ -82,6 +82,7 @@ class AuthController extends Controller
                 'lock_pos_after_send' => $settings->lock_pos_after_send,
                 'discount_limit_bp' => $settings->discount_limit_bp,
                 'print_ticket_on_checkout' => $settings->print_ticket_on_checkout,
+                'show_onscreen_keyboard_pos' => $settings->show_onscreen_keyboard_pos,
             ],
             'permissions' => [
                 'authorize' => AuthorizationService::canAuthorize($request->user()),

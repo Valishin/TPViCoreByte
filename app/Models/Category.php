@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\QuickNotes;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +17,12 @@ class Category extends Model
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'quick_notes' => 'array'];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(fn (Category $category) => $category->quick_notes = QuickNotes::normalize($category->quick_notes));
     }
 
     public function printer(): BelongsTo

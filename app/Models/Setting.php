@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\HalfAndHalfModifierPricing;
 use App\Enums\HalfAndHalfPricing;
 use App\Enums\OrderType;
+use App\Services\Pos\CatalogService;
+use App\Support\QuickNotes;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,7 +34,21 @@ class Setting extends Model
             'lock_pos_after_send' => 'boolean',
             'discount_limit_bp' => 'integer',
             'print_ticket_on_checkout' => 'boolean',
+            'quick_notes' => 'array',
+            'show_onscreen_keyboard_pos' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(fn (Setting $setting) => $setting->quick_notes = QuickNotes::normalize($setting->quick_notes ?? []));
+
+        // Las notas generales viajan con la carta del TPV.
+        static::saved(function (Setting $setting) {
+            if ($setting->wasChanged('quick_notes') || $setting->wasRecentlyCreated) {
+                CatalogService::touched();
+            }
+        });
     }
 
     public static function current(): self
