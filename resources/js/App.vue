@@ -6,12 +6,14 @@
     <RouterView />
     <AuthorizeModal />
     <ToastHost />
+    <OnScreenKeyboard />
 </template>
 
 <script setup>
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AuthorizeModal from '@/components/AuthorizeModal.vue';
+import OnScreenKeyboard from '@/components/OnScreenKeyboard.vue';
 import PrintAlerts from '@/components/PrintAlerts.vue';
 import ToastHost from '@/components/ToastHost.vue';
 import TopBar from '@/components/TopBar.vue';

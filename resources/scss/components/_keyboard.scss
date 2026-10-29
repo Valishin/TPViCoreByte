@@ -1,0 +1,146 @@
+@use '../tokens' as *;
+
+// Teclado en pantalla de la caja (OnScreenKeyboard.vue). Solo en
+// html[data-layout="pos"]; teclas de 64 px de alto como mínimo.
+.c-keyboard {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: $z-keyboard;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px $space-3 $space-2;
+    background: $color-surface-2;
+    border-top: 2px solid $color-border;
+    box-shadow: $shadow-overlay;
+    user-select: none;
+    touch-action: manipulation;
+
+    > * {
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+    }
+
+    // Copia del campo: se ve qué se escribe aunque el campo quede detrás.
+    &__preview {
+        display: flex;
+        align-items: baseline;
+        gap: $space-3;
+        min-height: 40px;
+        padding: $space-1 $space-3;
+        background: $color-surface;
+        border: 2px solid $color-primary;
+        border-radius: $radius-md;
+        overflow: hidden;
+    }
+
+    &__label {
+        flex: none;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+        color: $color-text-muted;
+    }
+
+    &__value {
+        flex: 1;
+        min-width: 0;
+        font-size: $font-size-lg;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        direction: rtl; // si no cabe, se ve el final (donde se escribe)
+        text-align: left;
+        unicode-bidi: plaintext;
+    }
+
+    &__caret {
+        display: inline-block;
+        width: 2px;
+        height: 1.1em;
+        margin-left: 1px;
+        vertical-align: text-bottom;
+        background: $color-primary;
+    }
+
+    &__row {
+        display: flex;
+        gap: 6px;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: $space-2;
+        max-width: 560px;
+    }
+
+    &__key {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: $touch-pos;
+        padding: 0 $space-1;
+        font: inherit;
+        font-size: $font-size-xl;
+        font-weight: $font-weight-medium;
+        color: $color-text;
+        background: $color-surface-3;
+        border: 2px solid $color-border;
+        border-radius: $radius-md;
+        cursor: pointer;
+
+        // Respuesta al tocar (no depende del hover).
+        &:active {
+            background: $color-primary;
+            color: $color-primary-contrast;
+        }
+
+        &--action,
+        &--accent {
+            background: $color-surface;
+        }
+
+        &--space {
+            font-size: $font-size-base;
+            color: $color-text-muted;
+        }
+
+        &--primary {
+            font-size: $font-size-lg;
+            font-weight: $font-weight-bold;
+            background: $color-primary;
+            border-color: $color-primary;
+            color: $color-primary-contrast;
+        }
+
+        &--on {
+            border-color: $color-primary;
+            box-shadow: inset 0 0 0 2px $color-primary;
+        }
+
+        &--locked {
+            background: $color-primary;
+            color: $color-primary-contrast;
+        }
+    }
+}
+
+// Con el teclado abierto, hojas y modales quedan por encima de él y la página
+// puede desplazarse hasta el último campo.
+html[data-keyboard='open'] {
+    body {
+        padding-bottom: var(--keyboard-height, 0px);
+    }
+
+    .c-sheet,
+    .c-modal {
+        bottom: var(--keyboard-height, 0px);
+    }
+
+    .c-sheet__panel,
+    .c-modal__panel {
+        max-height: calc(100% - #{$space-4});
+    }
+}

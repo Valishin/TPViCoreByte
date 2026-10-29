@@ -59,7 +59,7 @@
                 <AmountKeypad v-if="countMode === 'amount'" v-model="counted" label="Contado" :exact="report?.cash.expected" />
                 <DenominationCounter v-else @change="({ breakdown: b, total }) => { breakdown = b; counted = total; }" />
                 <p class="v-checkout__change" :class="{ 'v-checkout__change--short': difference < 0 }">Diferencia <strong>{{ money(difference) }}</strong></p>
-                <label class="c-field"><span class="c-field__label">Notas</span><input v-model="notes" class="c-field__input" maxlength="500" /></label>
+                <TextField v-model="notes" label="Notas" :maxlength="500" />
                 <div v-if="openOrders.length" class="c-alert c-alert--warning" style="margin-top: 1rem">
                     <span class="c-alert__text">Hay pedidos abiertos: {{ openOrders.join(', ') }}. Si cierras, quedarán pendientes para la próxima caja.</span>
                 </div>
@@ -88,6 +88,7 @@ import AmountKeypad from '@/components/AmountKeypad.vue';
 import DenominationCounter from '@/components/DenominationCounter.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import OpenCashDialog from '@/components/OpenCashDialog.vue';
+import TextField from '@/components/TextField.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import VoidTicketSheet from '@/components/VoidTicketSheet.vue';
 import pos, { errorCode, errorMessage } from '@/services/pos';
