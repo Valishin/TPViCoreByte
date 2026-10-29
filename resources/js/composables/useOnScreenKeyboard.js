@@ -26,6 +26,7 @@ export const keyboard = reactive({
     shift: 'off',         // 'off' | 'once' | 'lock'
     accent: null,         // tecla muerta pendiente: '´' | '¨'
     dirty: false,         // se ha escrito con el teclado en pantalla desde que se enfocó
+    hidden: false,        // "Ocultar": el campo sigue activo (teclado físico); vuelve al tocarlo
 });
 
 /** En caja nunca se abre el teclado del sistema. */
@@ -85,6 +86,7 @@ function commit(el) {
 export function openKeyboard(el) {
     if (keyboard.target && keyboard.target !== el) commit(keyboard.target);
     keyboard.target = el;
+    keyboard.hidden = false;
     keyboard.mode = modeOf(el);
     keyboard.label = labelOf(el);
     keyboard.value = el.value;
@@ -95,6 +97,13 @@ export function openKeyboard(el) {
 export function closeKeyboard() {
     commit(keyboard.target);
     keyboard.target = null;
+    keyboard.accent = null;
+    keyboard.hidden = false;
+}
+
+/** Oculta el teclado sin soltar el campo: se puede seguir con el físico. Al tocar el campo, vuelve. */
+export function hideKeyboard() {
+    keyboard.hidden = true;
     keyboard.accent = null;
 }
 

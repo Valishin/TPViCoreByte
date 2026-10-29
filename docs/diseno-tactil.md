@@ -68,6 +68,12 @@ nueva debe cumplirlos.
     campo: las hojas y modales suben por encima del teclado, el contenido se
     desplaza hasta el campo y, además, el teclado muestra arriba el campo que
     se edita (etiqueta y texto).
+  - **Más scroll con el teclado abierto:** la pantalla gana abajo el alto del
+    teclado, así que se puede bajar hasta el final y ver lo que se escribe
+    aunque el campo esté abajo del todo.
+  - **Tecla "Ocultar":** esconde el teclado sin soltar el campo (se puede
+    seguir con el teclado físico); vuelve al tocar el campo. "Hecho" confirma
+    y suelta el campo.
   - **Modo numérico** (1-9, 0, `+`, `-`, `.`, espacio) para teléfono, código
     postal…
   - **Convive con el teclado físico:** se puede escribir con los dos en el

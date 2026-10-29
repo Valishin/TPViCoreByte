@@ -50,20 +50,21 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
-    applyInputMode, backspace, closeKeyboard, done, insertText, isTextField, keyboard, keyboardEnabled,
+    applyInputMode, backspace, closeKeyboard, done, hideKeyboard, insertText, isTextField, keyboard, keyboardEnabled,
     letterFor, openKeyboard, pressAccent, suppressSystemKeyboard, toggleShift, typeLetter,
 } from '@/composables/useOnScreenKeyboard';
 import { useSessionStore } from '@/stores/session';
 
 const session = useSessionStore();
 const root = ref(null);
-const visible = computed(() => keyboardEnabled.value && !!keyboard.target);
+const visible = computed(() => keyboardEnabled.value && !!keyboard.target && !keyboard.hidden);
 
 // --- Disposición de teclas --------------------------------------------------
 const letter = (c) => ({ id: c, type: 'letter', base: c, label: () => letterFor(c) });
 const char = (c, extra = {}) => ({ id: c, type: 'char', text: c, ...extra });
 const BACK = { id: 'back', type: 'back', text: '⌫', aria: 'Borrar', grow: 1.5, mod: 'action' };
 const DONE = { id: 'done', type: 'done', text: 'Hecho', grow: 1.5, mod: 'primary' };
+const HIDE = { id: 'hide', type: 'hide', text: 'Ocultar ⌄', aria: 'Ocultar el teclado', grow: 1.5, mod: 'action' };
 
 const textRows = [
     [...'1234567890'].map((c) => char(c)).concat(BACK),
@@ -78,13 +79,14 @@ const textRows = [
         char('@'), char('/'),
         { id: 'space', type: 'char', text: 'espacio', value: ' ', aria: 'Espacio', grow: 5, mod: 'space' },
         char('º'), char('ª'), char('#'),
+        HIDE,
     ],
 ];
 
 const numericKeys = [
     ...'123'.split('').map((c) => char(c)), BACK,
     ...'456'.split('').map((c) => char(c)), char('+'),
-    ...'789'.split('').map((c) => char(c)), { id: 'space', type: 'char', text: '␣', value: ' ', aria: 'Espacio' },
+    ...'789'.split('').map((c) => char(c)), HIDE,
     char('-'), char('0'), char('.'), DONE,
 ];
 
@@ -108,6 +110,7 @@ function press(k) {
         case 'shift': toggleShift(); break;
         case 'back': backspace(); break;
         case 'done': done(); break;
+        case 'hide': hideKeyboard(); break;
     }
 }
 
@@ -131,7 +134,33 @@ function ensureVisible() {
 
 // setTimeout y no requestAnimationFrame: rAF no corre si la ventana no está en primer plano.
 function scheduleEnsureVisible() {
-    nextTick(() => setTimeout(ensureVisible, 0));
+    nextTick(() => setTimeout(() => {
+        padScroller();
+        ensureVisible();
+    }, 0));
+}
+
+/**
+ * Con el teclado abierto, el contenedor que hace scroll recibe abajo un margen
+ * igual a lo que el teclado le tapa: se puede bajar hasta el final y ver lo que
+ * se escribe aunque el campo esté abajo del todo. Se quita al cerrar.
+ */
+let padded = null; // { el, prev }
+function padScroller() {
+    unpadScroller();
+    const el = keyboard.target;
+    if (!el || !visible.value) return;
+    const scroller = scrollParent(el);
+    if (!scroller) return; // la página entera: ya lleva padding-bottom en el body
+    const covered = scroller.getBoundingClientRect().bottom - (window.innerHeight - keyboardHeight());
+    if (covered <= 0) return; // hojas y modales: ya están por encima del teclado
+    const base = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
+    padded = { el: scroller, prev: scroller.style.paddingBottom };
+    scroller.style.paddingBottom = `${base + covered + 16}px`;
+}
+function unpadScroller() {
+    if (padded) padded.el.style.paddingBottom = padded.prev;
+    padded = null;
 }
 
 function scrollParent(el) {
@@ -147,6 +176,7 @@ watch(visible, async (open) => {
     const html = document.documentElement;
     resizeObserver?.disconnect();
     if (!open) {
+        unpadScroller();
         html.style.setProperty('--keyboard-height', '0px');
         delete html.dataset.keyboard;
         return;
@@ -169,6 +199,14 @@ function onFocusIn(e) {
     applyInputMode(el);
     if (keyboardEnabled.value) {
         openKeyboard(el);
+        scheduleEnsureVisible();
+    }
+}
+
+/** Tocar el campo con el teclado oculto lo vuelve a mostrar (el foco no cambia: no hay focusin). */
+function onPointerDown(e) {
+    if (keyboard.hidden && e.target === keyboard.target) {
+        keyboard.hidden = false;
         scheduleEnsureVisible();
     }
 }
@@ -212,6 +250,7 @@ watch(
 
 onMounted(() => {
     document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('input', onInput, true);
     mutations.observe(document.body, { childList: true, subtree: true });
@@ -219,6 +258,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
     document.removeEventListener('focusin', onFocusIn);
+    document.removeEventListener('pointerdown', onPointerDown, true);
     document.removeEventListener('focusout', onFocusOut);
     document.removeEventListener('input', onInput, true);
     mutations.disconnect();
