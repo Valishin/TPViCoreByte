@@ -14,7 +14,12 @@
         <template v-else-if="cash">
             <section class="v-cash__stats">
                 <div class="v-cash__stat"><span>Ventas</span><strong>{{ money(report.sales_total) }}</strong><small>{{ report.tickets.count }} tickets · {{ report.rectifications.count }} rectif.</small></div>
-                <div v-for="m in report.by_method" :key="m.method" class="v-cash__stat"><span>{{ m.label }}</span><strong>{{ money(m.amount) }}</strong><small>{{ m.count }} cobros</small></div>
+                <div v-for="m in report.by_method" :key="m.method" class="v-cash__stat">
+                    <span>{{ m.label }}{{ m.refunds_count ? ' (neto)' : '' }}</span>
+                    <strong>{{ money(m.amount) }}</strong>
+                    <small>{{ m.count }} cobros {{ money(m.charges) }}<template v-if="m.refunds_count"> · devoluciones {{ money(m.refunds) }}</template></small>
+                </div>
+                <div v-if="report.card_terminal_total" class="v-cash__stat"><span>Total datáfono</span><strong>{{ money(report.card_terminal_total) }}</strong><small>tarjeta neto + propinas</small></div>
                 <div class="v-cash__stat"><span>Efectivo esperado</span><strong>{{ money(report.cash.expected) }}</strong><small>fondo {{ money(report.cash.opening_float) }}</small></div>
                 <div v-if="report.tips.total" class="v-cash__stat"><span>Propinas</span><strong>{{ money(report.tips.total) }}</strong><small>fuera de ventas</small></div>
             </section>

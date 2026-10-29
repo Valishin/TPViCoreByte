@@ -52,12 +52,27 @@ class CashReportService
             'sales_total' => (int) $tickets->sum('total'),
             'discounts' => ['amount' => $lineDiscounts + (int) $tickets->sum('discount_amount')],
             'invitations' => ['count' => $invitationLines->count(), 'amount' => $invitations],
+            // Por forma de pago: cobros, devoluciones (pagos negativos de
+            // rectificativos) y neto. amount = neto (compatibilidad).
             'by_method' => collect(PaymentMethod::cases())
-                ->map(fn (PaymentMethod $m) => [
-                    'method' => $m->value, 'label' => $m->label(),
-                    'count' => $payments->where('method', $m)->count(),
-                    'amount' => (int) $payments->where('method', $m)->sum('amount'),
-                ])->filter(fn ($r) => $r['count'] > 0)->values()->all(),
+                ->map(function (PaymentMethod $m) use ($payments) {
+                    $all = $payments->where('method', $m);
+                    $charges = $all->where('amount', '>', 0);
+                    $refunds = $all->where('amount', '<', 0);
+
+                    return [
+                        'method' => $m->value, 'label' => $m->label(),
+                        'count' => $charges->count(),
+                        'charges' => (int) $charges->sum('amount'),
+                        'refunds_count' => $refunds->count(),
+                        'refunds' => (int) $refunds->sum('amount'),
+                        'amount' => (int) $all->sum('amount'),
+                        'tips' => (int) $all->sum('tip'),
+                    ];
+                })->filter(fn ($r) => $r['count'] > 0 || $r['refunds_count'] > 0)->values()->all(),
+            // Lo que debe marcar el cierre del datáfono: neto de tarjeta + propinas de tarjeta.
+            'card_terminal_total' => (int) $payments->where('method', PaymentMethod::Card)->sum('amount')
+                + (int) $payments->where('method', PaymentMethod::Card)->sum('tip'),
             'tips' => [
                 'total' => (int) $payments->sum('tip'),
                 'by_method' => $payments->where('tip', '>', 0)->groupBy(fn ($p) => $p->method->value)

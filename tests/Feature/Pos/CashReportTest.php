@@ -8,6 +8,7 @@ use App\Models\PrintJob;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Cash\CashReportService;
+use App\Services\Pos\ReceiptFormatter;
 use App\Services\Tickets\RectificationService;
 
 class CashReportTest extends PosTestCase
@@ -33,6 +34,12 @@ class CashReportTest extends PosTestCase
         $this->assertSame(3050, $report['sales_total']);
         $this->assertSame((int) Ticket::sum('total'), $report['sales_total']);
 
+        // Por método: cobros, devoluciones y neto. Datáfono = neto de tarjeta + propinas de tarjeta.
+        $cash = collect($report['by_method'])->firstWhere('method', 'efectivo');
+        $this->assertSame([1750, -1000, 750, 1], [$cash['charges'], $cash['refunds'], $cash['amount'], $cash['refunds_count']]);
+        $this->assertSame(1700 + 300, $report['card_terminal_total']);
+        $this->assertSame(0, collect($report['by_method'])->firstWhere('method', 'tarjeta')['refunds']);
+
         $byMethod = collect($report['by_method'])->pluck('amount', 'method')->all();
         $this->assertSame(['efectivo' => 1000 + 750 - 1000, 'tarjeta' => 1700, 'bizum' => 600], $byMethod);
         $this->assertSame((int) Payment::sum('amount'), array_sum($byMethod));
@@ -48,6 +55,25 @@ class CashReportTest extends PosTestCase
         $this->assertEqualsCanonicalizing([1000, 2100], array_column($report['by_vat'], 'rate'));
 
         $this->assertSame(15000 + 750, $report['cash']['expected']);
+    }
+
+    public function test_card_refund_is_shown_apart_and_terminal_total(): void
+    {
+        $session = $this->openCash(0);
+        $manager = User::factory()->role(UserRole::Manager)->withPin('9999')->create();
+        $id = $this->checkout($this->orderWith([[$this->product('Cena', 2000), 1]]), [['method' => 'tarjeta', 'amount' => 2000, 'tip' => 150]])->json('data.ticket.id');
+        $line = Ticket::find($id)->lines()->first();
+        app(RectificationService::class)->byDifferences(Ticket::find($id)->fresh(), $manager, 'Devolución parcial', null);
+
+        $report = app(CashReportService::class)->build($session);
+        $card = collect($report['by_method'])->firstWhere('method', 'tarjeta');
+        $this->assertSame([2000, -2000, 0], [$card['charges'], $card['refunds'], $card['amount']]);
+        $this->assertSame(150, $report['card_terminal_total']); // solo la propina queda en el datáfono
+
+        $text = $this->printedText(app(ReceiptFormatter::class)->cashReport($report, false)->operations());
+        $this->assertStringContainsString('Devoluciones tarjeta (1) -20,00 €', $text);
+        $this->assertStringContainsString('Tarjeta neto 0,00 €', $text);
+        $this->assertStringContainsString('TOTAL DATÁFONO (tarjeta + propinas) 1,50 €', $text);
     }
 
     public function test_close_with_open_tables_needs_explicit_confirmation(): void

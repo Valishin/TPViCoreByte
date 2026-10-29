@@ -34,12 +34,20 @@ class CashSessionInfolist
                     TextEntry::make('pending_total')->label('Pendiente de cobro')
                         ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->where('payment_status', 'pendiente')->sum('total'))),
                 ]),
-                Section::make('Cobros por forma de pago')->schema(
-                    collect(PaymentMethod::cases())->map(fn (PaymentMethod $method) => TextEntry::make("by_{$method->value}")
-                        ->label($method->label())
-                        ->state(fn (CashSession $record) => Format::money((int) $record->payments()->where('method', $method)->sum('amount'))))
-                        ->all()
-                ),
+                Section::make('Cobros por forma de pago')->schema([
+                    ...collect(PaymentMethod::cases())->map(fn (PaymentMethod $method) => TextEntry::make("by_{$method->value}")
+                        ->label($method->label().' (neto)')
+                        ->state(fn (CashSession $record) => Format::money((int) $record->payments()->where('method', $method)->sum('amount')))
+                        ->helperText(function (CashSession $record) use ($method) {
+                            $refunds = (int) $record->payments()->where('method', $method)->where('amount', '<', 0)->sum('amount');
+
+                            return $refunds ? 'Cobros '.Format::money((int) $record->payments()->where('method', $method)->where('amount', '>', 0)->sum('amount')).' · devoluciones '.Format::money($refunds) : null;
+                        }))
+                        ->all(),
+                    TextEntry::make('card_terminal')->label('Total datáfono (tarjeta + propinas)')->weight('bold')
+                        ->state(fn (CashSession $record) => Format::money(
+                            (int) $record->payments()->where('method', PaymentMethod::Card)->sum('amount') + (int) $record->payments()->where('method', PaymentMethod::Card)->sum('tip'))),
+                ]),
             ]),
             Section::make('Informe Z')->columns(3)->columnSpanFull()
                 ->visible(fn (CashSession $record) => filled($record->z_report))

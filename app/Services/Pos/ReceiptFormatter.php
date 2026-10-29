@@ -158,7 +158,16 @@ class ReceiptFormatter
 
         $p->line('FORMAS DE PAGO', bold: true);
         foreach ($report['by_method'] as $row) {
-            $p->columns($row['label'].' ('.$row['count'].')', Format::money($row['amount']));
+            if ($row['refunds_count'] ?? 0) {
+                $p->columns($row['label'].' cobros ('.$row['count'].')', Format::money($row['charges']))
+                    ->columns('Devoluciones '.mb_strtolower($row['label']).' ('.$row['refunds_count'].')', Format::money($row['refunds']))
+                    ->columns($row['label'].' neto', Format::money($row['amount']), bold: true);
+            } else {
+                $p->columns($row['label'].' ('.$row['count'].')', Format::money($row['amount']), bold: true);
+            }
+        }
+        if ($report['card_terminal_total'] ?? 0) {
+            $p->columns('TOTAL DATÁFONO (tarjeta + propinas)', Format::money($report['card_terminal_total']), bold: true);
         }
         if ($report['tips']['total']) {
             $p->separator()->line('PROPINAS (fuera de ventas)', bold: true);
