@@ -57,8 +57,23 @@
         }
     }
 
-    html[data-layout='mobile'] &__user-name {
-        display: none;
+    &__alerts {
+        padding: 2px $space-2;
+        border-radius: $radius-pill;
+        background: $color-danger;
+        color: $color-on-strong;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+    }
+
+    &__spacer {
+        flex: 1;
+    }
+
+    &__menu {
+        display: flex;
+        flex-direction: column;
+        gap: $space-3;
     }
 }
 
