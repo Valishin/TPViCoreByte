@@ -34,20 +34,12 @@ RUN composer dump-autoload --no-dev --optimize --no-scripts
 # --- 3. Imagen final: FrankenPHP (Caddy + PHP 8.4) con opcache.
 FROM dunglas/frankenphp:1-php${PHP_VERSION}-bookworm AS app
 
-ARG APP_VERSION=dev
-ARG APP_COMMIT=
-ENV APP_VERSION=${APP_VERSION} \
-    APP_COMMIT=${APP_COMMIT} \
-    APP_ENV=production \
+ENV APP_ENV=production \
     APP_DEBUG=false \
     LOG_CHANNEL=stderr \
     SERVER_NAME=:80 \
     XDG_CONFIG_HOME=/config \
     XDG_DATA_HOME=/data
-
-LABEL org.opencontainers.image.title="TPV Hostelería" \
-      org.opencontainers.image.version="${APP_VERSION}" \
-      org.opencontainers.image.revision="${APP_COMMIT}"
 
 # Extensiones PHP de la app (PostgreSQL, colas con pcntl, Filament, dompdf, logo del ticket).
 RUN install-php-extensions pdo_pgsql pcntl intl zip gd bcmath opcache sockets
@@ -76,7 +68,6 @@ COPY --from=assets /src/public/build /app/public/build
 RUN set -eux; \
     useradd --uid 1000 --create-home --shell /usr/sbin/nologin tpv; \
     setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp; \
-    echo "${APP_VERSION}" > /app/VERSION; \
     mkdir -p storage/app/private storage/app/public storage/framework/cache storage/framework/sessions \
              storage/framework/views storage/logs bootstrap/cache /backups /data/caddy /config/caddy; \
     php artisan package:discover --ansi; \
@@ -84,6 +75,15 @@ RUN set -eux; \
     ln -s /app/storage/app/public /app/public/storage; \
     chown -R tpv:tpv /app/storage /app/bootstrap/cache /backups /data /config; \
     chmod +x /usr/local/bin/tpv-entrypoint
+
+# Versión y commit AL FINAL: cambian en cada build y no deben invalidar las capas de arriba.
+ARG APP_VERSION=dev
+ARG APP_COMMIT=
+ENV APP_VERSION=${APP_VERSION} \
+    APP_COMMIT=${APP_COMMIT}
+LABEL org.opencontainers.image.title="TPV Hostelería" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${APP_COMMIT}"
 
 USER tpv
 EXPOSE 80
