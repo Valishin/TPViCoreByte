@@ -53,12 +53,15 @@ class DemoSeedersTest extends TestCase
         $this->assertFalse(Setting::current()->isOrderTypeEnabled(OrderType::Table));
     }
 
-    /** Agua 10 % siempre; refresco azucarado y cerveza 10 % en local y 21 % para llevar. */
+    /**
+     * Agua y cerveza sin alcohol 10 % siempre; refrescos (azucarados o con
+     * edulcorantes) y cerveza 10 % en local y 21 % para llevar.
+     */
     public function test_pizzeria_drinks_vat_in_house_and_takeaway(): void
     {
         $this->seed(DemoPizzeriaSeeder::class);
         $by = User::where('role', UserRole::Courier)->first();
-        $drinks = ['Agua 50 cl', 'Coca-Cola 33 cl', 'Cerveza 33 cl'];
+        $drinks = ['Agua 50 cl', 'Coca-Cola 33 cl', 'Coca-Cola Zero 33 cl', 'Cerveza 33 cl', 'Cerveza sin alcohol 33 cl'];
 
         $rates = function (OrderType $type) use ($drinks, $by): array {
             $order = Order::create(['type' => $type, 'status' => OrderStatus::Open, 'opened_by' => $by->id, 'opened_at' => now()]);
@@ -69,9 +72,12 @@ class DemoSeedersTest extends TestCase
             return $order->lines()->pluck('vat_rate', 'name')->map(fn ($r) => (int) $r)->all();
         };
 
-        $this->assertSame(['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 1000, 'Cerveza 33 cl' => 1000], $rates(OrderType::Bar));
-        $this->assertSame(['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 2100, 'Cerveza 33 cl' => 2100], $rates(OrderType::Takeaway));
-        $this->assertSame(['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 2100, 'Cerveza 33 cl' => 2100], $rates(OrderType::Delivery));
+        $inHouse = ['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 1000, 'Coca-Cola Zero 33 cl' => 1000, 'Cerveza 33 cl' => 1000, 'Cerveza sin alcohol 33 cl' => 1000];
+        $takeaway = ['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 2100, 'Coca-Cola Zero 33 cl' => 2100, 'Cerveza 33 cl' => 2100, 'Cerveza sin alcohol 33 cl' => 1000];
+
+        $this->assertSame($inHouse, $rates(OrderType::Bar));
+        $this->assertSame($takeaway, $rates(OrderType::Takeaway));
+        $this->assertSame($takeaway, $rates(OrderType::Delivery));
     }
 
     public function test_takeaway_settings_defaults(): void
