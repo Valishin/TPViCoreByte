@@ -39,13 +39,16 @@ mantiene).
 | `laravel.test` | Laravel (HTTP) | `APP_PORT` = **8081** |
 | `pgsql` | PostgreSQL 18 | `FORWARD_DB_PORT` = 5432 |
 | `reverb` | Servidor websockets (`reverb:start` en 0.0.0.0) | `FORWARD_REVERB_PORT` = 8080 |
-| `queue` | Worker de colas (`queue:listen`) | — |
+| `queue` | Worker de la cola `default` (`queue:listen`) | — |
+| `printing` | Worker exclusivo de la cola `printing` (comandas) | — |
 | Vite (en el Mac) | Assets de desarrollo + HMR | `VITE_PORT` = **5174** |
 
 Los puertos 80 y 5173 los usa MAMP / otro proyecto en este Mac; por eso la app
 va en 8081 y Vite en 5174. Se cambian en `.env`, nunca hace falta cerrar nada.
 
-`reverb` y `queue` reutilizan la imagen de la app (sin build extra). No hay
+`reverb`, `queue` y `printing` reutilizan la imagen de la app (sin build extra).
+La impresión va en su propio worker para que una impresora caída (timeout de
+3 s por intento) no retrase nada más. No hay
 Redis, Mailpit ni Meilisearch: la cola, la caché y las sesiones van en
 PostgreSQL. Así el consumo de memoria es mínimo.
 
@@ -53,6 +56,9 @@ En desarrollo el worker usa **`queue:listen`**, que recarga el código en cada
 job (no hay que reiniciar el contenedor al cambiar un job). **En producción
 será `queue:work`** (más eficiente; se reinicia con `php artisan queue:restart`
 en cada despliegue).
+
+> Los workers leen el `.env` al arrancar: si cambias algo que usan (p. ej.
+> `PRINTER_MODE`), reinícialos con `./vendor/bin/sail restart queue printing`.
 
 ## Primera instalación
 
@@ -149,15 +155,47 @@ zonas) · **Ventas** (pedidos, tickets, cierres: solo consulta) ·
 Se pueden cambiar con `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD` en `.env` y
 volver a sembrar.
 
+## TPV de sala (/)
+
+La SPA en <http://localhost:8081> (o la IP del ordenador desde el móvil).
+
+- **Entrar:** se elige el usuario y se teclea su PIN (4 dígitos). Usan el TPV
+  camareros, encargados y admin; los repartidores no. 5 intentos fallidos por
+  usuario bloquean 5 minutos. La sesión del TPV es independiente de la de /admin.
+- **PINs de demo:** bar → Ana 1111, Luis 2222, Marta 3333; pizzería → Carlos
+  1111; admin 0000 y encargado 9999.
+- **Disposiciones:** caja (pantalla horizontal ≥ 1024 px: plano según la
+  posición de las mesas, y categorías, productos y pedido a la vez) y móvil
+  (rejilla de mesas, y el pedido en una hoja inferior). Tema oscuro/claro con
+  el botón ☀/☾, recordado en cada dispositivo.
+- **Comanda:** un toque añade un producto simple; si tiene tamaños,
+  modificadores, menú o mitad y mitad se abre un configurador paso a paso.
+  Las líneas idénticas pendientes se agrupan. "Enviar" manda cada línea a su
+  impresora (los componentes de menú y las mitades, a la suya).
+- **Líneas ya enviadas:** no se editan; se anulan con motivo y se imprime una
+  ANULACIÓN en su impresora.
+- **Comandas sin imprimir:** aviso rojo persistente en todas las pantallas con
+  "Reintentar" y "Enviar a otra". Nada se reimprime solo (evita duplicados).
+- **Bloqueo:** botón "Bloquear" y bloqueo automático por inactividad
+  (Ajustes del local → TPV: caja 2 min y móvil desactivado por defecto). Si
+  vuelve el mismo camarero, sigue donde estaba.
+- **Tiempo real:** todo cambio (mesas, pedidos, impresoras, carta) llega al
+  momento a las demás pantallas; el punto verde de la barra indica la conexión.
+
+> Fuera de alcance por ahora: cobro y tickets, pantallas de para llevar y
+> domicilio, editor visual del plano y modo sin conexión. El dataset
+> **pizzería** no tiene salas: para probar su carta en sala, crea una sala en
+> /admin → Sala y activa "Mesa" en Ajustes del local.
+
 ## Entrar desde el móvil (red local)
 
 1. El móvil tiene que estar en la **misma wifi** que el Mac.
-2. Averigua la IP del Mac: `ipconfig getifaddr en0` (ahora mismo: `192.168.1.74`).
+2. Averigua la IP del Mac: `ipconfig getifaddr en0` (ahora mismo: `192.168.1.57`).
 3. Comprueba en `.env` que esa IP está en:
-   - `VITE_HMR_HOST=192.168.1.74`
-   - `SANCTUM_STATEFUL_DOMAINS=...,192.168.1.74,192.168.1.74:8081`
+   - `VITE_HMR_HOST=192.168.1.57`
+   - `SANCTUM_STATEFUL_DOMAINS=...,192.168.1.57,192.168.1.57:8081`
 4. Si has cambiado algo: `npm run dev` de nuevo y `./vendor/bin/sail restart`.
-5. En el móvil abre **http://192.168.1.74:8081/estado**.
+5. En el móvil abre **http://192.168.1.57:8081/estado**.
 6. Prueba los tres botones. Abre `/estado` también en el Mac y pulsa "Enviar
    evento" en uno: debe aparecer en los dos a la vez.
 
@@ -276,7 +314,9 @@ Lo que cambia respecto a desarrollo:
 | El backoffice va lento en desarrollo | `PHP_CLI_SERVER_WORKERS=4` en `.env` y `sail restart laravel.test` (Filament pide muchos ficheros a la vez). |
 | `/estado` da 500 "Vite manifest not found" | No está corriendo `npm run dev` (o falta `npm run build`). |
 | En el móvil la página sale en blanco | El móvil no llega a Vite: revisa `VITE_HMR_HOST` (IP actual del Mac), el firewall de macOS para `node` y que estás en la misma wifi. |
-| El Mac ha cambiado de IP | Actualiza `VITE_HMR_HOST` y `SANCTUM_STATEFUL_DOMAINS`, reinicia `npm run dev` y `sail restart`. |
+| El Mac ha cambiado de IP (página en blanco, incluso en el Mac) | Pasa al cambiar de red o al renovar el router la IP. Mira la nueva con `ipconfig getifaddr en0`, actualiza `VITE_HMR_HOST` y `SANCTUM_STATEFUL_DOMAINS`, reinicia `npm run dev` y `sail restart`. Mejor: reserva una IP fija para el Mac en el router. |
+| He cambiado el `.env` y la impresión sigue igual | Los workers leen el `.env` al arrancar: `sail restart queue printing`. |
+| La carta del TPV no se actualiza | Se recarga sola al editarla en /admin. Si no, recarga la página; en último caso `sail artisan cache:clear`. |
 | POST a la API da 419 (CSRF) | El host desde el que entras no está en `SANCTUM_STATEFUL_DOMAINS` (incluye la variante con `:8081`). |
 | Socket en `unavailable`/`failed` | Reverb parado o puerto 8080 bloqueado: `sail logs reverb`. Tras cambiar `.env`: `sail restart reverb`. |
 | El evento no llega pero el socket está `connected` | Laravel no llega a Reverb: `REVERB_HOST` debe ser `reverb` (servicio Docker) y `BROADCAST_CONNECTION=reverb`. |

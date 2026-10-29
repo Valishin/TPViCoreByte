@@ -18,7 +18,7 @@
             <span v-if="line.notes" class="c-order-line__note">{{ line.notes }}</span>
             <span v-if="line.voided_at" class="c-order-line__detail">Anulada: {{ line.void_reason }}</span>
         </span>
-        <span class="c-order-line__total">{{ line.is_invitation ? 'Invitación' : money(line.line_total) }}</span>
+        <span class="c-order-line__total">{{ line.is_invitation ? 'Invitación' : money(line.voided_at ? line.unit_price * line.quantity : line.line_total) }}</span>
     </button>
 </template>
 

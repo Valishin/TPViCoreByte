@@ -1,7 +1,14 @@
 <template>
     <ModalDialog :open="open" :title="title" @close="$emit('close')">
         <div class="c-options">
-            <button v-for="n in 8" :key="n" type="button" :class="['c-option', { 'c-option--selected': Number(value) === n }]" @click="$emit('confirm', n)">
+            <button
+                v-for="n in 8"
+                :key="n"
+                type="button"
+                :class="['c-option', { 'c-option--selected': Number(value) === n }]"
+                :aria-label="`${n} ${n === 1 ? 'persona' : 'personas'}`"
+                @click="$emit('confirm', n)"
+            >
                 <strong>{{ n }}</strong> <span class="c-option__extra">{{ n === 1 ? 'persona' : 'personas' }}</span>
             </button>
         </div>
