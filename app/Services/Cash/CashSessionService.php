@@ -9,6 +9,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Exceptions\OpenOrdersException;
+use App\Jobs\RunBackup;
 use App\Models\CashSession;
 use App\Models\Order;
 use App\Models\Setting;
@@ -89,6 +90,9 @@ class CashSessionService
                 'notes' => $notes,
                 'z_report' => $report + ['closed_by' => $by->name],
             ]);
+
+            // Copia de seguridad justo después del Z (muchos locales apagan el equipo por la noche).
+            RunBackup::dispatch('cierre_z')->onQueue('default')->afterCommit();
 
             return $session;
         });

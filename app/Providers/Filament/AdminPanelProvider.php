@@ -28,6 +28,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('TPV · Backoffice')
+            // Aviso si las copias de seguridad no están al día.
+            ->renderHook(PanelsRenderHook::PAGE_START, fn () => view('filament.backup-warning'))
             // Versión instalada, al pie de todas las páginas.
             ->renderHook(PanelsRenderHook::FOOTER, fn (): string => '<div style="padding:1rem;text-align:center;font-size:.75rem;opacity:.6">TPV '
                 .e(config('app.version')).(config('app.commit') ? ' · '.e(config('app.commit')) : '').'</div>')
