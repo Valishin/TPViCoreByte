@@ -11,7 +11,8 @@ export const COLUMNS = [
 
 /** Tablero "Pedidos": se recarga con los eventos de tiempo real (takeaway.changed / order.updated). */
 export const useTakeawayStore = defineStore('takeaway', {
-    state: () => ({ orders: [], settings: null, loaded: false, loading: false, now: Date.now() }),
+    // version: sube con cada evento de llevar / domicilio (otras pantallas, p. ej. Repartidores, lo vigilan).
+    state: () => ({ orders: [], settings: null, loaded: false, loading: false, now: Date.now(), version: 0 }),
     getters: {
         byStatus: (s) => (status) => s.orders.filter((o) => o.delivery_status === status),
         finished: (s) => s.orders.filter((o) => ['entregado', 'no_entregado'].includes(o.delivery_status)),

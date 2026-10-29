@@ -383,3 +383,127 @@
     color: #fff;
     font-weight: $font-weight-bold;
 }
+
+// Repartidores (liquidación en caja)
+.v-couriers {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+    padding: $space-3;
+
+    &__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-3;
+
+        html[data-layout='pos'] & {
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+        }
+    }
+
+    &__card {
+        display: flex;
+        flex-direction: column;
+        border: 2px solid $color-border;
+        border-radius: $radius-lg;
+        background: $color-surface;
+    }
+
+    &__head,
+    &__foot {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $space-2 $space-3;
+        padding: $space-3;
+    }
+
+    &__head {
+        border-bottom: 1px solid $color-border;
+    }
+
+    &__foot {
+        border-top: 1px solid $color-border;
+        background: $color-surface-2;
+        border-radius: 0 0 $radius-lg $radius-lg;
+
+        .c-button {
+            margin-left: auto;
+        }
+    }
+
+    &__name {
+        flex: 1;
+        font-size: $font-size-lg;
+    }
+
+    &__orders {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    &__order {
+        display: flex;
+        align-items: center;
+        gap: $space-3;
+        padding: $space-2 $space-3;
+        border-bottom: 1px solid $color-border;
+    }
+
+    &__order-main,
+    &__amount {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__order-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__amount {
+        align-items: flex-end;
+        font-weight: $font-weight-bold;
+    }
+
+    &__expected {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+    }
+
+    &__settle-row {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+        padding: $space-3 0;
+        border-bottom: 1px solid $color-border;
+    }
+
+    &__settle-head {
+        display: flex;
+        justify-content: space-between;
+        font-size: $font-size-lg;
+    }
+
+    &__mixed {
+        max-width: 420px;
+    }
+
+    &__summary {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+        max-width: 420px;
+        padding-top: $space-3;
+        font-size: $font-size-lg;
+    }
+
+    &__difference {
+        font-weight: $font-weight-bold;
+
+        &--bad {
+            color: $color-danger;
+        }
+    }
+}

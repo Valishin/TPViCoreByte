@@ -39,6 +39,7 @@ export const useRealtimeStore = defineStore('realtime', {
 
             echo.private('pos')
                 .listen('.takeaway.changed', (e) => {
+                    takeaway.version++;
                     takeaway.refresh();
                     if (order.order?.id === e.orderId) order.reload().catch(() => {});
                 })
