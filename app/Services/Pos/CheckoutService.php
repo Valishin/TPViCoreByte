@@ -3,6 +3,7 @@
 namespace App\Services\Pos;
 
 use App\Enums\CashSessionStatus;
+use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\PrintJobKind;
@@ -13,6 +14,7 @@ use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Orders\OrderTotalsCalculator;
+use App\Services\Orders\TakeawayOrderService;
 use App\Services\Printing\Ticket as Printable;
 use App\Services\Tickets\TicketIssuer;
 use App\Support\Format;
@@ -66,6 +68,9 @@ class CheckoutService
             if (! $order->isOpen()) {
                 throw new LogicException('Este pedido ya está cobrado o cerrado.');
             }
+            if ($order->type === OrderType::Delivery) {
+                throw new LogicException('Los pedidos a domicilio se cobran al dar salida (ya pagados) o al liquidar al repartidor.');
+            }
 
             $total = $this->totals->apply($order)->total;
             $payments = $this->validate($payments, $total);
@@ -89,6 +94,7 @@ class CheckoutService
             }
 
             $this->queuePrinting($ticket->refresh(), $by, $session, $print, $paymentReceipts);
+            app(TakeawayOrderService::class)->afterCheckout($order->refresh(), $by);
 
             return ['ticket' => $ticket, 'change' => $this->change($ticket), 'replayed' => false];
         });

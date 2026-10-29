@@ -8,6 +8,7 @@ use App\Models\OrderLine;
 use App\Models\Printer;
 use App\Models\User;
 use App\Services\Orders\OrderService;
+use App\Services\Orders\TakeawayOrderService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -23,6 +24,7 @@ class OrderSender
         private KitchenFormatter $formatter,
         private PrintJobDispatcher $printing,
         private OrderService $orders,
+        private TakeawayOrderService $takeaway,
     ) {}
 
     /**
@@ -73,6 +75,8 @@ class OrderSender
 
             // Si habían pedido la cuenta y piden más, la mesa vuelve a "ocupada".
             $this->orders->reopenAfterSend($order);
+            // Llevar / domicilio: Pendiente → En cocina.
+            $this->takeaway->sentToKitchen($order);
 
             return ['send_number' => $sendNumber, 'jobs' => $jobs, 'unrouted' => array_values(array_unique($unrouted))];
         });

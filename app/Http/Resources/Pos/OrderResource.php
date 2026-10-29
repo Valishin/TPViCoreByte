@@ -49,6 +49,7 @@ class OrderResource extends JsonResource
             'lines' => $lines->whereNull('parent_line_id')->values()->map(fn (OrderLine $line) => $this->line($line, $lines)),
             'sends' => $this->sends($lines),
             'print_jobs' => $this->printJobs->map(fn (PrintJob $job) => self::printJob($job))->values(),
+            'takeaway' => $this->resource->isTakeawayOrDelivery() ? (new TakeawayOrderResource($this->resource))->resolve($request) : null,
         ];
     }
 

@@ -10,6 +10,7 @@ use App\Http\Controllers\Pos\CustomerController;
 use App\Http\Controllers\Pos\OrderController;
 use App\Http\Controllers\Pos\PrintController;
 use App\Http\Controllers\Pos\RoomController;
+use App\Http\Controllers\Pos\TakeawayOrderController;
 use App\Http\Controllers\Pos\TicketController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,13 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::patch('/customers/{customer}', [CustomerController::class, 'update'])->name('pos.customers.update');
     Route::post('/customers/{customer}/addresses', [CustomerController::class, 'addAddress'])->name('pos.customers.addresses');
     Route::get('/delivery-zones', [CustomerController::class, 'zones'])->name('pos.delivery-zones');
+
+    // Pedidos para llevar y a domicilio
+    Route::get('/takeaway-orders', [TakeawayOrderController::class, 'index'])->name('pos.takeaway.index');
+    Route::post('/takeaway-orders', [TakeawayOrderController::class, 'store'])->name('pos.takeaway.store');
+    Route::patch('/takeaway-orders/{order}', [TakeawayOrderController::class, 'update'])->name('pos.takeaway.update');
+    Route::post('/takeaway-orders/{order}/status', [TakeawayOrderController::class, 'status'])->name('pos.takeaway.status');
+    Route::post('/takeaway-orders/{order}/repeat/{source}', [TakeawayOrderController::class, 'repeat'])->name('pos.takeaway.repeat');
 
     // Autorización de encargado
     Route::get('/managers', [AuthController::class, 'managers'])->name('pos.managers');
