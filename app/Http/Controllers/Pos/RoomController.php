@@ -15,7 +15,7 @@ class RoomController extends Controller
     {
         $rooms = Room::query()->where('is_active', true)->orderBy('sort_order')
             ->with(['tables' => fn ($q) => $q->where('is_active', true)->with([
-                'openOrders' => fn ($o) => $o->with('openedBy')->latest('id'),
+                'openOrders' => fn ($o) => $o->with(['openedBy', 'lines' => fn ($l) => $l->whereNull('parent_line_id')->whereNull('voided_at')])->oldest('id'),
             ])])
             ->get();
 
@@ -28,7 +28,8 @@ class RoomController extends Controller
 
     public static function table(Table $table): array
     {
-        $order = $table->openOrders->first();
+        // Una mesa puede tener varias cuentas abiertas (al dividir por productos).
+        $orders = $table->openOrders->filter(fn ($o) => $o->status === OrderStatus::Open)->values();
 
         return [
             'id' => $table->id,
@@ -38,15 +39,25 @@ class RoomController extends Controller
             'shape' => $table->shape->value,
             'x' => $table->pos_x, 'y' => $table->pos_y, 'w' => $table->width, 'h' => $table->height,
             'status' => $table->status->value,
-            'order' => $order && $order->status === OrderStatus::Open ? [
-                'id' => $order->id,
-                'total' => $order->total,
-                'guests' => $order->guests,
-                'opened_at' => $order->opened_at->toIso8601String(),
-                'waiter' => $order->openedBy ? [
-                    'id' => $order->openedBy->id, 'name' => $order->openedBy->name,
-                    'initials' => $order->openedBy->initials(), 'color' => $order->openedBy->color,
-                ] : null,
+            'total' => (int) $orders->sum('total'),
+            'order' => $orders->isNotEmpty() ? self::order($orders->first()) : null, // la primera (compatibilidad)
+            'orders' => $orders->map(fn ($o) => self::order($o))->all(),
+        ];
+    }
+
+    private static function order($order): array
+    {
+        return [
+            'id' => $order->id,
+            'total' => $order->total,
+            'guests' => $order->guests,
+            'opened_at' => $order->opened_at->toIso8601String(),
+            'notes' => $order->notes,
+            // "3 Caña, 1 Bravas…" para elegir cuenta sin abrirla.
+            'summary' => $order->lines->take(4)->map(fn ($l) => "{$l->quantity} {$l->name}")->implode(', ').($order->lines->count() > 4 ? '…' : ''),
+            'waiter' => $order->openedBy ? [
+                'id' => $order->openedBy->id, 'name' => $order->openedBy->name,
+                'initials' => $order->openedBy->initials(), 'color' => $order->openedBy->color,
             ] : null,
         ];
     }

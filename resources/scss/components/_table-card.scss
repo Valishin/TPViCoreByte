@@ -51,6 +51,15 @@
         font-weight: $font-weight-bold;
     }
 
+    &__accounts {
+        align-self: flex-start;
+        padding: 0 $space-2;
+        border-radius: $radius-pill;
+        background: rgba(0, 0, 0, 0.35);
+        font-size: $font-size-xs;
+        font-weight: $font-weight-bold;
+    }
+
     &__seats {
         opacity: 0.9;
     }

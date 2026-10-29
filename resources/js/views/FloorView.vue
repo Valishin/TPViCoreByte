@@ -40,6 +40,28 @@
             <span><i class="v-floor__swatch" style="background: var(--c-table-bill)"></i>Cuenta pedida</span>
         </div>
 
+        <!-- Mesa con varias cuentas: elegir cuál abrir -->
+        <ModalDialog :open="!!choosing" :title="choosing ? `Mesa ${choosing.name}: ${choosing.orders.length} cuentas` : ''" @close="choosing = null">
+            <div class="v-floor__accounts">
+                <button
+                    v-for="(acc, i) in choosing?.orders ?? []"
+                    :key="acc.id"
+                    type="button"
+                    class="c-option v-floor__account"
+                    @click="openOrder(acc.id)"
+                >
+                    <span>
+                        <strong>Cuenta {{ i + 1 }}</strong>
+                        <span class="c-option__extra">{{ acc.summary || 'Sin líneas' }}</span>
+                    </span>
+                    <strong>{{ money(acc.total) }}</strong>
+                </button>
+            </div>
+            <template #actions>
+                <TpvButton variant="ghost" @click="choosing = null">Cancelar</TpvButton>
+            </template>
+        </ModalDialog>
+
         <GuestsDialog :open="!!opening" :title="opening ? `Mesa ${opening.name}: ¿cuántos son?` : ''" @confirm="open" @close="opening = null" />
     </main>
 </template>
@@ -49,8 +71,10 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import TableCard from '@/components/TableCard.vue';
 import GuestsDialog from '@/components/GuestsDialog.vue';
+import ModalDialog from '@/components/ModalDialog.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import pos, { errorMessage } from '@/services/pos';
+import { money } from '@/utils/format';
 import { useFloorStore } from '@/stores/floor';
 import { useNoticesStore } from '@/stores/notices';
 import { useUiStore } from '@/stores/ui';
@@ -61,6 +85,12 @@ const notices = useNoticesStore();
 const ui = useUiStore();
 
 const opening = ref(null);
+const choosing = ref(null);
+
+function openOrder(id) {
+    choosing.value = null;
+    router.push(`/mesas/pedido/${id}`);
+}
 const quick = ref(false);
 
 /** Venta rápida de barra (sin mesa): comanda y cobro. */
@@ -100,7 +130,8 @@ function planStyle(t) {
 
 function select(table) {
     if (table.status === 'fuera_servicio') return;
-    if (table.order) router.push(`/mesas/pedido/${table.order.id}`);
+    if ((table.orders?.length ?? 0) > 1) choosing.value = table;
+    else if (table.order) router.push(`/mesas/pedido/${table.order.id}`);
     else opening.value = table;
 }
 

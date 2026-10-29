@@ -3,12 +3,13 @@
         type="button"
         :class="['c-table-card', `c-table-card--${table.status}`, { 'c-table-card--round': table.shape === 'redonda' }]"
         :style="style"
-        :aria-label="`Mesa ${table.name}, ${statusLabel}`"
+        :aria-label="`Mesa ${table.name}, ${statusLabel}${accounts > 1 ? `, ${accounts} cuentas` : ''}`"
         @click="$emit('select', table)"
     >
         <span class="c-table-card__name">{{ table.name }}</span>
         <template v-if="table.order">
-            <span class="c-table-card__total">{{ money(table.order.total) }}</span>
+            <span class="c-table-card__total">{{ money(table.total ?? table.order.total) }}</span>
+            <span v-if="accounts > 1" class="c-table-card__accounts">{{ accounts }} cuentas</span>
             <span class="c-table-card__meta">
                 <span>{{ duration(minutes) }}<template v-if="table.order.guests"> · {{ table.order.guests }}p</template></span>
                 <span
@@ -39,4 +40,5 @@ defineEmits(['select']);
 const labels = { libre: 'libre', ocupada: 'ocupada', cuenta_pedida: 'cuenta pedida', fuera_servicio: 'fuera de servicio' };
 const statusLabel = computed(() => labels[props.table.status] ?? props.table.status);
 const minutes = computed(() => minutesSince(props.table.order?.opened_at, props.now));
+const accounts = computed(() => props.table.orders?.length ?? (props.table.order ? 1 : 0));
 </script>
