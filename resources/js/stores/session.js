@@ -16,6 +16,20 @@ export const useSessionStore = defineStore('session', {
     }),
     getters: {
         isLoggedIn: (s) => !!s.user,
+        isCourier: (s) => s.user?.role === 'repartidor',
+        hasType: (s) => (type) => (s.settings?.enabled_order_types ?? []).includes(type),
+        /** Sala (mesa o barra) y/o pedidos para llevar / a domicilio activos en el local. */
+        hasFloor() {
+            return this.hasType('mesa') || this.hasType('barra');
+        },
+        hasTakeaway() {
+            return this.hasType('para_llevar') || this.hasType('domicilio');
+        },
+        /** Pantalla de inicio: repartidor → sus repartos; sin sala → Pedidos. */
+        home() {
+            if (this.isCourier) return '/repartos';
+            return this.hasFloor || !this.hasTakeaway ? '/mesas' : '/pedidos';
+        },
         lockMinutes: (s) =>
             layout.value === 'pos' ? s.settings?.auto_lock_minutes_pos ?? 0 : s.settings?.auto_lock_minutes_mobile ?? 0,
     },

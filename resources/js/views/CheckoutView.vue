@@ -3,7 +3,7 @@
         <header class="v-order__header">
             <TpvButton variant="secondary" @click="back">← Volver</TpvButton>
             <div class="v-order__where">Cobrar · {{ where }}</div>
-            <TpvButton v-if="o && !done" variant="secondary" @click="splitOpen = true">Dividir por productos</TpvButton>
+            <TpvButton v-if="o && !done && !takeaway" variant="secondary" @click="splitOpen = true">Dividir por productos</TpvButton>
         </header>
 
         <!-- Cobrado -->
@@ -12,7 +12,7 @@
             <p v-if="done.change" class="v-checkout__change">Cambio <strong>{{ money(done.change) }}</strong></p>
             <div class="v-checkout__done-actions">
                 <TpvButton variant="secondary" size="lg" @click="reprint">Imprimir copia</TpvButton>
-                <TpvButton variant="primary" size="lg" @click="router.replace('/mesas')">Volver a mesas</TpvButton>
+                <TpvButton variant="primary" size="lg" @click="router.replace(home)">{{ takeaway ? 'Volver a pedidos' : 'Volver a mesas' }}</TpvButton>
             </div>
         </section>
 
@@ -147,6 +147,9 @@ import { useSessionStore } from '@/stores/session';
 import { money, uid } from '@/utils/format';
 
 const route = useRoute();
+// Para llevar: se cobra desde "Pedidos" y se vuelve allí.
+const takeaway = computed(() => route.name === 'takeaway-checkout');
+const home = computed(() => (takeaway.value ? '/pedidos' : '/mesas'));
 const router = useRouter();
 const order = useOrderStore();
 const notices = useNoticesStore();
@@ -199,7 +202,7 @@ onMounted(async () => {
             await order.load(Number(route.params.orderId));
         } catch (e) {
             notices.error(errorMessage(e));
-            router.replace('/mesas');
+            router.replace(home.value);
         }
     }
 });
@@ -263,6 +266,7 @@ function onSplit(newOrder) {
     notices.toast('Cuenta separada: cobra esta parte y vuelve a la mesa para el resto.');
 }
 function back() {
-    router.push(o.value ? `/mesas/pedido/${o.value.id}` : '/mesas');
+    if (!o.value) return router.push(home.value);
+    router.push(takeaway.value ? `/pedidos/${o.value.id}` : `/mesas/pedido/${o.value.id}`);
 }
 </script>

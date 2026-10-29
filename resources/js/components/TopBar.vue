@@ -19,7 +19,13 @@
         <span v-if="!ui.isPos" class="c-topbar__spacer"></span>
 
         <template v-if="ui.isPos">
-            <TpvButton variant="secondary" aria-label="Caja" @click="router.push('/caja')">Caja</TpvButton>
+            <TpvButton
+                v-for="item in nav"
+                :key="item.path"
+                :variant="isActive(item.path) ? 'primary' : 'secondary'"
+                :aria-current="isActive(item.path) ? 'page' : null"
+                @click="router.push(item.path)"
+            >{{ item.label }}</TpvButton>
             <TpvButton variant="ghost" icon :aria-label="ui.theme === 'dark' ? 'Tema claro' : 'Tema oscuro'" @click="ui.toggleTheme()">
                 {{ ui.theme === 'dark' ? '☀' : '☾' }}
             </TpvButton>
@@ -29,7 +35,9 @@
 
         <BottomSheet v-if="!ui.isPos" :open="menu" title="Opciones" @close="menu = false">
             <div class="c-topbar__menu">
-                <TpvButton variant="secondary" size="lg" block @click="go('/caja')">Caja</TpvButton>
+                <TpvButton v-for="item in nav" :key="item.path" :variant="isActive(item.path) ? 'primary' : 'secondary'" size="lg" block @click="go(item.path)">
+                    {{ item.label }}
+                </TpvButton>
                 <TpvButton variant="secondary" size="lg" block @click="ui.toggleTheme()">
                     {{ ui.theme === 'dark' ? '☀ Tema claro' : '☾ Tema oscuro' }}
                 </TpvButton>
@@ -41,7 +49,7 @@
 
 <script setup>
 import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import BottomSheet from './BottomSheet.vue';
 import TpvButton from './TpvButton.vue';
 import { useNoticesStore } from '@/stores/notices';
@@ -53,6 +61,7 @@ defineProps({ title: { type: String, default: '' } });
 defineEmits(['lock']);
 
 const router = useRouter();
+const route = useRoute();
 const realtime = useRealtimeStore();
 const session = useSessionStore();
 const notices = useNoticesStore();
@@ -65,6 +74,20 @@ const connLabel = computed(() =>
 );
 // Avisos de impresión: envíos fallidos + impresoras con error sin envío fallido.
 const alerts = computed(() => notices.failedJobs.length + notices.printersInError.filter((p) => !notices.failedJobs.some((j) => j.printer?.id === p.id)).length);
+
+// Secciones según los tipos de pedido activos (sala, llevar / domicilio). El repartidor solo ve sus repartos.
+const nav = computed(() => {
+    if (session.isCourier) return [{ path: '/repartos', label: 'Mis repartos' }];
+    const items = [];
+    if (session.hasFloor) items.push({ path: '/mesas', label: 'Mesas' });
+    if (session.hasTakeaway) items.push({ path: '/pedidos', label: 'Pedidos' });
+    if (session.hasType('domicilio')) items.push({ path: '/repartidores', label: 'Repartidores' });
+    items.push({ path: '/caja', label: 'Caja' });
+    return items;
+});
+function isActive(path) {
+    return route.path === path || route.path.startsWith(`${path}/`);
+}
 
 function go(path) {
     menu.value = false;

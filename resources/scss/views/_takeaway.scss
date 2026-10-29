@@ -1,0 +1,385 @@
+@use '../tokens' as *;
+
+// Tablero "Pedidos" (llevar y domicilio)
+.v-board {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+    padding: $space-3;
+
+    &__bar {
+        display: flex;
+        align-items: center;
+        gap: $space-3;
+        flex-wrap: wrap;
+    }
+
+    &__title {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+    }
+
+    &__legend {
+        display: flex;
+        gap: $space-3;
+        flex: 1;
+        font-size: $font-size-sm;
+    }
+
+    &__tabs {
+        display: flex;
+        gap: $space-1;
+        overflow-x: auto;
+    }
+
+    &__tab {
+        flex: 1 0 auto;
+        min-height: $touch-target;
+        padding: 0 $space-3;
+        border: 2px solid $color-border;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+        color: $color-text;
+        font: inherit;
+        font-weight: $font-weight-bold;
+
+        &--active {
+            border-color: $color-primary;
+            background: $color-primary;
+            color: $color-primary-contrast;
+        }
+    }
+
+    &__count {
+        display: inline-block;
+        min-width: 1.6em;
+        padding: 0 $space-1;
+        border-radius: $radius-pill;
+        background: $color-surface-3;
+        color: $color-text;
+        font-size: $font-size-sm;
+        text-align: center;
+    }
+
+    &__columns {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-3;
+        align-items: start;
+
+        html[data-layout='pos'] & {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    &__column {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+        min-height: 40vh;
+        padding: $space-2;
+        border-radius: $radius-lg;
+        background: $color-surface;
+    }
+
+    &__column-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: $space-1 $space-2;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__empty {
+        padding: $space-4;
+        color: $color-text-muted;
+        text-align: center;
+    }
+
+    &__done-toggle {
+        min-height: $touch-target;
+        padding: 0 $space-3;
+        border: 0;
+        background: transparent;
+        color: $color-text;
+        font: inherit;
+        font-weight: $font-weight-bold;
+    }
+
+    &__done-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: $space-2;
+    }
+}
+
+// Tarjeta de un pedido del tablero
+.c-takeaway-card {
+    display: flex;
+    flex-direction: column;
+    border: 2px solid $color-border;
+    border-radius: $radius-md;
+    background: $color-surface-2;
+    overflow: hidden;
+
+    &--soon {
+        border-color: $color-warning;
+    }
+
+    &--late {
+        border-color: $color-danger;
+        border-width: 3px;
+    }
+
+    &__body {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: $space-2 $space-3;
+        border: 0;
+        background: transparent;
+        color: $color-text;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+
+        &:disabled {
+            cursor: default;
+        }
+    }
+
+    &__top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    &__type {
+        padding: 2px $space-2;
+        border-radius: $radius-sm;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+        letter-spacing: 0.04em;
+        background: $color-info;
+        color: $color-on-strong;
+
+        &--domicilio {
+            background: $color-primary;
+            color: $color-primary-contrast;
+        }
+    }
+
+    &__total {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__name {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__meta {
+        color: $color-text-muted;
+        font-size: $font-size-sm;
+    }
+
+    &__left {
+        align-self: flex-start;
+        margin-top: $space-1;
+        padding: 2px $space-2;
+        border-radius: $radius-sm;
+        font-weight: $font-weight-bold;
+        background: $color-surface-3;
+
+        // Alto contraste en los dos temas: fondo suave, texto y borde fuertes.
+        &--soon {
+            background: $color-pending-bg;
+            color: $color-text;
+            box-shadow: inset 0 0 0 2px $color-warning;
+        }
+
+        &--late {
+            background: $color-danger;
+            color: $color-on-strong;
+        }
+    }
+
+    &__actions {
+        display: flex;
+        gap: $space-2;
+        padding: 0 $space-2 $space-2;
+    }
+}
+
+// Cabecera de la comanda de llevar / domicilio
+.c-takeaway-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2 $space-4;
+    padding: $space-2 $space-3;
+    background: $color-surface;
+    border-bottom: 2px solid $color-border;
+
+    &__main,
+    &__side {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    &__main {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    &__name {
+        font-size: $font-size-lg;
+    }
+
+    &__address,
+    &__side {
+        color: $color-text-muted;
+        font-size: $font-size-sm;
+    }
+
+    &__notes {
+        flex-basis: 100%;
+        border-radius: $radius-sm;
+    }
+}
+
+// Nuevo pedido
+.v-new-order {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+
+    &__body {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: $space-4;
+        padding: $space-3;
+
+        html[data-layout='pos'] & {
+            grid-template-columns: 1fr 1fr;
+            align-items: start;
+        }
+    }
+
+    &__col {
+        display: flex;
+        flex-direction: column;
+        gap: $space-3;
+    }
+
+    &__types {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $space-3;
+    }
+
+    &__type {
+        min-height: calc(#{$touch-target} * 1.6);
+        border: 3px solid $color-border;
+        border-radius: $radius-lg;
+        background: $color-surface-2;
+        color: $color-text;
+        font: inherit;
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+
+        &--active {
+            border-color: $color-primary;
+            background: $color-primary;
+            color: $color-primary-contrast;
+        }
+    }
+
+    &__phone {
+        max-width: 420px;
+    }
+
+    &__customer,
+    &__recent {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+    }
+
+    &__phone-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: $font-size-lg;
+    }
+
+    &__name {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+    }
+
+    .c-alert {
+        border-radius: $radius-sm;
+    }
+}
+
+.c-address-form {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+
+    &__row {
+        display: flex;
+        gap: $space-2;
+        flex-wrap: wrap;
+
+        > * {
+            flex: 1 1 120px;
+        }
+    }
+
+    &__wide {
+        flex: 3 1 220px;
+    }
+}
+
+.c-payment-picker {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+
+    &__extra {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+        max-width: 420px;
+    }
+
+    &__change {
+        font-size: $font-size-lg;
+    }
+}
+
+// Opciones grandes (repartidores, horas, pago)
+.c-options--large .c-option {
+    min-height: calc(#{$touch-target} * 1.2);
+    font-size: $font-size-lg;
+}
+
+.c-option--person {
+    justify-content: flex-start;
+    gap: $space-3;
+}
+
+.c-option__avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 2.2em;
+    height: 2.2em;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: $font-weight-bold;
+}

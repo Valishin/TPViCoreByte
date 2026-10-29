@@ -61,7 +61,7 @@
                 <p class="v-checkout__change" :class="{ 'v-checkout__change--short': difference < 0 }">Diferencia <strong>{{ money(difference) }}</strong></p>
                 <TextField v-model="notes" label="Notas" :maxlength="500" />
                 <div v-if="openOrders.length" class="c-alert c-alert--warning" style="margin-top: 1rem">
-                    <span class="c-alert__text">Hay pedidos abiertos: {{ openOrders.join(', ') }}. Si cierras, quedarán pendientes para la próxima caja.</span>
+                    <span class="c-alert__text">Hay pedidos abiertos o sin cobrar: {{ openOrders.join(', ') }}. Si cierras, quedarán pendientes para la próxima caja.</span>
                 </div>
             </template>
             <template v-else>

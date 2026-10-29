@@ -4,6 +4,7 @@ import { useFloorStore } from './floor';
 import { useOrderStore } from './order';
 import { useNoticesStore } from './notices';
 import { useCatalogStore } from './catalog';
+import { useTakeawayStore } from './takeaway';
 
 /**
  * Tiempo real: canal privado `pos`. Al (re)conectar recarga el estado
@@ -34,11 +35,17 @@ export const useRealtimeStore = defineStore('realtime', {
             const order = useOrderStore();
             const notices = useNoticesStore();
             const catalog = useCatalogStore();
+            const takeaway = useTakeawayStore();
 
             echo.private('pos')
+                .listen('.takeaway.changed', (e) => {
+                    takeaway.refresh();
+                    if (order.order?.id === e.orderId) order.reload().catch(() => {});
+                })
                 .listen('.table.status', () => floor.refresh())
                 .listen('.order.updated', (e) => {
                     floor.refresh();
+                    if (!e.tableId) takeaway.refresh();
                     if (order.order?.id === e.orderId) order.reload().catch(() => {});
                 })
                 .listen('.printer.status', (e) => {
@@ -62,6 +69,7 @@ export const useRealtimeStore = defineStore('realtime', {
             useOrderStore().reload().catch(() => {});
             useNoticesStore().loadPrinting().catch(() => {});
             useCatalogStore().load().catch(() => {});
+            useTakeawayStore().refresh();
         },
     },
 });

@@ -79,7 +79,7 @@ async function submit() {
     try {
         const { resume, sameUser } = await session.login(selected.value.id, pin.value);
         if (!sameUser) order.clear(); // otro camarero: no se hereda la comanda a medias
-        router.replace(resume ?? route.query.redirect ?? '/mesas');
+        router.replace(resume ?? route.query.redirect ?? '/');
     } catch (e) {
         error.value = errorMessage(e);
         pin.value = '';

@@ -56,8 +56,8 @@ export const useOrderStore = defineStore('order', {
         voidLine(line, reason) {
             return this.run(() => pos.voidLine(line.id, reason));
         },
-        send() {
-            return this.run(() => pos.send(this.order.id));
+        send(options = {}) {
+            return this.run(() => pos.send(this.order.id, options));
         },
         move(tableId) {
             return this.run(() => pos.move(this.order.id, tableId));
