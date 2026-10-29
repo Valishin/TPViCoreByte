@@ -50,12 +50,21 @@ class OrderInfolist
                     TextEntry::make('delivery_address')->label('Dirección')->placeholder('—')->columnSpan(2)
                         ->state(fn (Order $record) => self::address($record->delivery_address)),
                     TextEntry::make('deliveryZone.name')->label('Zona')->placeholder('—'),
-                    TextEntry::make('promised_at')->label('Hora prometida')->dateTime('H:i')->placeholder('—'),
+                    TextEntry::make('promised_at')->label('Hora prometida')->placeholder('—')
+                        ->state(fn (Order $record) => $record->promisedLabel()),
                     TextEntry::make('courier.name')->label('Repartidor')->placeholder('—'),
                     TextEntry::make('delivery_status')->label('Estado de reparto')->badge()->placeholder('—'),
                     TextEntry::make('planned_payment_method')->label('Pagará con')->placeholder('—'),
                     TextEntry::make('cash_change_for')->label('Cambio para')->placeholder('—')
                         ->formatStateUsing(fn ($state) => Format::money($state)),
+                    TextEntry::make('prepaid_method')->label('Ya pagado con')->placeholder('—'),
+                    TextEntry::make('dispatched_at')->label('Salida')->dateTime('H:i')->placeholder('—'),
+                    TextEntry::make('delivered')->label('Entregado')->placeholder('—')
+                        ->state(fn (Order $record) => $record->delivered_at ? $record->delivered_at->format('H:i').' · '.$record->deliveredBy?->name : null),
+                    TextEntry::make('courierSettlement.created_at')->label('Liquidado')->dateTime('d/m H:i')->placeholder('—'),
+                    TextEntry::make('delivery_failed_reason')->label('No entregado')->placeholder('—')->columnSpan(2),
+                    TextEntry::make('cancelled')->label('Cancelado')->placeholder('—')->columnSpan(2)
+                        ->state(fn (Order $record) => $record->cancelled_at ? $record->cancelled_at->format('d/m H:i').' · '.$record->cancelledBy?->name.' · '.$record->cancel_reason : null),
                 ]),
             Section::make('Líneas')->columnSpanFull()->schema([
                 LinesTree::make('lines'),

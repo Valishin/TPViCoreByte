@@ -37,6 +37,7 @@ class OrdersTable
                         OrderStatus::Cancelled => 'gray',
                     }),
                 TextColumn::make('delivery_status')->label('Reparto')->badge()->placeholder('—')->toggleable(),
+                TextColumn::make('courier.name')->label('Repartidor')->placeholder('—')->toggleable(),
                 MoneyColumn::make('total')->label('Total')->sortable(),
             ])
             ->filters([

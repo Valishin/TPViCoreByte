@@ -64,6 +64,21 @@ class CashSessionInfolist
                     TextEntry::make('z_types')->label('Por tipo de pedido')->columnSpanFull()
                         ->state(fn (CashSession $record) => collect($record->z_report['by_order_type'] ?? [])->map(fn ($r) => "{$r['label']} ({$r['count']}): ".Format::money($r['total']))->implode(' · ') ?: '—'),
                 ]),
+            Section::make('Reparto')->columns(3)->columnSpanFull()
+                ->visible(fn (CashSession $record) => $record->movements()->exists() || $record->courierSettlements()->exists())
+                ->schema([
+                    TextEntry::make('settlements')->label('Liquidaciones')->columnSpanFull()
+                        ->state(fn (CashSession $record) => $record->courierSettlements()->with('courier')->get()
+                            ->map(fn ($s) => "{$s->courier->name}: efectivo ".Format::money($s->cash_collected).', tarjeta '.Format::money($s->card_collected)
+                                .($s->difference ? ', diferencia '.Format::money($s->difference) : ''))->implode(' · ') ?: '—'),
+                    TextEntry::make('movements')->label('Movimientos de caja (no son ventas)')->columnSpanFull()
+                        ->state(fn (CashSession $record) => $record->movements()->with('courier')->get()
+                            ->map(fn ($m) => $m->type->label().($m->courier ? " ({$m->courier->name})" : '').': '.Format::money($m->amount))->implode(' · ') ?: '—'),
+                    TextEntry::make('z_delivery_pending')->label('Domicilio pendiente de cobro al cerrar')->columnSpanFull()
+                        ->visible(fn (CashSession $record) => filled($record->z_report))
+                        ->state(fn (CashSession $record) => collect($record->z_report['delivery_pending']['tickets'] ?? [])
+                            ->map(fn ($t) => "{$t['number']} ({$t['courier']}): ".Format::money($t['amount']))->implode(' · ') ?: '—'),
+                ]),
             Section::make('Arqueo de efectivo')->columns(5)->columnSpanFull()->schema([
                 MoneyEntry::make('opening_float')->label('Fondo inicial'),
                 TextEntry::make('cash_in')->label('Cobrado en efectivo')
