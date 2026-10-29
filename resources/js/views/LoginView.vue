@@ -23,7 +23,7 @@
                 {{ selected ? selected.name : 'Elige tu nombre' }}
                 <TpvButton v-if="selected && !ui.isPos" variant="ghost" size="sm" @click="select(null)">Cambiar</TpvButton>
             </p>
-            <NumericKeypad v-model="pin" masked :length="4" :error="!!error" @complete="submit" />
+            <NumericKeypad v-model="pin" masked :length="4" :error="!!error" :disabled="!selected" @complete="submit" />
             <p class="v-login__error" role="alert">{{ error }}</p>
         </div>
     </main>

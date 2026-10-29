@@ -59,6 +59,18 @@
         }
     }
 
+    // En caja las teclas ya miden 64 px como mínimo: sin el extra del móvil.
+    html[data-layout='pos'] &__key {
+        min-height: $touch-target;
+    }
+
+    // Bloqueado (p. ej. PIN sin usuario elegido): gris y sin respuesta.
+    &--disabled {
+        filter: grayscale(1);
+        opacity: 0.35;
+        pointer-events: none;
+    }
+
     &--error &__display {
         color: $color-danger;
         animation: c-keypad-shake 0.25s;
