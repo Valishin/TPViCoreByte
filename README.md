@@ -109,11 +109,20 @@ Los camareros y repartidores de demo solo tienen PIN (ver `docs/modelo-datos.md`
 
 ## Datos de demo
 
-Hay dos datasets excluyentes: **bar** (mesas, tapas y bebidas) y **pizzería**
-(reparto, tamaños, mitad y mitad, menús). `DEMO_DATASET` del `.env` decide
-cuál carga `db:seed`; para cambiar sin tocar el `.env`:
+Hay tres datasets excluyentes:
+
+- **bar**: mesas, tapas y bebidas.
+- **pizzeria**: llevar y domicilio en Sant Feliu de Guíxols (tamaños, mitad y
+  mitad, menús, clientes y zonas por código postal).
+- **pizzeria_mixta**: lo mismo que la pizzería más un comedor (8 mesas) y una
+  terraza (6), con todos los tipos de pedido activos (mesa, barra, para llevar
+  y domicilio). PIN de sala: Laia 2222, Pau 3333.
+
+`DEMO_DATASET` del `.env` decide cuál carga `db:seed`; para cambiar sin tocar
+el `.env`:
 
 ```bash
+./vendor/bin/sail artisan migrate:fresh --seeder=DemoPizzeriaMixtaSeeder
 ./vendor/bin/sail artisan migrate:fresh --seeder=DemoPizzeriaSeeder
 ./vendor/bin/sail artisan migrate:fresh --seeder=DemoBarSeeder
 ```
@@ -364,7 +373,7 @@ de Vite.
 ## Producción (mini PC)
 
 Guía paso a paso: **[docs/instalacion-minipc.md](docs/instalacion-minipc.md)**
-(BIOS, Debian 12, IP reservada, instalador, impresoras, Tailscale, copias,
+(BIOS, Debian 13, IP reservada, instalador, impresoras, Tailscale, copias,
 actualizaciones) y **[docs/checklist-instalacion.md](docs/checklist-instalacion.md)**
 para cada cliente. SAI: [docs/sai-nut.md](docs/sai-nut.md).
 

@@ -21,7 +21,7 @@ class DemoPizzeriaSeeder extends DemoSeeder
     {
         fake()->seed(2026); // datos de clientes reproducibles
 
-        $this->setUpLocal('Pizzería Bella Napoli', [OrderType::Takeaway, OrderType::Delivery])->update([
+        $this->setUpLocal('Pizzería Bella Napoli', $this->orderTypes())->update([
             'address' => 'Rambla del Portalet, 12',
             'postal_code' => '17220',
             'city' => 'Sant Feliu de Guíxols',
@@ -162,7 +162,18 @@ class DemoPizzeriaSeeder extends DemoSeeder
                 ]);
             }
         }
+
+        $this->extras();
     }
+
+    /** Tipos de pedido activos: la pizzería solo hace llevar y domicilio. */
+    protected function orderTypes(): array
+    {
+        return [OrderType::Takeaway, OrderType::Delivery];
+    }
+
+    /** Gancho para variantes del dataset (p. ej. pizzeria_mixta con sala). */
+    protected function extras(): void {}
 
     /**
      * @param  array<string, Product>  $products

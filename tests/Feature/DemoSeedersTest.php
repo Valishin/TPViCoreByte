@@ -17,6 +17,7 @@ use App\Models\Table;
 use App\Models\User;
 use App\Services\Orders\OrderLineBuilder;
 use Database\Seeders\DemoBarSeeder;
+use Database\Seeders\DemoPizzeriaMixtaSeeder;
 use Database\Seeders\DemoPizzeriaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -92,5 +93,22 @@ class DemoSeedersTest extends TestCase
         $this->assertSame(15, $settings->takeaway_prep_minutes);
         $this->assertSame(35, $settings->delivery_minutes);
         $this->assertFalse($settings->print_courier_copy);
+    }
+
+    public function test_pizzeria_mixta_dataset(): void
+    {
+        $this->seed(DemoPizzeriaMixtaSeeder::class);
+
+        $settings = Setting::current();
+        foreach (OrderType::cases() as $type) {
+            $this->assertTrue($settings->isOrderTypeEnabled($type), $type->value);
+        }
+        $this->assertSame(['Comedor' => 8, 'Terraza' => 6], Room::withCount('tables')->orderBy('sort_order')->pluck('tables_count', 'name')->all());
+        // La carta, los clientes y las zonas de Sant Feliu de la pizzería.
+        $this->assertGreaterThanOrEqual(10, Product::where('allows_half_and_half', true)->count());
+        $this->assertSame(15, Customer::count());
+        $this->assertSame(3, DeliveryZone::count());
+        $this->assertSame(2, User::where('role', UserRole::Courier)->count());
+        $this->assertSame(3, User::where('role', UserRole::Waiter)->count());
     }
 }
