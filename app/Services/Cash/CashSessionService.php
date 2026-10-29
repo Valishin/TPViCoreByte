@@ -4,10 +4,15 @@ namespace App\Services\Cash;
 
 use App\Enums\CashSessionStatus;
 use App\Enums\OrderStatus;
+use App\Enums\OrderType;
+use App\Enums\PaymentStatus;
+use App\Enums\TicketStatus;
+use App\Enums\TicketType;
 use App\Exceptions\OpenOrdersException;
 use App\Models\CashSession;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Support\Format;
 use Illuminate\Support\Facades\DB;
@@ -98,9 +103,16 @@ class CashSessionService
      */
     public function assertNoOpenOrders(bool $force): void
     {
-        $open = Order::query()->where('status', OrderStatus::Open)->with('table')->get();
-        if ($open->isNotEmpty() && ! $force) {
-            throw new OpenOrdersException($open->map(fn (Order $o) => ($o->table ? "Mesa {$o->table->name}" : $o->type->label()).' · '.Format::money($o->total))->all());
+        $open = Order::query()->where('status', OrderStatus::Open)->with('table')->get()
+            ->map(fn (Order $o) => ($o->table ? "Mesa {$o->table->name}" : $o->type->label()).' · '.Format::money($o->total));
+        // Domicilios con ticket aún sin cobrar (en manos del repartidor).
+        $pending = Ticket::query()->where('order_type', OrderType::Delivery)->where('type', TicketType::Simplified)
+            ->where('status', TicketStatus::Issued)->where('payment_status', PaymentStatus::Pending)->with('order.courier')->get()
+            ->map(fn (Ticket $t) => "Domicilio {$t->fullNumber()} sin cobrar".($t->order?->courier ? " ({$t->order->courier->name})" : '').' · '.Format::money($t->total - $t->paidAmount()));
+
+        $all = $open->concat($pending)->values()->all();
+        if ($all && ! $force) {
+            throw new OpenOrdersException($all);
         }
     }
 

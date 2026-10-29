@@ -10,6 +10,6 @@ class OpenOrdersException extends RuntimeException
     /** @param  list<string>  $orders  descripción de cada pedido abierto ("Mesa 3 · 24,50 €") */
     public function __construct(public readonly array $orders)
     {
-        parent::__construct('Hay pedidos abiertos: '.implode(', ', $orders).'. Confirma si quieres cerrar la caja igualmente.');
+        parent::__construct('Hay pedidos abiertos o sin cobrar: '.implode(', ', $orders).'. Confirma si quieres cerrar la caja igualmente.');
     }
 }

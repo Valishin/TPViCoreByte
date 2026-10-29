@@ -4,8 +4,12 @@ namespace App\Services\Cash;
 
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Enums\TicketStatus;
 use App\Enums\TicketType;
+use App\Models\CashMovement;
 use App\Models\CashSession;
+use App\Models\CourierSettlement;
 use App\Models\Payment;
 use App\Models\Ticket;
 use App\Models\TicketLine;
@@ -29,7 +33,17 @@ class CashReportService
         $lineDiscounts = (int) $tickets->sum('lines_discount') - $invitations;
 
         $cashIn = (int) $payments->where('method', PaymentMethod::Cash)->sum('amount');
-        $expected = $session->opening_float + $cashIn;
+        // Movimientos que no son venta (fondo de cambio de los repartidores): − sale, + vuelve.
+        $movements = CashMovement::query()->where('cash_session_id', $session->id)->with('courier')->orderBy('id')->get();
+        $movementsTotal = (int) $movements->sum('amount');
+        $expected = $session->opening_float + $cashIn + $movementsTotal;
+
+        // Domicilios con ticket emitido y aún sin cobrar (los lleva el repartidor).
+        $pendingDelivery = Ticket::query()
+            ->where('order_type', OrderType::Delivery)->where('type', TicketType::Simplified)
+            ->where('status', TicketStatus::Issued)->where('payment_status', PaymentStatus::Pending)
+            ->with(['order.courier', 'payments'])->orderBy('issued_at')->get();
+        $settlements = CourierSettlement::query()->where('cash_session_id', $session->id)->with('courier')->orderBy('id')->get();
 
         $vat = [];
         foreach ($tickets as $ticket) {
@@ -87,9 +101,26 @@ class CashReportService
             'by_order_type' => $tickets->groupBy(fn ($t) => $t->order_type?->value ?? 'barra')
                 ->map(fn ($g, $type) => ['type' => $type, 'label' => OrderType::from($type)->label(), 'count' => $g->count(), 'total' => (int) $g->sum('total')])
                 ->values()->all(),
+            'delivery_pending' => [
+                'count' => $pendingDelivery->count(),
+                'total' => (int) $pendingDelivery->sum(fn (Ticket $t) => $t->total - $t->paidAmount()),
+                'tickets' => $pendingDelivery->map(fn (Ticket $t) => [
+                    'ticket_id' => $t->id, 'number' => $t->fullNumber(), 'amount' => $t->total - $t->paidAmount(),
+                    'courier' => $t->order?->courier?->name, 'issued_at' => $t->issued_at->format('H:i'),
+                ])->values()->all(),
+            ],
+            'courier_settlements' => $settlements->map(fn (CourierSettlement $s) => [
+                'courier' => $s->courier->name, 'cash' => $s->cash_collected, 'card' => $s->card_collected, 'other' => $s->other_collected,
+                'float' => $s->float_amount, 'expected' => $s->expected_cash, 'handed' => $s->handed_cash, 'difference' => $s->difference,
+            ])->values()->all(),
+            'cash_movements' => $movements->map(fn (CashMovement $m) => [
+                'type' => $m->type->value, 'label' => $m->type->label(), 'courier' => $m->courier?->name, 'amount' => $m->amount,
+                'at' => $m->created_at->format('H:i'),
+            ])->values()->all(),
             'cash' => [
                 'opening_float' => $session->opening_float,
                 'cash_in' => $cashIn,
+                'movements' => $movementsTotal,
                 'expected' => $expected,
                 'counted' => $countedCash,
                 'difference' => $countedCash === null ? null : $countedCash - $expected,

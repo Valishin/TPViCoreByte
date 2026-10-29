@@ -47,10 +47,11 @@ class RectificationService
 
     /**
      * @param  array<int, int>|null  $quantities  ticket_line_id (raíz) => unidades a anular; null = todo
+     * @param  bool  $refund  false: sin devolución (p. ej. domicilio no entregado: no se llegó a cobrar)
      */
-    public function byDifferences(Ticket $original, User $by, string $reason, ?array $quantities = null, ?PaymentMethod $refundMethod = null, bool $print = true): Ticket
+    public function byDifferences(Ticket $original, User $by, string $reason, ?array $quantities = null, ?PaymentMethod $refundMethod = null, bool $print = true, bool $refund = true): Ticket
     {
-        return $this->rectify($original, $by, $reason, RectificationMethod::Differences, $quantities, $refundMethod, $print);
+        return $this->rectify($original, $by, $reason, RectificationMethod::Differences, $quantities, $refundMethod, $print, $refund);
     }
 
     /**
@@ -76,7 +77,7 @@ class RectificationService
             ->all();
     }
 
-    private function rectify(Ticket $original, User $by, string $reason, RectificationMethod $method, ?array $quantities, ?PaymentMethod $refundMethod, bool $print): Ticket
+    private function rectify(Ticket $original, User $by, string $reason, RectificationMethod $method, ?array $quantities, ?PaymentMethod $refundMethod, bool $print, bool $withRefund = true): Ticket
     {
         if ($original->type !== TicketType::Simplified) {
             throw new LogicException('Solo se pueden rectificar facturas simplificadas.');
@@ -89,7 +90,7 @@ class RectificationService
         }
         $session = CheckoutService::openSession() ?? throw new CashSessionRequiredException;
 
-        return DB::transaction(function () use ($original, $by, $reason, $method, $quantities, $refundMethod, $print, $session) {
+        return DB::transaction(function () use ($original, $by, $reason, $method, $quantities, $refundMethod, $print, $session, $withRefund) {
             $original = Ticket::query()->whereKey($original->id)->lockForUpdate()->firstOrFail();
             $roots = $original->lines()->whereNull('parent_line_id')->get();
             $children = $original->lines()->whereNotNull('parent_line_id')->get()->groupBy('parent_line_id');
@@ -217,7 +218,7 @@ class RectificationService
 
             // Devolución: lo que el cliente recupera (pago negativo en la caja abierta).
             $refund = $method === RectificationMethod::Differences ? $total : $total - $original->total;
-            if ($refund < 0) {
+            if ($refund < 0 && $withRefund) {
                 $rectifying->payments()->create([
                     'method' => $refundMethod ?? $original->payments()->orderByDesc('amount')->first()?->method ?? PaymentMethod::Cash,
                     'amount' => $refund,

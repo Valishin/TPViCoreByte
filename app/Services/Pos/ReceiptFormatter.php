@@ -6,6 +6,7 @@ use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\TicketType;
+use App\Models\CourierSettlement;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Setting;
@@ -191,6 +192,33 @@ class ReceiptFormatter
         return $p;
     }
 
+    /** Resguardo de la liquidación de un repartidor. */
+    public function courierSettlement(CourierSettlement $settlement): Printable
+    {
+        $p = (new Printable)->line('LIQUIDACIÓN DE REPARTO', Printable::ALIGN_CENTER, bold: true, large: true)
+            ->line($settlement->courier->name, Printable::ALIGN_CENTER, bold: true, large: true)
+            ->line($settlement->created_at->format('d/m/Y H:i').' · '.$settlement->settledBy->name, Printable::ALIGN_CENTER)
+            ->separator('=');
+        foreach ($settlement->orders as $order) {
+            $ticket = $order->tickets->where('type', TicketType::Simplified)->sortByDesc('id')->first();
+            $p->columns(($ticket?->fullNumber() ?? "#{$order->id}").' '.($order->customer_name ?? ''), Format::money($ticket?->total ?? 0));
+        }
+        $p->separator()
+            ->columns('Efectivo cobrado', Format::money($settlement->cash_collected))
+            ->columns('Tarjeta', Format::money($settlement->card_collected));
+        if ($settlement->other_collected) {
+            $p->columns('Otros', Format::money($settlement->other_collected));
+        }
+        if ($settlement->float_amount) {
+            $p->columns('Fondo devuelto', Format::money($settlement->float_amount));
+        }
+
+        return $p->columns('Efectivo esperado', Format::money($settlement->expected_cash), bold: true)
+            ->columns('Entregado', Format::money($settlement->handed_cash), bold: true)
+            ->columns('Diferencia', Format::money($settlement->difference), bold: true)
+            ->feed(3)->cut();
+    }
+
     /** Justificante de una parte del pago: NO es una factura. */
     public function paymentReceipt(Ticket $ticket, Payment $payment, int $part, int $parts): Printable
     {
@@ -269,10 +297,36 @@ class ReceiptFormatter
             $p->columns($row['label'].' ('.$row['count'].')', Format::money($row['total']));
         }
 
+        if (! empty($report['courier_settlements'])) {
+            $p->separator()->line('LIQUIDACIONES DE REPARTO', bold: true);
+            foreach ($report['courier_settlements'] as $row) {
+                $p->columns($row['courier'], 'Ef. '.Format::money($row['cash']).' · Tarj. '.Format::money($row['card']));
+                if ($row['difference']) {
+                    $p->columns('  Diferencia', Format::money($row['difference']), bold: true);
+                }
+            }
+        }
+        if (! empty($report['delivery_pending']['count'])) {
+            $p->separator()->line('DOMICILIO PENDIENTE DE COBRO', bold: true, reverse: true);
+            foreach ($report['delivery_pending']['tickets'] as $row) {
+                $p->columns($row['number'].' · '.($row['courier'] ?? 'sin repartidor'), Format::money($row['amount']));
+            }
+            $p->columns('Total pendiente', Format::money($report['delivery_pending']['total']), bold: true);
+        }
+        if (! empty($report['cash_movements'])) {
+            $p->separator()->line('MOVIMIENTOS DE CAJA (no son ventas)', bold: true);
+            foreach ($report['cash_movements'] as $row) {
+                $p->columns($row['at'].' '.$row['label'].($row['courier'] ? " · {$row['courier']}" : ''), Format::money($row['amount']));
+            }
+        }
+
         $p->separator('=')->line('EFECTIVO', bold: true)
             ->columns('Fondo inicial', Format::money($report['cash']['opening_float']))
-            ->columns('Cobros en efectivo', Format::money($report['cash']['cash_in']))
-            ->columns('Efectivo esperado', Format::money($report['cash']['expected']), bold: true);
+            ->columns('Cobros en efectivo', Format::money($report['cash']['cash_in']));
+        if ($report['cash']['movements'] ?? 0) {
+            $p->columns('Movimientos de caja', Format::money($report['cash']['movements']));
+        }
+        $p->columns('Efectivo esperado', Format::money($report['cash']['expected']), bold: true);
         if ($final) {
             $p->columns('Contado', Format::money($report['cash']['counted']))
                 ->columns('Diferencia', Format::money($report['cash']['difference']), bold: true);

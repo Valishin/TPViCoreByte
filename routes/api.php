@@ -6,6 +6,7 @@ use App\Http\Controllers\Pos\AuthController;
 use App\Http\Controllers\Pos\CashController;
 use App\Http\Controllers\Pos\CatalogController;
 use App\Http\Controllers\Pos\CheckoutController;
+use App\Http\Controllers\Pos\CourierController;
 use App\Http\Controllers\Pos\CustomerController;
 use App\Http\Controllers\Pos\OrderController;
 use App\Http\Controllers\Pos\PrintController;
@@ -59,6 +60,10 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::post('/takeaway-orders/{order}/dispatch', [TakeawayOrderController::class, 'dispatch'])->name('pos.takeaway.dispatch');
     Route::post('/takeaway-orders/{order}/cancel', [TakeawayOrderController::class, 'cancel'])->name('pos.takeaway.cancel');
     Route::get('/couriers', [TakeawayOrderController::class, 'couriers'])->name('pos.couriers');
+    Route::get('/couriers/settlement', [CourierController::class, 'index'])->name('pos.couriers.settlement');
+    Route::post('/couriers/{courier}/float', [CourierController::class, 'giveFloat'])->name('pos.couriers.float');
+    Route::post('/couriers/{courier}/settle', [CourierController::class, 'settle'])->name('pos.couriers.settle');
+    Route::post('/takeaway-orders/{order}/not-delivered', [CourierController::class, 'notDelivered'])->name('pos.takeaway.not-delivered');
     Route::post('/takeaway-orders/{order}/repeat/{source}', [TakeawayOrderController::class, 'repeat'])->name('pos.takeaway.repeat');
 
     // Autorización de encargado
