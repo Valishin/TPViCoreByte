@@ -30,7 +30,7 @@ class UsbPrinterTest extends PosTestCase
         parent::setUp();
         // "Dispositivo" USB de prueba: un fichero temporal donde escribe el conector.
         $this->device = tempnam(sys_get_temp_dir(), 'lp');
-        config(['printing.mode' => 'network']);
+        config(['printing.mode' => 'real']);
     }
 
     protected function tearDown(): void

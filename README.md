@@ -246,7 +246,7 @@ sesión sea del host con el que se entra (localhost o IP).
 - `simulated` (por defecto): guarda cada ticket en
   `storage/app/private/prints/` como `.txt` legible y `.bin` con los bytes
   ESC/POS exactos que irían a la impresora.
-- `network`: envía por TCP a `PRINTER_HOST:PRINTER_PORT` (9100).
+- `real`: impresión de verdad, por red (TCP, `PRINTER_HOST:PRINTER_PORT`, normalmente 9100) o USB según cada impresora. `network` se acepta como alias antiguo (deja un aviso en el log).
 
 Formas de lanzar una página de prueba (nombre, acentos, ñ, €, fecha y corte):
 
@@ -258,7 +258,7 @@ Formas de lanzar una página de prueba (nombre, acentos, ñ, €, fecha y corte)
 
 Cada impresora se configura en /admin → Impresoras como **Red** (IP y puerto)
 o **USB** (dispositivo, p. ej. `/dev/impresora-ticket`). Con
-`PRINTER_MODE=network` se imprime de verdad y cada una usa su conexión.
+`PRINTER_MODE=real` se imprime de verdad y cada una usa su conexión.
 
 > **En el Mac no se pueden probar las USB:** Docker Desktop para macOS no
 > puede pasar dispositivos USB a los contenedores. En desarrollo se usa el
@@ -276,7 +276,7 @@ ejemplo en `docker-compose.prod.yml`.
 2. Comprueba que el Mac llega a ella: `nc -vz 192.168.1.200 9100`.
 3. En `.env`:
    ```
-   PRINTER_MODE=network
+   PRINTER_MODE=real
    PRINTER_HOST=192.168.1.200
    PRINTER_PORT=9100
    ```
@@ -336,7 +336,7 @@ Lo que cambia respecto a desarrollo:
      `:puerto` si no es el 80). Ya no hace falta la IP del Mac.
    - `SESSION_DOMAIN=null` se mantiene.
    - `VITE_HMR_HOST` / `VITE_PORT` dejan de usarse: no hay Vite en producción.
-   - `PRINTER_MODE=network` con la IP de la impresora.
+   - `PRINTER_MODE=real` con la IP de la impresora.
    - Contraseñas reales para PostgreSQL y claves nuevas de Reverb
      (`REVERB_APP_ID/KEY/SECRET`).
 3. Assets compilados: `npm ci && npm run build` (sin `public/hot`). Las

@@ -139,7 +139,7 @@ En **/admin → Configuración → Impresoras**:
 - **Ancho del papel:** 80 mm (48 caracteres) o 58 mm (32)
 - **Página de códigos:** 16 (WPC1252) para acentos, ñ y €
 
-Y en `.env`: `PRINTER_MODE=network` (impresión real; cada impresora usa su
+Y en `.env`: `PRINTER_MODE=real` (impresión real; cada impresora usa su
 conexión, red o USB). Después: `docker compose restart printing`.
 
 Pulsa **"Imprimir prueba"** en la fila de la impresora: sale la página de

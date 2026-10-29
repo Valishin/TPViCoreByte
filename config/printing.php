@@ -6,8 +6,9 @@ return [
     | Modo de impresión:
     |  - simulated: no envía nada; guarda el ticket como texto legible (y los
     |    bytes ESC/POS en .bin) en storage/app/prints/.
-    |  - network: impresión REAL. Cada impresora usa su conexión: red (TCP,
+    |  - real: impresión de verdad. Cada impresora usa su conexión: red (TCP,
     |    normalmente puerto 9100) o USB (dispositivo /dev/...).
+    |    ("network" se acepta como alias antiguo de "real", con aviso en el log.)
     */
     'mode' => env('PRINTER_MODE', 'simulated'),
 

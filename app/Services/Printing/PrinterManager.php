@@ -3,6 +3,7 @@
 namespace App\Services\Printing;
 
 use App\Models\Printer as PrinterModel;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Mike42\Escpos\CapabilityProfile;
@@ -14,7 +15,7 @@ use Mike42\Escpos\Printer;
 use RuntimeException;
 
 /**
- * Envía tickets a la impresora según PRINTER_MODE (network | simulated).
+ * Envía tickets a la impresora según PRINTER_MODE (real | simulated).
  */
 class PrinterManager
 {
@@ -39,9 +40,25 @@ class PrinterManager
         return new self($config);
     }
 
+    /** Valores admitidos de PRINTER_MODE. "network" es un alias antiguo de "real". */
+    public const MODE_REAL = 'real';
+
+    public const MODE_SIMULATED = 'simulated';
+
     public function mode(): string
     {
-        return $this->config['mode'];
+        $mode = $this->config['mode'];
+        if ($mode === 'network') {
+            // Un aviso por proceso/aplicación (no en cada impresión).
+            if (! app()->bound('printing.alias-warned')) {
+                app()->instance('printing.alias-warned', true);
+                Log::warning('PRINTER_MODE=network está obsoleto: usa PRINTER_MODE=real.');
+            }
+
+            return self::MODE_REAL;
+        }
+
+        return $mode;
     }
 
     /**
@@ -52,9 +69,9 @@ class PrinterManager
     public function print(Ticket $ticket): array
     {
         return match ($this->mode()) {
-            'network' => $this->isUsb() ? $this->printToUsb($ticket) : $this->printToNetwork($ticket),
-            'simulated' => $this->printSimulated($ticket),
-            default => throw new InvalidArgumentException("PRINTER_MODE no válido: {$this->mode()}"),
+            self::MODE_REAL => $this->isUsb() ? $this->printToUsb($ticket) : $this->printToNetwork($ticket),
+            self::MODE_SIMULATED => $this->printSimulated($ticket),
+            default => throw new InvalidArgumentException("PRINTER_MODE no válido: {$this->mode()} (usa real o simulated)."),
         };
     }
 
@@ -73,7 +90,7 @@ class PrinterManager
         $connector->write($bytes);
         $connector->finalize();
 
-        return ['mode' => 'network', 'bytes' => strlen($bytes), 'target' => "{$host}:{$port}"];
+        return ['mode' => self::MODE_REAL, 'bytes' => strlen($bytes), 'target' => "{$host}:{$port}"];
     }
 
     public function isUsb(): bool
@@ -106,7 +123,7 @@ class PrinterManager
             $connector->finalize();
         }, "Impresora USB sin respuesta en {$path}.");
 
-        return ['mode' => 'network', 'bytes' => strlen($bytes), 'target' => $path];
+        return ['mode' => self::MODE_REAL, 'bytes' => strlen($bytes), 'target' => $path];
     }
 
     /**
@@ -145,11 +162,11 @@ class PrinterManager
 
     public function target(): string
     {
-        if ($this->mode() === 'network' && $this->isUsb()) {
+        if ($this->mode() === self::MODE_REAL && $this->isUsb()) {
             return (string) $this->config['usb']['device_path'];
         }
 
-        return $this->mode() === 'network'
+        return $this->mode() === self::MODE_REAL
             ? $this->config['network']['host'].':'.$this->config['network']['port']
             : 'storage/app/private/'.trim($this->config['simulated_path'], '/');
     }

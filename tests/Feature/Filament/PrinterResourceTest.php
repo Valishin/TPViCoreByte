@@ -27,7 +27,7 @@ class PrinterResourceTest extends FilamentTestCase
 
     public function test_print_test_reports_connection_errors(): void
     {
-        config(['printing.mode' => 'network', 'printing.network.timeout' => 1]);
+        config(['printing.mode' => 'real', 'printing.network.timeout' => 1]);
         $printer = Printer::factory()->create(['name' => 'Barra', 'host' => '127.0.0.1', 'port' => 9]);
 
         Livewire::test(ListPrinters::class)

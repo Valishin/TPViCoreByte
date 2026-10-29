@@ -20,7 +20,7 @@
 x-app: &app
     image: 'tpv-hosteleria:latest'   # imagen de producción (PHP 8.4), construida aparte
     restart: unless-stopped
-    env_file: .env                   # APP_ENV=production, PRINTER_MODE=network, …
+    env_file: .env                   # APP_ENV=production, PRINTER_MODE=real, …
     volumes:
         - 'storage:/var/www/html/storage'
     networks:
