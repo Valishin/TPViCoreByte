@@ -43,6 +43,38 @@ nueva debe cumplirlos.
 
 ## Teclado en pantalla
 
+### Reglas del teclado y del ratón
+
+- **En la caja no se usa el teclado del sistema** (el del sistema operativo o
+  el del navegador en modo kiosko): todo se introduce con teclados propios de la
+  app.
+- **Números** (PIN, importes, cantidades, comensales, fondo y arqueo):
+  **teclado numérico propio**.
+- **Notas rápidas configurables por categoría en Filament:** cada categoría
+  tiene su lista de notas ("Sin sal", "Poco hecho"…), que salen como botones
+  al añadir un producto o editar una línea. Se pueden tocar varias, y el
+  texto libre queda para los casos raros.
+- **Teclado en pantalla propio para texto** (QWERTY español con **ñ** y
+  **acentos**: á é í ó ú ü, y mayúsculas). **Aparece al enfocar un campo de
+  texto en la caja** (notas, motivos, nombres) y **convive con el teclado
+  físico**: si hay uno conectado, se puede escribir con los dos y no se pierde
+  nada.
+- **Ajuste "Mostrar teclado en pantalla en caja"** (Ajustes en Filament,
+  activado por defecto). Desactivado, en la caja solo se usa el teclado físico.
+  En **móvil** se usa el teclado del propio teléfono.
+- **El ratón no puede romper nada:** todo funciona igual con un clic que con
+  un toque (sin gestos que solo existan en táctil, sin dobles disparos con
+  dobles clics). **Nada depende del hover:** ninguna acción ni información se
+  ve solo al pasar el ratón por encima. El hover puede cambiar el color, pero
+  nada más.
+
+> **Estado (29/10/2026):** de esto ya están hechos los teclados numéricos
+> (`NumericKeypad`, `AmountKeypad`) y que nada dependa del hover. **Falta**:
+> el teclado QWERTY en pantalla, el ajuste "Mostrar teclado en pantalla en
+> caja" y que las notas rápidas sean por categoría. Hoy son una lista fija en
+> `ProductConfigurator.vue` y `LineActions.vue`, y los campos de texto abren
+> el teclado del sistema.
+
 ### PIN (entrada y autorización de encargado)
 
 - **Rejilla de usuarios** con iniciales y color, y **teclado numérico grande**
@@ -108,4 +140,6 @@ nueva debe cumplirlos.
   pantalla es horizontal y de al menos 1024 px).
 - Componentes BEM en `resources/scss/components/` (`c-…`) y vistas en
   `resources/scss/views/` (`v-…`). Teclados: `NumericKeypad.vue` (PIN y
-  números) y `AmountKeypad.vue` (importes en euros).
+  números) y `AmountKeypad.vue` (importes en euros). Teclado de texto previsto:
+  un componente `OnScreenKeyboard.vue` que se abra al enfocar un campo
+  (`c-field__input`) en la disposición de caja, según el ajuste del local.
