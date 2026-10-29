@@ -6,6 +6,7 @@ use App\Http\Controllers\Pos\AuthController;
 use App\Http\Controllers\Pos\CashController;
 use App\Http\Controllers\Pos\CatalogController;
 use App\Http\Controllers\Pos\CheckoutController;
+use App\Http\Controllers\Pos\CustomerController;
 use App\Http\Controllers\Pos\OrderController;
 use App\Http\Controllers\Pos\PrintController;
 use App\Http\Controllers\Pos\RoomController;
@@ -41,6 +42,13 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::patch('/orders/{order}/type', [OrderController::class, 'changeType'])->name('pos.orders.type');
     Route::patch('/order-lines/{line}', [OrderController::class, 'updateLine'])->name('pos.lines.update');
     Route::post('/order-lines/{line}/void', [OrderController::class, 'voidLine'])->name('pos.lines.void');
+
+    // Clientes y zonas (llevar y domicilio)
+    Route::get('/customers/lookup', [CustomerController::class, 'lookup'])->name('pos.customers.lookup');
+    Route::post('/customers', [CustomerController::class, 'store'])->name('pos.customers.store');
+    Route::patch('/customers/{customer}', [CustomerController::class, 'update'])->name('pos.customers.update');
+    Route::post('/customers/{customer}/addresses', [CustomerController::class, 'addAddress'])->name('pos.customers.addresses');
+    Route::get('/delivery-zones', [CustomerController::class, 'zones'])->name('pos.delivery-zones');
 
     // Autorización de encargado
     Route::get('/managers', [AuthController::class, 'managers'])->name('pos.managers');
