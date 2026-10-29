@@ -2,7 +2,10 @@
 
 namespace App\Services\Pos;
 
+use App\Enums\AuthorizationAction;
+use App\Enums\OrderType;
 use App\Enums\PrintJobKind;
+use App\Exceptions\MinimumOrderException;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Printer;
@@ -25,14 +28,18 @@ class OrderSender
         private PrintJobDispatcher $printing,
         private OrderService $orders,
         private TakeawayOrderService $takeaway,
+        private AuthorizationService $authorization,
     ) {}
 
     /**
+     * @param  array{accept_below_minimum?: bool, authorization_token?: string|null}  $options
      * @return array{send_number: int|null, jobs: list<array{print_job_id: int, printer: string, lines: int}>, unrouted: list<string>}
+     *
+     * @throws MinimumOrderException si un domicilio no llega al mínimo de su zona (y no se acepta)
      */
-    public function send(Order $order, User $by): array
+    public function send(Order $order, User $by, array $options = []): array
     {
-        return DB::transaction(function () use ($order, $by) {
+        return DB::transaction(function () use ($order, $by, $options) {
             $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
             if (! $order->isOpen()) {
                 throw new LogicException('El pedido no está abierto.');
@@ -45,6 +52,8 @@ class OrderSender
             if ($pending->isEmpty()) {
                 return ['send_number' => null, 'jobs' => [], 'unrouted' => []];
             }
+
+            $this->checkMinimumOrder($order, $by, $options);
 
             $sendNumber = $order->send_count + 1;
 
@@ -80,5 +89,31 @@ class OrderSender
 
             return ['send_number' => $sendNumber, 'jobs' => $jobs, 'unrouted' => array_values(array_unique($unrouted))];
         });
+    }
+
+    /**
+     * Domicilio por debajo del mínimo de su zona: aviso claro y, si se quiere
+     * seguir, autorización de encargado (queda registrada). Una vez autorizado
+     * no se vuelve a pedir en los siguientes envíos.
+     */
+    private function checkMinimumOrder(Order $order, User $by, array $options): void
+    {
+        $zone = $order->type === OrderType::Delivery ? $order->deliveryZone : null;
+        if (! $zone || $zone->minimum_order <= 0 || $order->minimum_order_authorized_by) {
+            return;
+        }
+        $amount = $order->total - $order->delivery_fee; // los gastos de envío no cuentan
+        if ($amount >= $zone->minimum_order) {
+            return;
+        }
+        if (empty($options['accept_below_minimum'])) {
+            throw new MinimumOrderException($zone->name, $zone->minimum_order, $amount);
+        }
+
+        $manager = $this->authorization->require(
+            AuthorizationAction::MinimumOrder, $by, $options['authorization_token'] ?? null, $order,
+            details: ['zone' => $zone->name, 'minimum' => $zone->minimum_order, 'amount' => $amount],
+        );
+        $order->update(['minimum_order_authorized_by' => $manager->id]);
     }
 }

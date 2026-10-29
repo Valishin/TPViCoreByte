@@ -124,7 +124,11 @@ class OrderController extends Controller
 
     public function send(Request $request, Order $order, OrderSender $sender): JsonResponse
     {
-        $result = $sender->send($order, $request->user());
+        $options = $request->validate([
+            'accept_below_minimum' => ['boolean'],
+            'authorization_token' => ['nullable', 'string'],
+        ]);
+        $result = $sender->send($order, $request->user(), $options);
 
         return $this->respond($order, $request, 200, ['sent' => $result]);
     }

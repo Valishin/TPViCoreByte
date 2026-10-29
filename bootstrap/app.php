@@ -2,6 +2,7 @@
 
 use App\Exceptions\AuthorizationRequiredException;
 use App\Exceptions\CashSessionRequiredException;
+use App\Exceptions\MinimumOrderException;
 use App\Exceptions\OpenOrdersException;
 use App\Exceptions\TableUnavailableException;
 use App\Http\Middleware\EnsurePosStaff;
@@ -42,6 +43,14 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        $exceptions->render(function (MinimumOrderException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'message' => $e->getMessage(), 'code' => 'minimum_order',
+                    'zone' => $e->zone, 'minimum' => $e->minimum, 'amount' => $e->amount, 'missing' => $e->minimum - $e->amount,
+                ], 409);
+            }
+        });
         $exceptions->render(function (OpenOrdersException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => $e->getMessage(), 'code' => 'open_orders', 'orders' => $e->orders], 409);

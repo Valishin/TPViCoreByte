@@ -31,6 +31,8 @@ abstract class TakeawayTestCase extends PosTestCase
 
     protected Product $water;
 
+    protected ?User $manager = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -72,6 +74,14 @@ abstract class TakeawayTestCase extends PosTestCase
         }
 
         return $id;
+    }
+
+    protected function managerToken(string $action): string
+    {
+        $this->manager ??= User::factory()->role(UserRole::Manager)->withPin('9999')->create(['name' => 'Encargada']);
+
+        return $this->asWaiter()->postJson('/api/authorize', ['manager_id' => $this->manager->id, 'pin' => '9999', 'action' => $action])
+            ->assertOk()->json('token');
     }
 
     protected function send(int $orderId, array $extra = []): TestResponse
