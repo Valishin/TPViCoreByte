@@ -13,12 +13,15 @@ VERSION="$(tr -d '[:space:]' < VERSION)"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 DIRTY="$(git diff --quiet 2>/dev/null || echo '-dirty')"
 IMAGE="${TPV_IMAGE:-ghcr.io/CAMBIAR/tpv-hosteleria}"
+# Repositorio del código: GHCR enlaza el paquete a él (hereda su visibilidad y acceso).
+SOURCE="${TPV_SOURCE:-https://github.com/CAMBIAR/tpv-hosteleria}"
 MODE="${1:---load}"
 
 echo "→ ${IMAGE}:${VERSION} (commit ${COMMIT}${DIRTY}) para linux/amd64"
 
 args=(buildx build --platform linux/amd64 -f docker/production/Dockerfile
     --build-arg "APP_VERSION=${VERSION}" --build-arg "APP_COMMIT=${COMMIT}${DIRTY}"
+    --label "org.opencontainers.image.source=${SOURCE}"
     -t "${IMAGE}:${VERSION}" -t "${IMAGE}:latest")
 
 case "$MODE" in

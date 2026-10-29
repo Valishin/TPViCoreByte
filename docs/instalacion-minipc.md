@@ -30,15 +30,41 @@ Tailscale para el soporte remoto · copias de seguridad cifradas.
    ```bash
    scripts/make-install-bundle.sh                # o --with-image para incluir el .tar
    ```
-3. **Token de GHCR de solo lectura**: GitHub → Settings → Developer settings →
-   Personal access tokens (classic) → solo `read:packages`. Uno por cliente
-   (así puedes revocarlo sin afectar a los demás).
+3. **Token de GHCR de solo lectura** para el mini PC (ver [Tokens de GitHub](#tokens-de-github-y-ghcr)).
 4. **Claves de las copias (age)** — una vez, en tu Mac (ver [§9](#9-copias-de-seguridad)).
 5. **Clave de Tailscale** de un solo uso: admin.tailscale.com → Settings → Keys
    → *Generate auth key* (reusable: no; ephemeral: no; con *tag* `tag:tpv`).
 6. Copia el paquete a un USB junto con el **USB de instalación de Debian 13**
    (`debian-13.x.x-amd64-netinst.iso` de debian.org, grabada con balenaEtcher
    o `dd`). Debian 12 ya no tiene soporte de seguridad normal (julio de 2026).
+
+### Tokens de GitHub y GHCR
+
+GHCR (el registro de imágenes de GitHub) solo acepta **tokens clásicos**
+(*Personal access tokens (classic)*); los *fine-grained* no sirven para
+paquetes. Se crean en GitHub → Settings → Developer settings → Personal
+access tokens → **Tokens (classic)** → *Generate new token (classic)*.
+
+| Para qué | Dónde | Permisos (scopes) | Caducidad |
+|---|---|---|---|
+| **Subir la imagen** desde el Mac | tu Mac (`docker login`) | `write:packages` (incluye `read:packages`) | 90 días, y renovar |
+| **Descargar la imagen** en el mini PC | `GHCR_TOKEN` del `.conf` | **solo `read:packages`** | sin caducidad o 1 año; **uno por cliente** |
+
+```bash
+# En el Mac, una vez (y al renovar el token):
+echo 'ghp_…write…' | docker login ghcr.io -u <usuario> --password-stdin
+scripts/build-image.sh --push
+```
+
+- El token del mini PC queda en `/root/.docker/config.json` (solo root). Con uno
+  por cliente, si un equipo se pierde o se roba revocas solo ese.
+- Un token clásico da acceso de lectura a **todos** tus paquetes. Si quieres
+  aislarlo del todo: crea una cuenta de GitHub aparte («tpv-descargas»), dale
+  acceso de lectura solo al paquete `tpv-hosteleria` (Package settings →
+  Manage access) y crea el token `read:packages` en esa cuenta.
+- La imagen va etiquetada con la URL del repositorio
+  (`org.opencontainers.image.source`): GHCR la enlaza al repositorio privado y
+  hereda su visibilidad (privada).
 
 ## 1. BIOS / UEFI del mini PC
 
