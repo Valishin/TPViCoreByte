@@ -5,6 +5,7 @@ namespace App\Http\Resources\Pos;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\PrintJob;
+use App\Services\Orders\OrderTotalsCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,6 +21,7 @@ class OrderResource extends JsonResource
     {
         $this->resource->loadMissing(['lines.modifiers', 'table.room', 'openedBy', 'printJobs.printer']);
         $lines = $this->lines;
+        $totals = app(OrderTotalsCalculator::class)->calculate($this->resource);
 
         return [
             'id' => $this->id,
@@ -33,7 +35,13 @@ class OrderResource extends JsonResource
             'notes' => $this->notes,
             'opened_at' => $this->opened_at->toIso8601String(),
             'opened_by' => $this->openedBy ? ['id' => $this->openedBy->id, 'name' => $this->openedBy->name] : null,
+            'lines_gross' => $totals->linesGross,
+            'lines_discount' => $totals->linesDiscount,
             'subtotal' => $this->subtotal,
+            'discount_type' => $this->discount_type?->value,
+            'discount_value' => $this->discount_value,
+            'delivery_fee' => $totals->deliveryFee,
+            'vat_breakdown' => $totals->vatBreakdown,
             'discount_amount' => $this->discount_amount,
             'total' => $this->total,
             'send_count' => $this->send_count,

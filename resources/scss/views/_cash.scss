@@ -1,0 +1,84 @@
+@use '../tokens' as *;
+
+.v-cash {
+    display: flex;
+    flex-direction: column;
+
+    &__closed {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: $space-4;
+        padding: $space-8 $space-4;
+        text-align: center;
+    }
+
+    &__title {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+    }
+
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: $space-2;
+        padding: $space-3;
+    }
+
+    &__stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: $space-3;
+        border-radius: $radius-md;
+        background: $color-surface;
+
+        span,
+        small {
+            color: $color-text-muted;
+        }
+
+        strong {
+            font-size: $font-size-xl;
+            font-variant-numeric: tabular-nums;
+        }
+    }
+
+    &__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $space-2;
+        padding: 0 $space-3;
+    }
+
+    &__tickets {
+        padding: $space-3;
+    }
+
+    &__subtitle {
+        margin-bottom: $space-2;
+        font-size: $font-size-lg;
+    }
+
+    &__ticket {
+        display: grid;
+        grid-template-columns: 1fr auto auto auto;
+        align-items: center;
+        gap: $space-2;
+        padding: $space-2 0;
+        border-bottom: 1px solid $color-border;
+
+        small {
+            display: block;
+            color: $color-text-muted;
+        }
+
+        &--void {
+            opacity: 0.6;
+        }
+
+        &--rect strong {
+            color: $color-danger;
+        }
+    }
+}

@@ -1,0 +1,186 @@
+@use '../tokens' as *;
+
+.v-checkout {
+    display: flex;
+    flex-direction: column;
+
+    &__body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: $space-3;
+        padding: $space-3;
+    }
+
+    &__summary,
+    &__pay {
+        display: flex;
+        flex-direction: column;
+        gap: $space-3;
+        padding: $space-3;
+        border-radius: $radius-lg;
+        background: $color-surface;
+    }
+
+    &__lines {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    &__totals {
+        display: flex;
+        flex-direction: column;
+        gap: $space-1;
+    }
+
+    &__row {
+        display: flex;
+        justify-content: space-between;
+        font-weight: $font-weight-medium;
+
+        &--vat {
+            color: $color-text-muted;
+            font-size: $font-size-sm;
+        }
+    }
+
+    // TOTAL muy visible
+    &__total {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: $space-3 $space-4;
+        border-radius: $radius-md;
+        background: $color-text;
+        color: $color-bg;
+        font-size: $font-size-huge;
+        font-weight: $font-weight-bold;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__parts,
+    &__due,
+    &__tip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-3;
+        flex-wrap: wrap;
+        font-weight: $font-weight-bold;
+    }
+
+    &__due strong {
+        font-size: $font-size-xxl;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__payments {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    &__payment {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-2;
+        padding: $space-2 0;
+        border-bottom: 1px solid $color-border;
+        font-weight: $font-weight-medium;
+    }
+
+    &__methods {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: $space-2;
+    }
+
+    &__method {
+        min-height: calc(#{$touch-target} * 1.2);
+        border: 3px solid $color-border;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+        color: $color-text;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+        cursor: pointer;
+
+        &--active {
+            border-color: $color-primary;
+            background: $color-primary;
+            color: $color-primary-contrast;
+        }
+    }
+
+    &__change {
+        margin: 0;
+        min-height: 1.5em;
+        font-size: $font-size-xl;
+        text-align: center;
+
+        strong {
+            font-size: $font-size-huge;
+            color: $color-success;
+        }
+
+        &--short strong,
+        &--short {
+            color: $color-warning;
+        }
+    }
+
+    &__hint {
+        color: $color-text-muted;
+        text-align: center;
+    }
+
+    &__toggle {
+        display: flex;
+        align-items: center;
+        gap: $space-2;
+        min-height: $touch-target;
+        font-weight: $font-weight-medium;
+
+        input {
+            width: 28px;
+            height: 28px;
+        }
+    }
+
+    &__done {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: $space-5;
+        flex: 1;
+        padding: $space-6;
+        text-align: center;
+    }
+
+    &__done-title {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+    }
+
+    &__done-actions {
+        display: flex;
+        gap: $space-3;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    html[data-layout='pos'] &__body {
+        display: grid;
+        grid-template-columns: 1fr minmax(420px, 40vw);
+        align-items: stretch;
+    }
+
+    html[data-layout='pos'] &__pay {
+        overflow-y: auto;
+    }
+}

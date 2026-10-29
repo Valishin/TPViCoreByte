@@ -38,3 +38,12 @@ export function duration(minutes) {
     const m = minutes % 60;
     return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 }
+
+/**
+ * Identificador aleatorio (clave de idempotencia). crypto.randomUUID solo
+ * existe en HTTPS/localhost; getRandomValues funciona también por http en la LAN.
+ */
+export function uid() {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}

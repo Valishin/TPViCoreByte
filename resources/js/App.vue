@@ -4,12 +4,14 @@
         <PrintAlerts />
     </template>
     <RouterView />
+    <AuthorizeModal />
     <ToastHost />
 </template>
 
 <script setup>
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import AuthorizeModal from '@/components/AuthorizeModal.vue';
 import PrintAlerts from '@/components/PrintAlerts.vue';
 import ToastHost from '@/components/ToastHost.vue';
 import TopBar from '@/components/TopBar.vue';

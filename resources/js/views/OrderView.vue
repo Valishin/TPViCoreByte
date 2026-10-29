@@ -9,6 +9,7 @@
             <TpvButton variant="secondary" :disabled="!o" @click="guestsOpen = true">{{ o?.guests ?? '–' }} pax</TpvButton>
             <TpvButton variant="secondary" :disabled="!o || o.type !== 'mesa'" @click="moveOpen = true">Mover</TpvButton>
             <TpvButton variant="secondary" :disabled="!o || !o.lines.length" :loading="prechecking" @click="precheck">Cuenta</TpvButton>
+            <TpvButton variant="success" :disabled="!o || !o.lines.length" :loading="sending" @click="goCheckout">Cobrar</TpvButton>
         </header>
 
         <div v-if="o" class="v-order__body">
@@ -196,6 +197,11 @@ async function send() {
         }
     });
     sending.value = false;
+}
+/** Cobrar: si quedan líneas sin enviar, se envían antes (un solo toque). */
+async function goCheckout() {
+    if (order.pendingCount) await send();
+    if (!order.pendingCount) router.push(`/mesas/pedido/${o.value.id}/cobrar`);
 }
 async function precheck() {
     prechecking.value = true;

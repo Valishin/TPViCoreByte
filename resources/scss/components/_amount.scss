@@ -1,0 +1,77 @@
+@use '../tokens' as *;
+
+// Teclado de importes en euros (cobro, fondo de caja, arqueo).
+.c-amount {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+
+    &__display {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: $space-3;
+        padding: $space-2 $space-4;
+        border: 2px solid $color-border;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+    }
+
+    &__label {
+        color: $color-text-muted;
+        font-weight: $font-weight-bold;
+    }
+
+    &__value {
+        font-size: $font-size-xxl;
+        font-weight: $font-weight-bold;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__quick {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        gap: $space-2;
+    }
+
+    &__quick-btn {
+        justify-content: center;
+        font-weight: $font-weight-bold;
+    }
+
+    .c-keypad {
+        max-width: none;
+    }
+}
+
+// Desglose de billetes y monedas
+.c-denoms {
+    display: flex;
+    flex-direction: column;
+    gap: $space-1;
+    max-height: 50vh;
+    overflow-y: auto;
+
+    &__row {
+        display: grid;
+        grid-template-columns: 5.5em 1fr 6em;
+        align-items: center;
+        gap: $space-2;
+    }
+
+    &__value {
+        font-weight: $font-weight-bold;
+    }
+
+    &__total {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__sum {
+        padding-top: $space-2;
+        border-top: 2px solid $color-border;
+        text-align: right;
+        font-size: $font-size-lg;
+    }
+}

@@ -6,6 +6,14 @@
     gap: $space-3;
     padding: $space-3;
 
+    &__bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-3;
+        flex-wrap: wrap;
+    }
+
     &__legend {
         display: flex;
         flex-wrap: wrap;

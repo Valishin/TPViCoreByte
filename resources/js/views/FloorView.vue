@@ -1,5 +1,6 @@
 <template>
     <main class="v-floor">
+        <div class="v-floor__bar">
         <nav v-if="floor.rooms.length > 1" class="c-tabs" aria-label="Salas">
             <button
                 v-for="room in floor.rooms"
@@ -11,6 +12,8 @@
                 {{ room.name }} · {{ busyCount(room) }}/{{ room.tables.length }}
             </button>
         </nav>
+        <TpvButton variant="primary" :loading="quick" @click="quickSale">Venta rápida</TpvButton>
+        </div>
 
         <p v-if="floor.loaded && !floor.rooms.length" class="v-floor__empty">No hay salas. Créalas en el backoffice (/admin → Sala).</p>
 
@@ -46,6 +49,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import TableCard from '@/components/TableCard.vue';
 import GuestsDialog from '@/components/GuestsDialog.vue';
+import TpvButton from '@/components/TpvButton.vue';
 import pos, { errorMessage } from '@/services/pos';
 import { useFloorStore } from '@/stores/floor';
 import { useNoticesStore } from '@/stores/notices';
@@ -57,6 +61,20 @@ const notices = useNoticesStore();
 const ui = useUiStore();
 
 const opening = ref(null);
+const quick = ref(false);
+
+/** Venta rápida de barra (sin mesa): comanda y cobro. */
+async function quickSale() {
+    quick.value = true;
+    try {
+        const order = await pos.quickSale();
+        router.push(`/mesas/pedido/${order.id}`);
+    } catch (e) {
+        notices.error(errorMessage(e));
+    } finally {
+        quick.value = false;
+    }
+}
 const now = ref(Date.now());
 let ticker;
 

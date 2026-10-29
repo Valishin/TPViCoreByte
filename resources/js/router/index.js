@@ -6,6 +6,8 @@ const routes = [
     { path: '/entrar', name: 'login', component: () => import('@/views/LoginView.vue'), meta: { public: true } },
     { path: '/mesas', name: 'floor', component: () => import('@/views/FloorView.vue') },
     { path: '/mesas/pedido/:orderId(\\d+)', name: 'order', component: () => import('@/views/OrderView.vue') },
+    { path: '/mesas/pedido/:orderId(\\d+)/cobrar', name: 'checkout', component: () => import('@/views/CheckoutView.vue') },
+    { path: '/caja', name: 'cash', component: () => import('@/views/CashView.vue') },
     { path: '/estado', name: 'estado', component: () => import('@/views/EstadoView.vue'), meta: { public: true } },
     { path: '/:pathMatch(.*)*', redirect: '/mesas' },
 ];
