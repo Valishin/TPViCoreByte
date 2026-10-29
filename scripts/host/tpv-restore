@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Restaura una copia de la base de datos del TPV.
+#
+#   tpv-restore copia.dump.age --identity /ruta/clave-privada-age.txt
+#   tpv-restore /opt/tpv/rollback/pre-update.dump       # volcado sin cifrar (vuelta atrás)
+#
+# Para la app (los pedidos en curso se pierden si no se han guardado), vacía la
+# base de datos, restaura y vuelve a arrancar. La clave privada age NO vive en
+# este equipo: tráela en un USB y quítala después.
+set -euo pipefail
+
+TPV_DIR="${TPV_DIR:-/opt/tpv}"
+FILE=""; IDENTITY=""; YES=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --identity|-i) IDENTITY="$2"; shift 2 ;;
+        --yes|-y) YES=1; shift ;;
+        -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+        *) FILE="$1"; shift ;;
+    esac
+done
+[ -n "$FILE" ] && [ -f "$FILE" ] || { echo "Uso: tpv-restore <copia.dump[.age]> [--identity clave.txt] [--yes]" >&2; exit 2; }
+FILE="$(cd "$(dirname "$FILE")" && pwd)/$(basename "$FILE")"
+if [[ "$FILE" == *.age ]]; then
+    [ -n "$IDENTITY" ] && [ -f "$IDENTITY" ] || { echo "La copia está cifrada: indica la clave privada con --identity" >&2; exit 2; }
+    IDENTITY="$(cd "$(dirname "$IDENTITY")" && pwd)/$(basename "$IDENTITY")"
+fi
+
+cd "$TPV_DIR"
+compose() { docker compose ${COMPOSE_PROJECT_NAME:+-p "$COMPOSE_PROJECT_NAME"} "$@"; }
+# Solo lo necesario y SIN exportar: una variable del entorno pisaría al .env en
+# docker compose (p. ej. TPV_VERSION, que este script cambia).
+env_value() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/'; }
+DB_USERNAME="$(env_value DB_USERNAME)"
+DB_DATABASE="$(env_value DB_DATABASE)"
+
+if [ "$YES" != 1 ]; then
+    read -r -p "Se SUSTITUIRÁ la base de datos de '$TPV_DIR' por $(basename "$FILE"). ¿Seguir? (escribe SI) " answer
+    [ "$answer" = "SI" ] || { echo "Cancelado."; exit 1; }
+fi
+
+echo "→ Parando la app…"
+compose stop app reverb queue printing scheduler >/dev/null
+compose up -d pgsql >/dev/null
+
+restore() {
+    # Vaciar el esquema (también lo creado por migraciones posteriores a la copia) y restaurar.
+    compose exec -T pgsql psql -v ON_ERROR_STOP=1 -q -U "$DB_USERNAME" -d "$DB_DATABASE" \
+        -c 'SET client_min_messages = warning; DROP SCHEMA public CASCADE; CREATE SCHEMA public;' </dev/null >/dev/null  # no tocar la entrada: es la copia
+    compose exec -T pgsql pg_restore --no-owner --no-acl --exit-on-error -U "$DB_USERNAME" -d "$DB_DATABASE"
+}
+
+echo "→ Restaurando $(basename "$FILE")…"
+if [[ "$FILE" == *.age ]]; then
+    # age se ejecuta en un contenedor de la imagen del TPV (no hace falta instalarlo en el host).
+    compose run --rm --no-deps -T -v "$FILE:/restore/in:ro" -v "$IDENTITY:/restore/key:ro" \
+        --entrypoint age app -d -i /restore/key /restore/in | restore
+else
+    restore < "$FILE"
+fi
+
+echo "→ Arrancando…"
+compose up -d >/dev/null
+echo "✓ Restaurada. Comprueba la caja y /admin."

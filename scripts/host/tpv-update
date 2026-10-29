@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Actualiza el TPV a otra versión, con vuelta atrás automática.
+#
+#   tpv-update 1.2.0                    # descarga ghcr.io/…/tpv-hosteleria:1.2.0
+#   tpv-update latest                   # la última publicada (actualización automática opcional)
+#   tpv-update --tar tpv-1.2.0.tar.gz   # imagen copiada a mano (p. ej. por Tailscale)
+#   tpv-update --local 1.2.0            # imagen ya cargada en este equipo (docker load)
+#
+# Pensado para lanzarlo fuera del horario del local. No hace nada si la caja
+# está abierta, hay pedidos abiertos o domicilios pendientes de liquidar.
+#   1. Copia cifrada (tpv:backup) + volcado de vuelta atrás sin cifrar (solo el último, 600).
+#   2. Imagen nueva → migraciones → arranque → healthcheck (hasta 180 s).
+#   3. Si algo falla: versión anterior + base de datos de antes. Nada a medias.
+set -euo pipefail
+
+TPV_DIR="${TPV_DIR:-/opt/tpv}"
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
+VERSION=""; TAR=""; LOCAL=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --tar) TAR="$2"; shift 2 ;;
+        --local) LOCAL=1; shift ;;
+        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+        *) VERSION="$1"; shift ;;
+    esac
+done
+[ -n "$VERSION" ] || [ -n "$TAR" ] || { echo "Uso: tpv-update <versión> | --tar fichero.tar.gz" >&2; exit 2; }
+
+cd "$TPV_DIR"
+compose() { docker compose ${COMPOSE_PROJECT_NAME:+-p "$COMPOSE_PROJECT_NAME"} "$@"; }
+envget() { grep -E "^$1=" .env | tail -1 | cut -d= -f2-; }
+envset() { if grep -qE "^$1=" .env; then sed -i.bak -E "s|^$1=.*|$1=$2|" .env && rm -f .env.bak; else echo "$1=$2" >> .env; fi; }
+log() { echo "[$(date '+%F %T')] $*"; }
+# Solo lo necesario y SIN exportar: una variable del entorno pisaría al .env en
+# docker compose (p. ej. TPV_VERSION, que este script cambia).
+env_value() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/'; }
+DB_USERNAME="$(env_value DB_USERNAME)"
+DB_DATABASE="$(env_value DB_DATABASE)"
+
+IMAGE="$(envget TPV_IMAGE)"
+PREVIOUS="$(envget TPV_VERSION)"
+
+wait_healthy() {
+    local id status waited=0
+    while [ "$waited" -lt "$HEALTH_TIMEOUT" ]; do
+        id="$(compose ps -q app)"
+        status="$( [ -n "$id" ] && docker inspect -f '{{.State.Health.Status}}' "$id" 2>/dev/null || echo starting)"
+        [ "$status" = "healthy" ] && return 0
+        sleep 5; waited=$((waited + 5))
+    done
+    return 1
+}
+
+if [ -n "$TAR" ]; then
+    log "Cargando la imagen de $TAR…"
+    loaded="$(gunzip -c "$TAR" 2>/dev/null | docker load || docker load -i "$TAR")"
+    VERSION="${VERSION:-$(echo "$loaded" | sed -nE "s|^Loaded image: ${IMAGE}:(.+)$|\1|p" | head -1)}"
+    [ -n "$VERSION" ] || { echo "No se reconoce la versión de la imagen cargada ($loaded)." >&2; exit 1; }
+elif [ "$LOCAL" = 1 ]; then
+    docker image inspect "${IMAGE}:${VERSION}" >/dev/null || { echo "No está cargada la imagen ${IMAGE}:${VERSION}." >&2; exit 1; }
+else
+    log "Descargando ${IMAGE}:${VERSION}…"
+    docker pull -q "${IMAGE}:${VERSION}" >/dev/null
+    if [ "$VERSION" = latest ]; then
+        # La versión real va en la etiqueta de la imagen (la pone scripts/build-image.sh).
+        VERSION="$(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.version" }}' "${IMAGE}:latest")"
+        docker tag "${IMAGE}:latest" "${IMAGE}:${VERSION}"
+    fi
+fi
+
+if [ "$VERSION" = "$PREVIOUS" ]; then
+    log "Ya está en la versión $VERSION."; exit 0
+fi
+
+log "Comprobando que se puede actualizar…"
+compose exec -T app php artisan tpv:update-check
+
+log "Copia de seguridad cifrada…"
+compose exec -T app php artisan tpv:backup --reason=actualizacion
+
+log "Volcado para la vuelta atrás…"
+install -d -m 700 rollback
+compose exec -T pgsql pg_dump -U "$DB_USERNAME" -d "$DB_DATABASE" -Fc --no-owner --no-acl > rollback/pre-update.dump.tmp
+mv rollback/pre-update.dump.tmp rollback/pre-update.dump
+chmod 600 rollback/pre-update.dump
+echo "$PREVIOUS" > rollback/previous-version
+
+rollback() {
+    log "✗ $1 → vuelta atrás a $PREVIOUS"
+    envset TPV_VERSION "$PREVIOUS"
+    compose stop app reverb queue printing scheduler >/dev/null 2>&1 || true
+    TPV_DIR="$TPV_DIR" "$(dirname "$0")/tpv-restore" rollback/pre-update.dump --yes
+    if wait_healthy; then
+        log "Vuelta atrás completada: sigue en $PREVIOUS con los datos de antes de actualizar."
+    else
+        log "ATENCIÓN: la versión anterior tampoco arranca. Revisa 'docker compose logs app'."
+    fi
+    exit 1
+}
+
+log "Actualizando $PREVIOUS → $VERSION…"
+envset TPV_VERSION "$VERSION"
+compose stop app reverb queue printing scheduler >/dev/null
+compose run --rm --no-deps -T app php artisan migrate --force || rollback "las migraciones han fallado"
+compose up -d || rollback "no arranca"
+wait_healthy || rollback "el healthcheck no pasa en ${HEALTH_TIMEOUT} s"
+
+log "✓ Actualizado a $VERSION."
+# Se borran las imágenes MÁS ANTIGUAS que la anterior (se conservan la nueva, la
+# anterior para volver atrás y cualquier versión más nueva ya cargada).
+for tag in $(docker images "$IMAGE" --format '{{.Tag}}' | grep -vxE "$VERSION|$PREVIOUS|latest" || true); do
+    if [ "$(printf '%s\n%s\n' "$tag" "$PREVIOUS" | sort -V | head -1)" = "$tag" ]; then
+        docker rmi "${IMAGE}:${tag}" >/dev/null 2>&1 || true
+    fi
+done
+exit 0
