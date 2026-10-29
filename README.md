@@ -254,6 +254,21 @@ Formas de lanzar una página de prueba (nombre, acentos, ñ, €, fecha y corte)
 - `./vendor/bin/sail artisan tpv:print-test` → imprime directamente.
 - `./vendor/bin/sail artisan tpv:print-test --queue` → lo manda a la cola.
 
+### Impresoras USB
+
+Cada impresora se configura en /admin → Impresoras como **Red** (IP y puerto)
+o **USB** (dispositivo, p. ej. `/dev/impresora-ticket`). Con
+`PRINTER_MODE=network` se imprime de verdad y cada una usa su conexión.
+
+> **En el Mac no se pueden probar las USB:** Docker Desktop para macOS no
+> puede pasar dispositivos USB a los contenedores. En desarrollo se usa el
+> modo simulado; las USB se prueban en el mini PC con Debian.
+
+En el mini PC hace falta una regla udev (enlace fijo), el driver `usblp`, el
+grupo `lp` y montar el dispositivo en los contenedores `printing` y `app`:
+todo explicado en [docs/impresoras-usb.md](docs/impresoras-usb.md), con un
+ejemplo en `docker-compose.prod.yml`.
+
 ### Probar la impresora real
 
 1. Conecta la impresora a la red e imprime su hoja de autotest (suele ser

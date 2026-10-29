@@ -7,9 +7,11 @@ use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Mike42\Escpos\CapabilityProfile;
 use Mike42\Escpos\PrintConnectors\DummyPrintConnector;
+use Mike42\Escpos\PrintConnectors\FilePrintConnector;
 use Mike42\Escpos\PrintConnectors\NetworkPrintConnector;
 use Mike42\Escpos\PrintConnectors\PrintConnector;
 use Mike42\Escpos\Printer;
+use RuntimeException;
 
 /**
  * Envía tickets a la impresora según PRINTER_MODE (network | simulated).
@@ -26,6 +28,8 @@ class PrinterManager
     public function forPrinter(PrinterModel $printer): self
     {
         $config = $this->config;
+        $config['connection'] = $printer->connectionType()->value;
+        $config['usb']['device_path'] = $printer->device_path ?? $config['usb']['device_path'];
         $config['network']['host'] = $printer->host ?? $config['network']['host'];
         $config['network']['port'] = $printer->port ?: $config['network']['port'];
         $config['columns'] = $printer->columns ?: $config['columns'];
@@ -48,7 +52,7 @@ class PrinterManager
     public function print(Ticket $ticket): array
     {
         return match ($this->mode()) {
-            'network' => $this->printToNetwork($ticket),
+            'network' => $this->isUsb() ? $this->printToUsb($ticket) : $this->printToNetwork($ticket),
             'simulated' => $this->printSimulated($ticket),
             default => throw new InvalidArgumentException("PRINTER_MODE no válido: {$this->mode()}"),
         };
@@ -72,8 +76,79 @@ class PrinterManager
         return ['mode' => 'network', 'bytes' => strlen($bytes), 'target' => "{$host}:{$port}"];
     }
 
+    public function isUsb(): bool
+    {
+        return ($this->config['connection'] ?? 'red') === 'usb';
+    }
+
+    /**
+     * Impresora USB: se escribe en el dispositivo (/dev/usb/lp0 o un enlace
+     * fijo creado con udev, ver docs/impresoras-usb.md).
+     */
+    private function printToUsb(Ticket $ticket): array
+    {
+        $path = (string) $this->config['usb']['device_path'];
+        if ($path === '' || ! file_exists($path)) {
+            throw new RuntimeException("Impresora no conectada: no existe el dispositivo {$path}.");
+        }
+        if (! is_writable($path)) {
+            throw new RuntimeException("Impresora no conectada o sin permiso de escritura en {$path} (el usuario debe estar en el grupo lp).");
+        }
+
+        $dummy = new DummyPrintConnector;
+        $this->renderEscpos($ticket, $dummy);
+        $bytes = $dummy->getData();
+        $dummy->finalize();
+
+        $this->withTimeout((int) $this->config['network']['timeout'], function () use ($path, $bytes) {
+            $connector = new FilePrintConnector($path);
+            $connector->write($bytes);
+            $connector->finalize();
+        }, "Impresora USB sin respuesta en {$path}.");
+
+        return ['mode' => 'network', 'bytes' => strlen($bytes), 'target' => $path];
+    }
+
+    /**
+     * Escribir en un dispositivo USB puede quedarse bloqueado si la impresora
+     * está apagada o sin papel: se corta a los $seconds con SIGALRM. Se
+     * restaura la alarma anterior (el worker de colas usa la suya para el
+     * timeout del job).
+     */
+    private function withTimeout(int $seconds, \Closure $callback, string $message): void
+    {
+        if ($seconds <= 0 || ! function_exists('pcntl_alarm')) {
+            $callback();
+
+            return;
+        }
+
+        $previousHandler = pcntl_signal_get_handler(SIGALRM);
+        $async = pcntl_async_signals(true);
+        $started = time();
+        pcntl_signal(SIGALRM, function () use ($message) {
+            throw new RuntimeException($message);
+        });
+        $previousRemaining = pcntl_alarm($seconds);
+
+        try {
+            $callback();
+        } finally {
+            pcntl_alarm(0);
+            pcntl_signal(SIGALRM, $previousHandler ?: SIG_DFL);
+            pcntl_async_signals($async);
+            if ($previousRemaining > 0) {
+                pcntl_alarm(max(1, $previousRemaining - (time() - $started)));
+            }
+        }
+    }
+
     public function target(): string
     {
+        if ($this->mode() === 'network' && $this->isUsb()) {
+            return (string) $this->config['usb']['device_path'];
+        }
+
         return $this->mode() === 'network'
             ? $this->config['network']['host'].':'.$this->config['network']['port']
             : 'storage/app/private/'.trim($this->config['simulated_path'], '/');

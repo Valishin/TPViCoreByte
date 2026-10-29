@@ -28,7 +28,7 @@ class DiagnosticsController extends Controller
      */
     public function print(): JsonResponse
     {
-        PrintTestPage::dispatch();
+        PrintTestPage::dispatch()->onQueue('printing');
 
         return response()->json([
             'status' => 'queued',

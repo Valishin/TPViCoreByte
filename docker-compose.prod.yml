@@ -1,0 +1,82 @@
+# EJEMPLO de despliegue en el mini PC (Debian). No es el entorno de desarrollo
+# (ese es compose.yaml con Sail). Ajusta la imagen, las contraseñas y los
+# dispositivos a tu instalación.
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Impresoras USB: ver docs/impresoras-usb.md. Resumen:
+#   1. Regla udev en el host → enlace fijo /dev/impresora-ticket (y /dev/impresora-cocina…).
+#   2. Esos dispositivos se pasan a los contenedores que imprimen:
+#        - printing     (cola `printing`: comandas, tickets, cajón, informes)
+#        - app          (acción "Imprimir prueba" de /admin, que imprime al momento)
+#   3. Permisos: el dispositivo pertenece al grupo `lp` del host (GID 7 en
+#      Debian). El usuario del contenedor debe tener ese grupo (group_add).
+#      Comprueba el GID con:  stat -c '%g %G' /dev/impresora-ticket
+#
+# Si la impresora no está enchufada al arrancar, Docker no puede crear el
+# contenedor con `devices:`. Para tolerar enchufar/desenchufar en caliente, usa
+# la alternativa comentada (device_cgroup_rules + montar /dev/usb).
+
+x-app: &app
+    image: 'tpv-hosteleria:latest'   # imagen de producción (PHP 8.4), construida aparte
+    restart: unless-stopped
+    env_file: .env                   # APP_ENV=production, PRINTER_MODE=network, …
+    volumes:
+        - 'storage:/var/www/html/storage'
+    networks:
+        - tpv
+
+x-usb-printers: &usb-printers
+    devices:
+        - '/dev/impresora-ticket:/dev/impresora-ticket'
+        # - '/dev/impresora-cocina:/dev/impresora-cocina'
+    group_add:
+        - '7'                        # grupo `lp` del host (Debian)
+    # Alternativa con enchufado en caliente (sustituye a `devices:`):
+    # device_cgroup_rules:
+    #     - 'c 180:* rmw'            # 180 = major de usblp (/dev/usb/lp*)
+    # volumes:
+    #     - '/dev/usb:/dev/usb'
+    #     - '/dev/impresora-ticket:/dev/impresora-ticket'
+
+services:
+    app:
+        <<: [*app, *usb-printers]
+        ports:
+            - '80:80'
+        depends_on:
+            - pgsql
+
+    reverb:
+        <<: *app
+        command: ['php', 'artisan', 'reverb:start', '--host=0.0.0.0', '--port=8080']
+        ports:
+            - '8080:8080'
+
+    queue:
+        <<: *app
+        command: ['php', 'artisan', 'queue:work', '--queue=default', '--tries=3', '--timeout=60']
+
+    printing:
+        <<: [*app, *usb-printers]
+        command: ['php', 'artisan', 'queue:work', '--queue=printing', '--timeout=30', '--sleep=1']
+
+    pgsql:
+        image: 'postgres:18-alpine'
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: '${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD}'
+        volumes:
+            - 'pgsql:/var/lib/postgresql'
+        networks:
+            - tpv
+
+networks:
+    tpv:
+        driver: bridge
+
+volumes:
+    pgsql:
+    storage:

@@ -6,9 +6,17 @@ return [
     | Modo de impresión:
     |  - simulated: no envía nada; guarda el ticket como texto legible (y los
     |    bytes ESC/POS en .bin) en storage/app/prints/.
-    |  - network: impresora térmica ESC/POS por TCP (normalmente puerto 9100).
+    |  - network: impresión REAL. Cada impresora usa su conexión: red (TCP,
+    |    normalmente puerto 9100) o USB (dispositivo /dev/...).
     */
     'mode' => env('PRINTER_MODE', 'simulated'),
+
+    // Conexión de la configuración global (comando tpv:print-test sin impresora): red | usb
+    'connection' => env('PRINTER_CONNECTION', 'red'),
+
+    'usb' => [
+        'device_path' => env('PRINTER_DEVICE', '/dev/usb/lp0'),
+    ],
 
     'network' => [
         'host' => env('PRINTER_HOST', '192.168.1.200'),

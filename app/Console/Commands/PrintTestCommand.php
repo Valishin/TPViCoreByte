@@ -16,7 +16,7 @@ class PrintTestCommand extends Command
     public function handle(PrinterManager $printer): int
     {
         if ($this->option('queue')) {
-            PrintTestPage::dispatch();
+            PrintTestPage::dispatch()->onQueue('printing');
             $this->info('Trabajo encolado. Lo procesará el worker de colas.');
 
             return self::SUCCESS;
