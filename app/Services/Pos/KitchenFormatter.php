@@ -25,9 +25,13 @@ class KitchenFormatter
      */
     public function kitchen(Order $order, Collection $lines, int $sendNumber, ?User $by, ?string $note = null): Ticket
     {
-        $ticket = (new Ticket)
-            ->line($this->where($order), Ticket::ALIGN_CENTER, bold: true, large: true)
-            ->line("Envío {$sendNumber} · ".now()->format('H:i').($by ? " · {$by->name}" : ''), Ticket::ALIGN_CENTER, bold: true);
+        $ticket = new Ticket;
+        if ($order->isTakeawayOrDelivery()) {
+            $this->takeawayHeader($ticket, $order);
+        } else {
+            $ticket->line($this->where($order), Ticket::ALIGN_CENTER, bold: true, large: true);
+        }
+        $ticket->line("Envío {$sendNumber} · ".now()->format('H:i').($by ? " · {$by->name}" : ''), Ticket::ALIGN_CENTER, bold: true);
 
         if ($order->guests) {
             $ticket->line("{$order->guests} comensales", Ticket::ALIGN_CENTER);
@@ -49,7 +53,7 @@ class KitchenFormatter
     {
         $ticket = (new Ticket)
             ->line('*** ANULACIÓN ***', Ticket::ALIGN_CENTER, bold: true, large: true, reverse: true)
-            ->line($this->where($order), Ticket::ALIGN_CENTER, bold: true, large: true)
+            ->line($this->where($order).($order->customer_name ? " · {$order->customer_name}" : ''), Ticket::ALIGN_CENTER, bold: true, large: true)
             ->line(now()->format('H:i').($by ? " · {$by->name}" : ''), Ticket::ALIGN_CENTER)
             ->separator('=');
 
@@ -141,6 +145,21 @@ class KitchenFormatter
 
         return $line->name.($withVariant && $line->variant_name && ! $isHalfParent ? " ({$line->variant_name})" : '')
             .($isHalfParent && $line->variant_name ? " ({$line->variant_name})" : '');
+    }
+
+    /** DOMICILIO / LLEVAR muy visible, cliente y hora a la que debe estar listo. */
+    private function takeawayHeader(Ticket $ticket, Order $order): void
+    {
+        $ticket->line(mb_strtoupper($order->type === OrderType::Delivery ? 'Domicilio' : 'Llevar'), Ticket::ALIGN_CENTER, bold: true, large: true, reverse: true);
+        if ($order->customer_name) {
+            $ticket->line($order->customer_name, Ticket::ALIGN_CENTER, bold: true, large: true);
+        }
+        if ($ready = $order->readyBy()) {
+            $ticket->line('LISTO A LAS '.$ready->format('H:i'), Ticket::ALIGN_CENTER, bold: true, large: true);
+            if ($order->asap) {
+                $ticket->line('Lo antes posible', Ticket::ALIGN_CENTER, bold: true);
+            }
+        }
     }
 
     private function where(Order $order): string

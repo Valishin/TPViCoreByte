@@ -54,7 +54,9 @@ class TakeawayOrderService
 
         return DB::transaction(function () use ($type, $by, $data) {
             $order = $this->orders->open($type, $by, attributes: ['notes' => $data['notes'] ?? null]);
-            $this->fill($order, $data + ['asap' => true]);
+            // Sin hora elegida: "Lo antes posible".
+            $chosen = isset($data['promised_in']) || isset($data['promised_at']) || array_key_exists('asap', $data);
+            $this->fill($order, $chosen ? $data : $data + ['asap' => true]);
 
             return $this->changed($order);
         });

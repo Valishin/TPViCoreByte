@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Pos;
 
 use App\Enums\OrderType;
+use App\Enums\UserRole;
 use App\Events\Pos\OrderUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Pos\OrderResource;
+use App\Http\Resources\Pos\StaffResource;
 use App\Http\Resources\Pos\TakeawayOrderResource;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\User;
+use App\Services\Orders\DispatchService;
 use App\Services\Orders\OrderRepeater;
 use App\Services\Orders\TakeawayOrderService;
 use Illuminate\Http\JsonResponse;
@@ -53,16 +57,37 @@ class TakeawayOrderController extends Controller
         return $this->respond($order, $request);
     }
 
-    /** Pasos manuales: Listo y Entregado (para llevar ya cobrado). */
-    public function status(Request $request, Order $order): JsonResponse
+    /** Pasos manuales: Listo y Entregado (para llevar ya cobrado, o ya pagado: se emite su ticket). */
+    public function status(Request $request, Order $order, DispatchService $dispatch): JsonResponse
     {
         $data = $request->validate(['status' => ['required', Rule::in(['listo', 'entregado'])]]);
 
-        $order = $data['status'] === 'listo'
-            ? $this->takeaway->markReady($order)
-            : $this->takeaway->markDelivered($order, $request->user());
+        if ($data['status'] === 'listo') {
+            $this->takeaway->markReady($order);
+        } elseif ($order->isOpen() && $order->prepaid_method) {
+            $dispatch->handOverPrepaid($order, $request->user());
+        } else {
+            $this->takeaway->markDelivered($order, $request->user());
+        }
 
         return $this->respond($order, $request);
+    }
+
+    /** Domicilio: dar salida con un repartidor (emite el ticket e imprime el de domicilio). */
+    public function dispatch(Request $request, Order $order, DispatchService $dispatch): JsonResponse
+    {
+        $data = $request->validate(['courier_id' => ['required', 'integer', 'exists:users,id']]);
+        $ticket = $dispatch->dispatch($order, User::query()->findOrFail($data['courier_id']), $request->user());
+
+        return $this->respond($order, $request, 200, ['ticket' => ['id' => $ticket->id, 'number' => $ticket->fullNumber(), 'payment_status' => $ticket->payment_status->value]]);
+    }
+
+    /** Repartidores activos (botones de "Dar salida"). */
+    public function couriers(): JsonResponse
+    {
+        $couriers = User::query()->where('role', UserRole::Courier)->where('is_active', true)->orderBy('name')->get();
+
+        return response()->json(['data' => StaffResource::collection($couriers)]);
     }
 
     /** Repetir un pedido anterior del cliente en este pedido. */

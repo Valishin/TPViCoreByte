@@ -4,13 +4,16 @@ namespace App\Services\Pos;
 
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\TicketType;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketLine;
 use App\Services\Printing\Ticket as Printable;
 use App\Support\Format;
+use App\Support\MapsLink;
 
 /**
  * Impresión de cara al cliente y a la caja: ticket (factura simplificada o
@@ -113,6 +116,79 @@ class ReceiptFormatter
         }
 
         return $p->feed(3)->cut();
+    }
+
+    /**
+     * Ticket de domicilio: arriba y en grande lo que necesita el repartidor
+     * (dirección, teléfono, indicaciones, hora, pago previsto y "cambio
+     * para"), y debajo el ticket fiscal.
+     */
+    public function deliveryTicket(Ticket $ticket, Order $order, int $columns = 48): Printable
+    {
+        return $this->deliveryHeader(new Printable, $ticket, $order)
+            ->separator('=')
+            ->append($this->ticket($ticket, $columns));
+    }
+
+    /** Copia para el repartidor: datos de entrega, lo que lleva, importe y QR con la dirección en Google Maps. */
+    public function courierCopy(Ticket $ticket, Order $order): Printable
+    {
+        $ticket->loadMissing('lines');
+        $p = $this->deliveryHeader((new Printable)->line('COPIA REPARTIDOR', Printable::ALIGN_CENTER, bold: true), $ticket, $order)->separator();
+        foreach ($ticket->lines->whereNull('parent_line_id') as $line) {
+            $p->line($line->quantity.' '.$this->lineName($line));
+        }
+        $p->separator()->columns('Ticket '.$ticket->fullNumber(), Format::money($ticket->total), bold: true);
+        if ($url = MapsLink::forAddress($order->delivery_address)) {
+            $p->feed()->qr($url)->line('Escanea para abrir la dirección', Printable::ALIGN_CENTER);
+        }
+
+        return $p->feed(3)->cut();
+    }
+
+    private function deliveryHeader(Printable $p, Ticket $ticket, Order $order): Printable
+    {
+        $a = $order->delivery_address ?? [];
+        $p->line('DOMICILIO', Printable::ALIGN_CENTER, bold: true, large: true, reverse: true);
+        $p->line(trim(($a['street'] ?? '').' '.($a['number'] ?? '')), bold: true, large: true);
+        if (! empty($a['floor_door'])) {
+            $p->line($a['floor_door'], bold: true, large: true);
+        }
+        $place = trim(($a['postal_code'] ?? '').' '.($a['city'] ?? ''));
+        if ($place !== '') {
+            $p->line($place, bold: true);
+        }
+        if ($order->customer_name) {
+            $p->line($order->customer_name, bold: true);
+        }
+        if ($order->customer_phone) {
+            $p->line('Tel. '.$order->customer_phone, bold: true, large: true);
+        }
+        if (! empty($a['instructions'])) {
+            $p->line('Indicaciones: '.$a['instructions'], bold: true);
+        }
+        $p->separator();
+        if ($label = $order->promisedLabel()) {
+            $p->columns('Hora', $label, bold: true);
+        }
+        if ($order->courier) {
+            $p->columns('Repartidor', $order->courier->name);
+        }
+
+        if ($ticket->payment_status === PaymentStatus::Paid) {
+            $method = $ticket->payments()->first()?->method ?? $order->prepaid_method;
+            $p->line('PAGADO'.($method ? ' ('.$method->label().')' : ''), Printable::ALIGN_CENTER, bold: true, large: true);
+        } else {
+            $p->columns('Pago', $order->planned_payment_method?->label() ?? 'Al entregar', bold: true);
+            if ($order->cash_change_for) {
+                $p->line('CAMBIO PARA '.Format::money($order->cash_change_for), bold: true, large: true)
+                    ->columns('  Devolver', Format::money(max(0, $order->cash_change_for - $ticket->total)));
+            }
+            $p->line('PENDIENTE DE COBRO', Printable::ALIGN_CENTER, bold: true, large: true, reverse: true)
+                ->line('TOTAL A COBRAR '.Format::money($ticket->total), Printable::ALIGN_CENTER, bold: true, large: true);
+        }
+
+        return $p;
     }
 
     /** Justificante de una parte del pago: NO es una factura. */

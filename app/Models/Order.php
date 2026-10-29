@@ -7,6 +7,7 @@ use App\Enums\DiscountType;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -96,6 +97,34 @@ class Order extends Model
     public function courierSettlement(): BelongsTo
     {
         return $this->belongsTo(CourierSettlement::class);
+    }
+
+    /**
+     * Hora a la que cocina debe tenerlo listo: para llevar, la prometida; a
+     * domicilio, la prometida menos el reparto (tiempo de domicilio − tiempo de
+     * preparación de Ajustes).
+     */
+    public function readyBy(?Setting $settings = null): ?CarbonInterface
+    {
+        if (! $this->promised_at) {
+            return null;
+        }
+        if ($this->type !== OrderType::Delivery) {
+            return $this->promised_at;
+        }
+        $settings ??= Setting::current();
+
+        return $this->promised_at->copy()->subMinutes(max(0, $settings->delivery_minutes - $settings->takeaway_prep_minutes));
+    }
+
+    /** "21:30" o "Lo antes posible (21:30)". */
+    public function promisedLabel(): ?string
+    {
+        if (! $this->promised_at) {
+            return null;
+        }
+
+        return $this->asap ? "Lo antes posible ({$this->promised_at->format('H:i')})" : $this->promised_at->format('H:i');
     }
 
     /** Para llevar o domicilio (los que van al tablero "Pedidos"). */

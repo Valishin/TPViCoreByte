@@ -203,6 +203,11 @@ class PrinterManager
                 case 'pulse':
                     $printer->pulse();
                     break;
+                case 'qr':
+                    $printer->setJustification(Printer::JUSTIFY_CENTER);
+                    $printer->qrCode($op['data'], Printer::QR_ECLEVEL_M, $op['size'] ?? 6);
+                    $printer->setJustification(Printer::JUSTIFY_LEFT);
+                    break;
             }
         }
         // Sin $printer->close(): finalizaría el conector y perderíamos los
@@ -242,6 +247,9 @@ class PrinterManager
                     break;
                 case 'pulse':
                     $out[] = '[ABRIR CAJÓN]';
+                    break;
+                case 'qr':
+                    $out[] = "[QR] {$op['data']}";
                     break;
             }
         }

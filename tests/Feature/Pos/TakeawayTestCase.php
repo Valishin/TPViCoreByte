@@ -55,14 +55,14 @@ abstract class TakeawayTestCase extends PosTestCase
 
     protected function newTakeaway(array $data = []): TestResponse
     {
-        return $this->asWaiter()->postJson('/api/takeaway-orders', ['type' => 'para_llevar'] + $data)->assertCreated();
+        return $this->asWaiter()->postJson('/api/takeaway-orders', $data + ['type' => 'para_llevar'])->assertCreated();
     }
 
     protected function newDelivery(array $data = []): TestResponse
     {
-        return $this->asWaiter()->postJson('/api/takeaway-orders', [
+        return $this->asWaiter()->postJson('/api/takeaway-orders', $data + [
             'type' => 'domicilio', 'customer_id' => $this->lucia->id, 'address_id' => $this->luciaHome->id, 'payment' => 'efectivo',
-        ] + $data)->assertCreated();
+        ])->assertCreated();
     }
 
     /** Pedido a domicilio con líneas (por defecto 2 pizzas: supera el mínimo del Ensanche). */

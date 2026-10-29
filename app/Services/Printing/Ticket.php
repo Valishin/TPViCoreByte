@@ -53,6 +53,22 @@ class Ticket
         return $this;
     }
 
+    /** Código QR centrado (p. ej. la dirección en Google Maps). size: 1-16 (tamaño del módulo). */
+    public function qr(string $data, int $size = 6): static
+    {
+        $this->operations[] = ['type' => 'qr', 'data' => $data, 'size' => $size];
+
+        return $this;
+    }
+
+    /** Añade al final las operaciones de otro ticket. */
+    public function append(self $other): static
+    {
+        array_push($this->operations, ...$other->operations());
+
+        return $this;
+    }
+
     /** Pulso al cajón portamonedas conectado a la impresora (RJ11). */
     public function pulse(): static
     {
