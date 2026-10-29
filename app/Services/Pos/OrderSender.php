@@ -3,12 +3,11 @@
 namespace App\Services\Pos;
 
 use App\Enums\PrintJobKind;
-use App\Enums\TableStatus;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Printer;
-use App\Models\Table;
 use App\Models\User;
+use App\Services\Orders\OrderService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -23,6 +22,7 @@ class OrderSender
     public function __construct(
         private KitchenFormatter $formatter,
         private PrintJobDispatcher $printing,
+        private OrderService $orders,
     ) {}
 
     /**
@@ -72,12 +72,7 @@ class OrderSender
             $order->update(['send_count' => $sendNumber]);
 
             // Si habían pedido la cuenta y piden más, la mesa vuelve a "ocupada".
-            if ($order->table_id) {
-                $table = Table::query()->whereKey($order->table_id)->lockForUpdate()->first();
-                if ($table?->status === TableStatus::BillRequested) {
-                    $table->update(['status' => TableStatus::Occupied]);
-                }
-            }
+            $this->orders->reopenAfterSend($order);
 
             return ['send_number' => $sendNumber, 'jobs' => $jobs, 'unrouted' => array_values(array_unique($unrouted))];
         });

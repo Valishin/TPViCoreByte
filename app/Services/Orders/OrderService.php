@@ -229,6 +229,18 @@ class OrderService
         });
     }
 
+    /** Tras un nuevo envío a cocina, una mesa con la cuenta pedida vuelve a "ocupada". */
+    public function reopenAfterSend(Order $order): void
+    {
+        if (! $order->table_id) {
+            return;
+        }
+        $table = Table::query()->whereKey($order->table_id)->lockForUpdate()->first();
+        if ($table?->status === TableStatus::BillRequested) {
+            $table->update(['status' => TableStatus::Occupied]);
+        }
+    }
+
     /** Imprime la cuenta (no válida como factura) y marca la mesa como "cuenta pedida". */
     public function precheck(Order $order, User $by): Order
     {
