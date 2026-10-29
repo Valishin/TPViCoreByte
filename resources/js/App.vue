@@ -7,12 +7,14 @@
     <AuthorizeModal />
     <ToastHost />
     <OnScreenKeyboard />
+    <LanAddress v-if="ui.isPos" />
 </template>
 
 <script setup>
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AuthorizeModal from '@/components/AuthorizeModal.vue';
+import LanAddress from '@/components/LanAddress.vue';
 import OnScreenKeyboard from '@/components/OnScreenKeyboard.vue';
 import PrintAlerts from '@/components/PrintAlerts.vue';
 import ToastHost from '@/components/ToastHost.vue';

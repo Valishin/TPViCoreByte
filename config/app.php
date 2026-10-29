@@ -54,6 +54,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // IP del TPV en la red local que se muestra en la caja para conectar los
+    // móviles (en Docker no se puede averiguar sola). En desarrollo la da Vite.
+    'lan_ip' => env('APP_LAN_IP'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

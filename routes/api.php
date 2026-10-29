@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\DiagnosticsController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\NetworkController;
 use App\Http\Controllers\Pos\AuthController;
 use App\Http\Controllers\Pos\CashController;
 use App\Http\Controllers\Pos\CatalogController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Pos\TicketController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('api.health');
+Route::get('/network', NetworkController::class)->name('api.network');
 
 // Diagnóstico de la página /estado (solo pruebas, sin datos sensibles).
 Route::prefix('diagnostico')->middleware('throttle:30,1')->group(function () {

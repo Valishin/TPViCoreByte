@@ -251,19 +251,23 @@ no tiene sala: entra directamente en **Pedidos**).
 ## Entrar desde el móvil (red local)
 
 1. El móvil tiene que estar en la **misma wifi** que el Mac.
-2. Averigua la IP del Mac: `ipconfig getifaddr en0` (ahora mismo: `192.168.1.57`).
-3. Comprueba en `.env` que esa IP está en:
-   - `VITE_HMR_HOST=192.168.1.57`
-   - `SANCTUM_STATEFUL_DOMAINS=...,192.168.1.57,192.168.1.57:8081`
-4. Si has cambiado algo: `npm run dev` de nuevo y `./vendor/bin/sail restart`.
-5. En el móvil abre **http://192.168.1.57:8081/estado**.
-6. Prueba los tres botones. Abre `/estado` también en el Mac y pulsa "Enviar
-   evento" en uno: debe aparecer en los dos a la vez.
+2. La dirección está **abajo a la derecha en la caja** ("Móviles:
+   http://192.168.1.35:8081"). Se actualiza sola cada minuto si el router
+   cambia la IP. También: `ipconfig getifaddr en0`.
+3. Si la IP ha cambiado, reinicia `npm run dev`: con `VITE_HMR_HOST` vacío,
+   Vite usa la IP actual. `SANCTUM_STATEFUL_DOMAINS` admite cualquier IP de la
+   red local (`192.168.*`, `10.*`), así que no hay que tocar `.env`.
+4. En el móvil abre esa dirección (o `/estado` para probar la conexión).
+5. Prueba los tres botones de `/estado`. Ábrelo también en el Mac y pulsa
+   "Enviar evento" en uno: debe aparecer en los dos a la vez.
+
+En el mini PC (sin Vite) la etiqueta usa `APP_LAN_IP` de `.env` (su IP fija),
+o la IP con la que se ha entrado si ya es de la red.
 
 La primera vez macOS puede preguntar si permites conexiones entrantes a `node`:
 acepta (si no, el móvil no cargará los assets de Vite).
 
-**Cómo está hecho:** Vite escucha en `0.0.0.0` y anuncia `VITE_HMR_HOST` como
+**Cómo está hecho:** Vite escucha en `0.0.0.0` y anuncia `VITE_HMR_HOST` (o la IP detectada) como
 origen de los assets y del HMR (el navegador del móvil tiene que poder llegar a
 él). Echo se conecta siempre a `window.location.hostname`, nunca a una IP fija,
 así que la caja (localhost) y los móviles (IP) usan el mismo build. Reverb
