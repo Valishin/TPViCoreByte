@@ -57,6 +57,7 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::patch('/takeaway-orders/{order}', [TakeawayOrderController::class, 'update'])->name('pos.takeaway.update');
     Route::post('/takeaway-orders/{order}/status', [TakeawayOrderController::class, 'status'])->name('pos.takeaway.status');
     Route::post('/takeaway-orders/{order}/dispatch', [TakeawayOrderController::class, 'dispatch'])->name('pos.takeaway.dispatch');
+    Route::post('/takeaway-orders/{order}/cancel', [TakeawayOrderController::class, 'cancel'])->name('pos.takeaway.cancel');
     Route::get('/couriers', [TakeawayOrderController::class, 'couriers'])->name('pos.couriers');
     Route::post('/takeaway-orders/{order}/repeat/{source}', [TakeawayOrderController::class, 'repeat'])->name('pos.takeaway.repeat');
 

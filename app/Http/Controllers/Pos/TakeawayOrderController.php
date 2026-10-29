@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\Orders\DispatchService;
+use App\Services\Orders\OrderCancellation;
 use App\Services\Orders\OrderRepeater;
 use App\Services\Orders\TakeawayOrderService;
 use Illuminate\Http\JsonResponse;
@@ -80,6 +81,18 @@ class TakeawayOrderController extends Controller
         $ticket = $dispatch->dispatch($order, User::query()->findOrFail($data['courier_id']), $request->user());
 
         return $this->respond($order, $request, 200, ['ticket' => ['id' => $ticket->id, 'number' => $ticket->fullNumber(), 'payment_status' => $ticket->payment_status->value]]);
+    }
+
+    /** Cancelar antes del ticket (con motivo; autorización si ya se envió a cocina). */
+    public function cancel(Request $request, Order $order, OrderCancellation $cancellation): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:120'],
+            'authorization_token' => ['nullable', 'string'],
+        ]);
+        $cancellation->cancel($order, $request->user(), $data['reason'], $data['authorization_token'] ?? null);
+
+        return $this->respond($order, $request);
     }
 
     /** Repartidores activos (botones de "Dar salida"). */
