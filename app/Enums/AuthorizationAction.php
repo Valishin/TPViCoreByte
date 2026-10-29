@@ -14,6 +14,9 @@ enum AuthorizationAction: string implements HasLabel
     case Reprint = 'reimprimir';
     case OpenCash = 'abrir_caja';
     case CloseCash = 'cerrar_caja';
+    case MinimumOrder = 'pedido_minimo';
+    case CancelOrder = 'cancelar_pedido';
+    case FailedDelivery = 'no_entregado';
 
     public function label(): string
     {
@@ -25,6 +28,9 @@ enum AuthorizationAction: string implements HasLabel
             self::Reprint => 'Reimprimir otra copia',
             self::OpenCash => 'Abrir caja',
             self::CloseCash => 'Cerrar caja',
+            self::MinimumOrder => 'Enviar sin llegar al pedido mínimo',
+            self::CancelOrder => 'Cancelar un pedido ya enviado a cocina',
+            self::FailedDelivery => 'Pedido no entregado (rectificativo)',
         };
     }
 

@@ -51,4 +51,14 @@ class CashSession extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function movements(): HasMany
+    {
+        return $this->hasMany(CashMovement::class);
+    }
+
+    public function courierSettlements(): HasMany
+    {
+        return $this->hasMany(CourierSettlement::class);
+    }
 }

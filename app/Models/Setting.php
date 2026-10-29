@@ -36,6 +36,9 @@ class Setting extends Model
             'print_ticket_on_checkout' => 'boolean',
             'quick_notes' => 'array',
             'show_onscreen_keyboard_pos' => 'boolean',
+            'takeaway_prep_minutes' => 'integer',
+            'delivery_minutes' => 'integer',
+            'print_courier_copy' => 'boolean',
         ];
     }
 

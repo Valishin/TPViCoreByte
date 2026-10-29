@@ -11,6 +11,7 @@ enum PaymentMethod: string implements HasLabel
     case Card = 'tarjeta';
     case Bizum = 'bizum';
     case Other = 'otro';
+    case Online = 'online'; // pagado por la web (pedidos online en el futuro)
 
     public function label(): string
     {
@@ -19,6 +20,7 @@ enum PaymentMethod: string implements HasLabel
             self::Card => 'Tarjeta',
             self::Bizum => 'Bizum',
             self::Other => 'Otro',
+            self::Online => 'Online',
         };
     }
 

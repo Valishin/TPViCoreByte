@@ -79,16 +79,18 @@ class DemoPizzeriaSeeder extends DemoSeeder
             ['Ensalada César', 750, [A::Gluten, A::Eggs, A::Fish, A::Milk]],
         ]);
 
+        // IVA: agua 10 % siempre; refrescos azucarados y alcohol 10 % en local y 21 % para llevar.
         $alcohol = ['vat_rate_takeaway' => 2100];
+        $sugary = ['vat_rate_takeaway' => 2100];
         $drinks = $this->products($this->category('Bebidas', '#0ea5e9', 3, $counter, ['Sin hielo', 'Con limón', 'Del tiempo', 'Bien fría']), [
-            ['Coca-Cola 33 cl', 200, []],
+            ['Coca-Cola 33 cl', 200, [], $sugary],
             ['Coca-Cola Zero 33 cl', 200, []],
-            ['Fanta de naranja 33 cl', 200, []],
+            ['Fanta de naranja 33 cl', 200, [], $sugary],
             ['Agua 50 cl', 150, []],
             ['Cerveza 33 cl', 220, [A::Gluten], $alcohol],
             ['Cerveza sin alcohol 33 cl', 220, [A::Gluten]],
             ['Lambrusco (botella)', 900, [A::Sulphites], $alcohol],
-            ['Coca-Cola 2 l', 350, []],
+            ['Coca-Cola 2 l', 350, [], $sugary],
         ]);
         $desserts = $this->products($this->category('Postres', '#a855f7', 4, $counter, ['Con nata', 'Sin nata', 'Dos cucharas']), [
             ['Tiramisú', 400, [A::Gluten, A::Milk, A::Eggs]],

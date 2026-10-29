@@ -2,16 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\UserRole;
 use App\Models\Customer;
 use App\Models\DeliveryZone;
+use App\Models\Order;
 use App\Models\Printer;
 use App\Models\Product;
 use App\Models\Room;
 use App\Models\Setting;
 use App\Models\Table;
 use App\Models\User;
+use App\Services\Orders\OrderLineBuilder;
 use Database\Seeders\DemoBarSeeder;
 use Database\Seeders\DemoPizzeriaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,5 +51,36 @@ class DemoSeedersTest extends TestCase
         $this->assertTrue(Customer::withCount('addresses')->get()->every(fn ($c) => in_array($c->addresses_count, [1, 2], true)));
         $this->assertSame(2, User::where('role', UserRole::Courier)->count());
         $this->assertFalse(Setting::current()->isOrderTypeEnabled(OrderType::Table));
+    }
+
+    /** Agua 10 % siempre; refresco azucarado y cerveza 10 % en local y 21 % para llevar. */
+    public function test_pizzeria_drinks_vat_in_house_and_takeaway(): void
+    {
+        $this->seed(DemoPizzeriaSeeder::class);
+        $by = User::where('role', UserRole::Courier)->first();
+        $drinks = ['Agua 50 cl', 'Coca-Cola 33 cl', 'Cerveza 33 cl'];
+
+        $rates = function (OrderType $type) use ($drinks, $by): array {
+            $order = Order::create(['type' => $type, 'status' => OrderStatus::Open, 'opened_by' => $by->id, 'opened_at' => now()]);
+            foreach ($drinks as $name) {
+                app(OrderLineBuilder::class)->addProduct($order, Product::where('name', $name)->firstOrFail());
+            }
+
+            return $order->lines()->pluck('vat_rate', 'name')->map(fn ($r) => (int) $r)->all();
+        };
+
+        $this->assertSame(['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 1000, 'Cerveza 33 cl' => 1000], $rates(OrderType::Bar));
+        $this->assertSame(['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 2100, 'Cerveza 33 cl' => 2100], $rates(OrderType::Takeaway));
+        $this->assertSame(['Agua 50 cl' => 1000, 'Coca-Cola 33 cl' => 2100, 'Cerveza 33 cl' => 2100], $rates(OrderType::Delivery));
+    }
+
+    public function test_takeaway_settings_defaults(): void
+    {
+        $this->seed(DemoPizzeriaSeeder::class);
+        $settings = Setting::current();
+
+        $this->assertSame(15, $settings->takeaway_prep_minutes);
+        $this->assertSame(35, $settings->delivery_minutes);
+        $this->assertFalse($settings->print_courier_copy);
     }
 }

@@ -96,4 +96,17 @@ class AccessTest extends FilamentTestCase
         $this->expectException(ValidationException::class);
         $table->update(['is_active' => false]);
     }
+
+    public function test_admin_saves_takeaway_and_delivery_settings(): void
+    {
+        Livewire::test(LocalSettings::class)
+            ->fillForm(['takeaway_prep_minutes' => 20, 'delivery_minutes' => 45, 'print_courier_copy' => true])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $settings = Setting::current();
+        $this->assertSame(20, $settings->takeaway_prep_minutes);
+        $this->assertSame(45, $settings->delivery_minutes);
+        $this->assertTrue($settings->print_courier_copy);
+    }
 }

@@ -132,10 +132,18 @@ class LocalSettings extends Page
                 Section::make('Notas rápidas generales')->columnSpanFull()
                     ->description('Salen en todos los productos, detrás de las notas de su categoría. Arrastra para ordenarlas.')
                     ->schema([CategoryForm::quickNotes()]),
-                Section::make('Reparto')->columnSpanFull()->schema([
-                    VatRateSelect::make('delivery_fee_vat_rate')->label('IVA de los gastos de envío')->required()
-                        ->helperText('Normalmente el mismo que la comida (10 %).'),
-                ]),
+                Section::make('Para llevar y domicilio')->columns(2)->columnSpanFull()
+                    ->description('Tiempos para "Lo antes posible": la hora prometida que se propone al crear el pedido.')
+                    ->schema([
+                        TextInput::make('takeaway_prep_minutes')->label('Preparación para llevar (minutos)')
+                            ->numeric()->integer()->minValue(1)->maxValue(240)->required(),
+                        TextInput::make('delivery_minutes')->label('Preparación + reparto a domicilio (minutos)')
+                            ->numeric()->integer()->minValue(1)->maxValue(240)->required(),
+                        VatRateSelect::make('delivery_fee_vat_rate')->label('IVA de los gastos de envío')->required()
+                            ->helperText('Normalmente el mismo que la comida (10 %).'),
+                        Toggle::make('print_courier_copy')->label('Imprimir copia para el repartidor')->inline(false)
+                            ->helperText('Al dar salida a un domicilio, una copia con la dirección y un QR que la abre en Google Maps.'),
+                    ]),
             ]);
     }
 

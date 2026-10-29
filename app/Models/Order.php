@@ -40,6 +40,13 @@ class Order extends Model
             'status' => OrderStatus::class,
             'delivery_status' => DeliveryStatus::class,
             'planned_payment_method' => PaymentMethod::class,
+            'prepaid_method' => PaymentMethod::class,
+            'asap' => 'boolean',
+            'kitchen_at' => 'datetime',
+            'ready_at' => 'datetime',
+            'dispatched_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'discount_type' => DiscountType::class,
             'delivery_address' => 'array',
             'promised_at' => 'datetime',
@@ -74,6 +81,27 @@ class Order extends Model
     public function courier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'courier_id');
+    }
+
+    public function deliveredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'delivered_by');
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function courierSettlement(): BelongsTo
+    {
+        return $this->belongsTo(CourierSettlement::class);
+    }
+
+    /** Para llevar o domicilio (los que van al tablero "Pedidos"). */
+    public function isTakeawayOrDelivery(): bool
+    {
+        return $this->type === OrderType::Takeaway || $this->type === OrderType::Delivery;
     }
 
     public function customer(): BelongsTo
