@@ -17,6 +17,12 @@
         font-size: $font-size-lg;
         font-weight: $font-weight-bold;
         text-align: center;
+
+        &--section {
+            margin-top: $space-4;
+            padding-top: $space-3;
+            border-top: 2px solid $color-border;
+        }
     }
 
     &__hint {

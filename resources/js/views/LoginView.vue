@@ -6,7 +6,7 @@
         <h2 v-if="ui.isPos || !selected" class="v-login__title">Seleccione el usuario</h2>
         <div v-if="ui.isPos || !selected" class="v-login__staff">
             <button
-                v-for="p in staff"
+                v-for="p in floorStaff"
                 :key="p.id"
                 type="button"
                 :class="['v-login__person', { 'v-login__person--selected': selected?.id === p.id }]"
@@ -17,6 +17,22 @@
             </button>
             <p v-if="loaded && !staff.length" class="v-login__hint">No hay camareros con PIN. Créalos en el backoffice (/admin).</p>
         </div>
+        <!-- Repartidores aparte, debajo del personal de sala -->
+        <template v-if="couriers.length && (ui.isPos || !selected)">
+            <h2 class="v-login__title v-login__title--section">Repartidores</h2>
+            <div class="v-login__staff">
+                <button
+                    v-for="p in couriers"
+                    :key="p.id"
+                    type="button"
+                    :class="['v-login__person', { 'v-login__person--selected': selected?.id === p.id }]"
+                    @click="select(p)"
+                >
+                    <span class="v-login__avatar" :style="{ background: p.color }">{{ p.initials }}</span>
+                    {{ p.name }}
+                </button>
+            </div>
+        </template>
 
         <div v-if="selected || ui.isPos" class="v-login__pad">
             <h2 class="v-login__title">Introduce tu PIN</h2>
@@ -52,6 +68,8 @@ const selected = ref(null);
 const pin = ref('');
 const error = ref('');
 const locked = computed(() => !!session.lockedBy);
+const floorStaff = computed(() => staff.value.filter((p) => p.role !== 'repartidor'));
+const couriers = computed(() => staff.value.filter((p) => p.role === 'repartidor'));
 
 onMounted(async () => {
     try {

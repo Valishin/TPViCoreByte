@@ -14,14 +14,16 @@ class PosAuthTest extends PosTestCase
         return $this->withHeader('Origin', 'http://localhost')->postJson('/api/login-pin', ['user_id' => $userId, 'pin' => $pin]);
     }
 
-    public function test_staff_lists_only_pos_users_without_sensitive_data(): void
+    public function test_staff_lists_pos_users_and_couriers_without_sensitive_data(): void
     {
         User::factory()->role(UserRole::Courier)->withPin('5555')->create(['name' => 'Repartidor']);
         User::factory()->withPin('1111')->create(['name' => 'Inactivo', 'is_active' => false]);
+        User::factory()->role(UserRole::Courier)->create(['name' => 'Sin PIN']);
 
         $staff = $this->getJson('/api/staff')->assertOk()->json('data');
 
-        $this->assertSame(['Ana López'], collect($staff)->pluck('name')->all());
+        $this->assertSame(['Ana López', 'Repartidor'], collect($staff)->pluck('name')->all());
+        $this->assertSame('repartidor', $staff[1]['role']); // la pantalla de PIN los pone aparte
         $this->assertSame(['id', 'name', 'initials', 'color', 'role'], array_keys($staff[0]));
         $this->assertSame('AL', $staff[0]['initials']);
     }
@@ -50,12 +52,17 @@ class PosAuthTest extends PosTestCase
         $this->login($luis->id, '2222')->assertOk();
     }
 
-    public function test_courier_cannot_use_room_pos(): void
+    public function test_courier_signs_in_but_cannot_use_room_pos(): void
     {
         $courier = User::factory()->role(UserRole::Courier)->withPin('5555')->create();
 
-        $this->login($courier->id, '5555')->assertForbidden();
+        $this->login($courier->id, '5555')->assertOk()->assertJsonPath('user.role', 'repartidor');
         $this->actingAs($courier, 'pos')->getJson('/api/rooms')->assertForbidden();
+        $this->actingAs($courier, 'pos')->getJson('/api/takeaway-orders')->assertForbidden();
+        $this->actingAs($courier, 'pos')->getJson('/api/my-deliveries')->assertOk();
+
+        // Y el personal de sala no entra en "Mis repartos".
+        $this->asPos($this->waiter)->getJson('/api/my-deliveries')->assertForbidden();
     }
 
     public function test_api_requires_login(): void

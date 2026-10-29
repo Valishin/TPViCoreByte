@@ -85,6 +85,37 @@ class CourierService
         return $ticket->total - $ticket->paidAmount();
     }
 
+    /**
+     * El repartidor lo ha entregado y dice cómo ha cobrado (efectivo, tarjeta o
+     * mixto). No registra el cobro: se liquida en caja, que lo propone así.
+     *
+     * @param  list<array{method: string, amount: int}>  $reported
+     */
+    public function reportDelivered(Order $order, User $courier, array $reported): Order
+    {
+        if ($order->courier_id !== $courier->id) {
+            throw new InvalidArgumentException('Este reparto no es tuyo.');
+        }
+        $pending = self::pendingAmount(self::ticketOf($order->load('tickets')));
+        $reported = array_values(array_filter($reported, fn ($r) => (int) $r['amount'] > 0));
+        if ($pending > 0) {
+            foreach ($reported as $row) {
+                if (! in_array(PaymentMethod::tryFrom($row['method']), [PaymentMethod::Cash, PaymentMethod::Card, PaymentMethod::Bizum], true)) {
+                    throw new InvalidArgumentException('Cobro: efectivo, tarjeta o Bizum.');
+                }
+            }
+            if (array_sum(array_column($reported, 'amount')) !== $pending) {
+                throw new InvalidArgumentException('Lo cobrado no cuadra con el importe del pedido.');
+            }
+        }
+
+        return DB::transaction(function () use ($order, $courier, $reported, $pending) {
+            $order->update(['courier_reported_payments' => $pending > 0 ? array_map(fn ($r) => ['method' => $r['method'], 'amount' => (int) $r['amount']], $reported) : null]);
+
+            return $this->takeaway->markDelivered($order, $courier);
+        });
+    }
+
     /** @return list<array<string, mixed>> por repartidor activo */
     public function overview(): array
     {
@@ -147,7 +178,10 @@ class CourierService
                 $ticket = self::ticketOf($order);
                 $pending = self::pendingAmount($ticket);
                 if ($pending > 0) {
-                    $rows = $collected[$order->id] ?? [['method' => ($order->planned_payment_method ?? PaymentMethod::Cash)->value, 'amount' => $pending]];
+                    // Por defecto: lo que dijo el repartidor al entregar; si no, el pago previsto.
+                    $rows = $collected[$order->id]
+                        ?? $order->courier_reported_payments
+                        ?? [['method' => ($order->planned_payment_method ?? PaymentMethod::Cash)->value, 'amount' => $pending]];
                     if (array_sum(array_column($rows, 'amount')) !== $pending) {
                         throw new InvalidArgumentException("El cobro del ticket {$ticket->fullNumber()} no cuadra con su importe.");
                     }

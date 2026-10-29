@@ -29,7 +29,11 @@ import { useNoticesStore } from '@/stores/notices';
 import { money } from '@/utils/format';
 
 /** "No entregado" con motivo y autorización: rectificativo total sin devolución. */
-const props = defineProps({ order: { type: Object, default: null } });
+const props = defineProps({
+    order: { type: Object, default: null },
+    // Caja: /takeaway-orders/{id}/not-delivered; repartidor: /my-deliveries/{id}/not-delivered.
+    courier: { type: Boolean, default: false },
+});
 const emit = defineEmits(['close', 'done']);
 const authorize = useAuthorizeStore();
 const notices = useNoticesStore();
@@ -43,9 +47,9 @@ async function confirm() {
     busy.value = true;
     try {
         const result = await authorize.withAuthorization('no_entregado', (token) =>
-            pos.notDelivered(props.order.id, { reason: reason.value, authorization_token: token }));
-        notices.success(`No entregado · rectificativo ${result.rectifying.number}`);
-        emit('done', result.takeaway);
+            (props.courier ? pos.myNotDelivered : pos.notDelivered)(props.order.id, { reason: reason.value, authorization_token: token }));
+        notices.success(result.rectifying ? `No entregado · rectificativo ${result.rectifying.number}` : 'Marcado como no entregado');
+        emit('done', result.takeaway ?? result.data);
     } catch (e) {
         if (!isCancelled(e)) notices.error(errorMessage(e));
     } finally {

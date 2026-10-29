@@ -5,6 +5,7 @@ import { useOrderStore } from './order';
 import { useNoticesStore } from './notices';
 import { useCatalogStore } from './catalog';
 import { useTakeawayStore } from './takeaway';
+import { useSessionStore } from './session';
 
 /**
  * Tiempo real: canal privado `pos`. Al (re)conectar recarga el estado
@@ -37,6 +38,12 @@ export const useRealtimeStore = defineStore('realtime', {
             const catalog = useCatalogStore();
             const takeaway = useTakeawayStore();
 
+            // Repartidor: solo le interesan sus repartos ("Mis repartos" vigila takeaway.version).
+            if (useSessionStore().isCourier) {
+                echo.private('pos').listen('.takeaway.changed', () => takeaway.version++);
+                return;
+            }
+
             echo.private('pos')
                 .listen('.takeaway.changed', (e) => {
                     takeaway.version++;
@@ -66,6 +73,10 @@ export const useRealtimeStore = defineStore('realtime', {
             this.subscribed = false;
         },
         resync() {
+            if (useSessionStore().isCourier) {
+                useTakeawayStore().version++;
+                return;
+            }
             useFloorStore().load().catch(() => {});
             useOrderStore().reload().catch(() => {});
             useNoticesStore().loadPrinting().catch(() => {});

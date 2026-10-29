@@ -84,6 +84,18 @@ class User extends Authenticatable implements FilamentUser
         return $this->is_active && $this->pin !== null && $this->role->canUsePos();
     }
 
+    /** Repartidor activo con PIN: entra en el móvil y solo ve sus repartos. */
+    public function canUseCourierApp(): bool
+    {
+        return $this->is_active && $this->pin !== null && $this->role === UserRole::Courier;
+    }
+
+    /** Puede entrar con PIN (personal de sala o repartidor). */
+    public function canSignInPos(): bool
+    {
+        return $this->canUsePos() || $this->canUseCourierApp();
+    }
+
     /** "Ana García" → "AG"; "Luis" → "LU". */
     public function initials(): string
     {

@@ -507,3 +507,78 @@
         }
     }
 }
+
+// "Mis repartos" (móvil del repartidor)
+.v-deliveries {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+    padding: $space-3;
+
+    &__card {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+        padding: $space-3;
+        border: 2px solid $color-border;
+        border-radius: $radius-lg;
+        background: $color-surface;
+    }
+
+    &__street {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        line-height: 1.15;
+    }
+
+    &__floor {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    &__place,
+    &__who {
+        color: $color-text-muted;
+    }
+
+    &__note {
+        border-radius: $radius-sm;
+    }
+
+    &__links {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $space-2;
+
+        a {
+            text-decoration: none;
+            justify-content: center;
+        }
+    }
+
+    &__money {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: $space-2 $space-3;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+    }
+
+    &__amount {
+        font-size: $font-size-xl;
+    }
+
+    &__actions {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+    }
+
+    &__done-row {
+        display: flex;
+        flex-direction: column;
+        padding: $space-2 0;
+        border-bottom: 1px solid $color-border;
+    }
+}

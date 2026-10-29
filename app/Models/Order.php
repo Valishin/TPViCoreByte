@@ -43,6 +43,7 @@ class Order extends Model
             'planned_payment_method' => PaymentMethod::class,
             'prepaid_method' => PaymentMethod::class,
             'asap' => 'boolean',
+            'courier_reported_payments' => 'array',
             'kitchen_at' => 'datetime',
             'ready_at' => 'datetime',
             'dispatched_at' => 'datetime',

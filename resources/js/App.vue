@@ -1,7 +1,7 @@
 <template>
     <template v-if="showShell">
         <TopBar :title="title" @lock="lock" />
-        <PrintAlerts />
+        <PrintAlerts v-if="!session.isCourier" />
     </template>
     <RouterView />
     <AuthorizeModal />
@@ -42,8 +42,11 @@ watch(
     (id) => {
         if (id) {
             realtime.start();
-            notices.loadPrinting().catch(() => {});
-            catalog.load().catch(() => {});
+            // El repartidor solo usa "Mis repartos": sin carta ni avisos de impresión.
+            if (!session.isCourier) {
+                notices.loadPrinting().catch(() => {});
+                catalog.load().catch(() => {});
+            }
         } else {
             realtime.stop();
         }

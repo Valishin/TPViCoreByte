@@ -27,7 +27,7 @@ class AuthController extends Controller
     public function staff(): JsonResponse
     {
         $staff = User::query()->where('is_active', true)->whereNotNull('pin')->orderBy('name')->get()
-            ->filter->canUsePos()->values();
+            ->filter->canSignInPos()->values();
 
         return response()->json(['data' => StaffResource::collection($staff)]);
     }
@@ -57,7 +57,7 @@ class AuthController extends Controller
 
             throw ValidationException::withMessages(['pin' => 'PIN incorrecto.']);
         }
-        if (! $user->canUsePos()) {
+        if (! $user->canSignInPos()) {
             return response()->json(['message' => 'Este usuario no puede usar el TPV de sala.'], 403);
         }
 

@@ -73,6 +73,11 @@ const pos = {
     giveFloat: (courierId, amount) => api.post(`/couriers/${courierId}/float`, { amount }).then((r) => r.data),
     settleCourier: (courierId, payload) => api.post(`/couriers/${courierId}/settle`, payload).then((r) => r.data.settlement),
 
+    // Repartidor
+    myDeliveries: () => api.get('/my-deliveries').then((r) => r.data.data),
+    myDelivered: (id, payments) => api.post(`/my-deliveries/${id}/delivered`, { payments }).then((r) => r.data.data),
+    myNotDelivered: (id, payload) => api.post(`/my-deliveries/${id}/not-delivered`, payload).then((r) => r.data),
+
     printers: () => api.get('/printers').then((r) => r.data.data),
     failedJobs: () => api.get('/print-jobs/failed').then((r) => r.data.data),
     retryJob: (id) => api.post(`/print-jobs/${id}/retry`).then((r) => r.data.data),

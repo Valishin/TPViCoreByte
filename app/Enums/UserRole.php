@@ -22,7 +22,7 @@ enum UserRole: string implements HasLabel
         };
     }
 
-    /** Roles que usan el TPV de sala (los repartidores tendrán su propia pantalla). */
+    /** Roles que usan el TPV de sala (los repartidores tienen su pantalla "Mis repartos"). */
     public function canUsePos(): bool
     {
         return $this !== self::Courier;

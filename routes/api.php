@@ -8,6 +8,7 @@ use App\Http\Controllers\Pos\CatalogController;
 use App\Http\Controllers\Pos\CheckoutController;
 use App\Http\Controllers\Pos\CourierController;
 use App\Http\Controllers\Pos\CustomerController;
+use App\Http\Controllers\Pos\MyDeliveriesController;
 use App\Http\Controllers\Pos\OrderController;
 use App\Http\Controllers\Pos\PrintController;
 use App\Http\Controllers\Pos\RoomController;
@@ -27,9 +28,22 @@ Route::prefix('diagnostico')->middleware('throttle:30,1')->group(function () {
 Route::get('/staff', [AuthController::class, 'staff'])->name('pos.staff');
 Route::post('/login-pin', [AuthController::class, 'login'])->name('pos.login');
 
-Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
+// Personal de sala y repartidores: sesión y autorización de encargado.
+Route::middleware(['auth:sanctum', 'pos.staff:any'])->group(function () {
     Route::get('/me', [AuthController::class, 'me'])->name('pos.me');
     Route::post('/logout', [AuthController::class, 'logout'])->name('pos.logout');
+    Route::get('/managers', [AuthController::class, 'managers'])->name('pos.managers');
+    Route::post('/authorize', [AuthController::class, 'grantAuthorization'])->middleware('throttle:30,1')->name('pos.authorize');
+});
+
+// Repartidor: solo sus repartos (el dinero se liquida en caja).
+Route::middleware(['auth:sanctum', 'pos.staff:courier'])->prefix('my-deliveries')->group(function () {
+    Route::get('/', [MyDeliveriesController::class, 'index'])->name('pos.my-deliveries');
+    Route::post('/{order}/delivered', [MyDeliveriesController::class, 'delivered'])->name('pos.my-deliveries.delivered');
+    Route::post('/{order}/not-delivered', [MyDeliveriesController::class, 'notDelivered'])->name('pos.my-deliveries.not-delivered');
+});
+
+Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
 
     Route::get('/catalog', CatalogController::class)->name('pos.catalog');
     Route::get('/rooms', RoomController::class)->name('pos.rooms');
@@ -65,10 +79,6 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::post('/couriers/{courier}/settle', [CourierController::class, 'settle'])->name('pos.couriers.settle');
     Route::post('/takeaway-orders/{order}/not-delivered', [CourierController::class, 'notDelivered'])->name('pos.takeaway.not-delivered');
     Route::post('/takeaway-orders/{order}/repeat/{source}', [TakeawayOrderController::class, 'repeat'])->name('pos.takeaway.repeat');
-
-    // Autorización de encargado
-    Route::get('/managers', [AuthController::class, 'managers'])->name('pos.managers');
-    Route::post('/authorize', [AuthController::class, 'grantAuthorization'])->middleware('throttle:30,1')->name('pos.authorize');
 
     // Cobro, descuentos y división
     Route::post('/quick-sale', [CheckoutController::class, 'quickSale'])->name('pos.quick-sale');
