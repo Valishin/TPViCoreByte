@@ -3,8 +3,11 @@
 namespace Tests\Feature\Filament;
 
 use App\Filament\Resources\Printers\Pages\ListPrinters;
+use App\Jobs\ProcessPrintJob;
 use App\Models\Printer;
+use App\Models\PrintJob;
 use Filament\Actions\Testing\TestAction;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -33,5 +36,22 @@ class PrinterResourceTest extends FilamentTestCase
         Livewire::test(ListPrinters::class)
             ->callAction(TestAction::make('printTest')->table($printer))
             ->assertNotified('No se ha podido imprimir en Barra');
+    }
+
+    public function test_print_test_goes_through_the_printing_queue(): void
+    {
+        Queue::fake();
+        config(['printing.web_wait_seconds' => 0.3]);
+        $printer = Printer::factory()->create(['name' => 'Cocina']);
+        $started = microtime(true);
+
+        // Sin worker: la petición web no imprime ni se bloquea, espera como mucho el plazo y avisa.
+        Livewire::test(ListPrinters::class)
+            ->callAction(TestAction::make('printTest')->table($printer))
+            ->assertNotified('Cocina: sin respuesta todavía');
+
+        $this->assertLessThan(2, microtime(true) - $started);
+        Queue::assertPushedOn('printing', ProcessPrintJob::class, fn ($job) => $job->tries === 1);
+        $this->assertSame('prueba', PrintJob::latest('id')->first()->kind->value);
     }
 }

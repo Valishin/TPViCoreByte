@@ -14,6 +14,7 @@ enum PrintJobKind: string implements HasLabel
     case PaymentReceipt = 'justificante';
     case Drawer = 'cajon';
     case Report = 'informe';
+    case Test = 'prueba';
 
     public function label(): string
     {
@@ -25,6 +26,7 @@ enum PrintJobKind: string implements HasLabel
             self::PaymentReceipt => 'Justificante de pago',
             self::Drawer => 'Apertura de cajón',
             self::Report => 'Informe de caja',
+            self::Test => 'Página de prueba',
         };
     }
 

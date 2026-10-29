@@ -23,7 +23,7 @@ use LogicException;
  */
 class PrintJobDispatcher
 {
-    public function dispatch(?Order $order, Printer $printer, PrintJobKind $kind, Ticket $ticket, array $lineIds = [], ?int $sendNumber = null, ?User $by = null, ?TicketModel $forTicket = null, ?CashSession $session = null): PrintJob
+    public function dispatch(?Order $order, Printer $printer, PrintJobKind $kind, Ticket $ticket, array $lineIds = [], ?int $sendNumber = null, ?User $by = null, ?TicketModel $forTicket = null, ?CashSession $session = null, ?int $tries = null): PrintJob
     {
         $job = PrintJob::create([
             'order_id' => $order?->id ?? $forTicket?->order_id,
@@ -38,7 +38,22 @@ class PrintJobDispatcher
             'created_by' => $by?->id,
         ]);
 
-        $this->queue($job);
+        $this->queue($job, $tries);
+
+        return $job;
+    }
+
+    /**
+     * Espera (como mucho $seconds) a que el worker de `printing` procese un
+     * envío. Para las peticiones web que quieren mostrar el resultado sin
+     * imprimir ellas mismas: la petición nunca se bloquea más de ese plazo.
+     */
+    public function waitFor(PrintJob $job, float $seconds): PrintJob
+    {
+        $deadline = microtime(true) + $seconds;
+        while ($job->refresh()->status === PrintJobStatus::Pending && microtime(true) < $deadline) {
+            usleep(200_000);
+        }
 
         return $job;
     }
@@ -94,8 +109,12 @@ class PrintJobDispatcher
         });
     }
 
-    private function queue(PrintJob $job): void
+    private function queue(PrintJob $job, ?int $tries = null): void
     {
-        ProcessPrintJob::dispatch($job->id)->onQueue('printing')->afterCommit();
+        $process = new ProcessPrintJob($job->id);
+        if ($tries !== null) {
+            $process->tries = $tries;
+        }
+        dispatch($process)->onQueue('printing')->afterCommit();
     }
 }

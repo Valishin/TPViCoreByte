@@ -28,6 +28,12 @@ README.md y docs/.
    intento de cobro); la misma clave devuelve el mismo ticket.
 8. **La exportación fiscal debe funcionar siempre**, también en el futuro modo
    solo consulta (`App\Support\ReadOnlyMode`, `#[AllowedInReadOnly]`).
+9. **La impresión nunca puede bloquear una petición web.** Una petición web
+   no imprime: crea el `print_job`, lo manda a la cola `printing` y, si tiene que
+   enseñar el resultado ("Imprimir prueba"), espera como mucho
+   `PRINTER_WEB_WAIT` (5 s) con `PrintJobDispatcher::waitFor()`. La escritura
+   en la impresora tiene siempre un plazo (USB: `UsbDeviceWriter`, no
+   bloqueante con `stream_select`, sin depender de pcntl).
 
 ## Otras convenciones
 

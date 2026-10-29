@@ -6,9 +6,9 @@
 #
 # Impresoras USB: ver docs/impresoras-usb.md. Resumen:
 #   1. Regla udev en el host → enlace fijo /dev/impresora-ticket (y /dev/impresora-cocina…).
-#   2. Esos dispositivos se pasan a los contenedores que imprimen:
-#        - printing     (cola `printing`: comandas, tickets, cajón, informes)
-#        - app          (acción "Imprimir prueba" de /admin, que imprime al momento)
+#   2. Esos dispositivos se pasan al contenedor que imprime: `printing` (cola
+#      `printing`: comandas, tickets, cajón, informes y "Imprimir prueba" de
+#      /admin). Las peticiones web nunca imprimen directamente.
 #   3. Permisos: el dispositivo pertenece al grupo `lp` del host (GID 7 en
 #      Debian). El usuario del contenedor debe tener ese grupo (group_add).
 #      Comprueba el GID con:  stat -c '%g %G' /dev/impresora-ticket
@@ -41,7 +41,7 @@ x-usb-printers: &usb-printers
 
 services:
     app:
-        <<: [*app, *usb-printers]
+        <<: *app
         ports:
             - '80:80'
         depends_on:

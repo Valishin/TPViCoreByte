@@ -8,11 +8,9 @@ use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Mike42\Escpos\CapabilityProfile;
 use Mike42\Escpos\PrintConnectors\DummyPrintConnector;
-use Mike42\Escpos\PrintConnectors\FilePrintConnector;
 use Mike42\Escpos\PrintConnectors\NetworkPrintConnector;
 use Mike42\Escpos\PrintConnectors\PrintConnector;
 use Mike42\Escpos\Printer;
-use RuntimeException;
 
 /**
  * Envía tickets a la impresora según PRINTER_MODE (real | simulated).
@@ -100,64 +98,21 @@ class PrinterManager
 
     /**
      * Impresora USB: se escribe en el dispositivo (/dev/usb/lp0 o un enlace
-     * fijo creado con udev, ver docs/impresoras-usb.md).
+     * fijo creado con udev, ver docs/impresoras-usb.md), con límite de tiempo
+     * con o sin pcntl (UsbDeviceWriter).
      */
     private function printToUsb(Ticket $ticket): array
     {
         $path = (string) $this->config['usb']['device_path'];
-        if ($path === '' || ! file_exists($path)) {
-            throw new RuntimeException("Impresora no conectada: no existe el dispositivo {$path}.");
-        }
-        if (! is_writable($path)) {
-            throw new RuntimeException("Impresora no conectada o sin permiso de escritura en {$path} (el usuario debe estar en el grupo lp).");
-        }
 
         $dummy = new DummyPrintConnector;
         $this->renderEscpos($ticket, $dummy);
         $bytes = $dummy->getData();
         $dummy->finalize();
 
-        $this->withTimeout((int) $this->config['network']['timeout'], function () use ($path, $bytes) {
-            $connector = new FilePrintConnector($path);
-            $connector->write($bytes);
-            $connector->finalize();
-        }, "Impresora USB sin respuesta en {$path}.");
+        app(UsbDeviceWriter::class)->write($path, $bytes, (int) $this->config['network']['timeout']);
 
         return ['mode' => self::MODE_REAL, 'bytes' => strlen($bytes), 'target' => $path];
-    }
-
-    /**
-     * Escribir en un dispositivo USB puede quedarse bloqueado si la impresora
-     * está apagada o sin papel: se corta a los $seconds con SIGALRM. Se
-     * restaura la alarma anterior (el worker de colas usa la suya para el
-     * timeout del job).
-     */
-    private function withTimeout(int $seconds, \Closure $callback, string $message): void
-    {
-        if ($seconds <= 0 || ! function_exists('pcntl_alarm')) {
-            $callback();
-
-            return;
-        }
-
-        $previousHandler = pcntl_signal_get_handler(SIGALRM);
-        $async = pcntl_async_signals(true);
-        $started = time();
-        pcntl_signal(SIGALRM, function () use ($message) {
-            throw new RuntimeException($message);
-        });
-        $previousRemaining = pcntl_alarm($seconds);
-
-        try {
-            $callback();
-        } finally {
-            pcntl_alarm(0);
-            pcntl_signal(SIGALRM, $previousHandler ?: SIG_DFL);
-            pcntl_async_signals($async);
-            if ($previousRemaining > 0) {
-                pcntl_alarm(max(1, $previousRemaining - (time() - $started)));
-            }
-        }
     }
 
     public function target(): string

@@ -147,8 +147,11 @@ zonas) · **Ventas** (pedidos, tickets, cierres: solo consulta) ·
 - Importes: se escriben en euros con coma (`12,50`) y se guardan en céntimos.
   Porcentajes e IVA se ven como `10 %` y se guardan en puntos básicos.
 - Los tickets no se pueden editar ni borrar desde ningún sitio.
-- "Imprimir prueba" en Impresoras imprime al momento en esa impresora (en
-  modo simulado, en `storage/app/private/prints/`) y avisa del resultado.
+- "Imprimir prueba" en Impresoras manda la página de prueba a la cola
+  `printing` y espera el resultado como mucho 5 s (`PRINTER_WEB_WAIT`): avisa de
+  si ha salido, del error o de que la impresora no responde todavía (en modo
+  simulado se guarda en `storage/app/private/prints/`). Necesita el worker
+  `printing` en marcha. La impresión nunca bloquea una petición web.
 - Una mesa con un pedido abierto no se puede desactivar.
 - Duplicar un producto crea "… (copia)" desactivado, para revisarlo.
 
@@ -258,7 +261,9 @@ Formas de lanzar una página de prueba (nombre, acentos, ñ, €, fecha y corte)
 
 Cada impresora se configura en /admin → Impresoras como **Red** (IP y puerto)
 o **USB** (dispositivo, p. ej. `/dev/impresora-ticket`). Con
-`PRINTER_MODE=real` se imprime de verdad y cada una usa su conexión.
+`PRINTER_MODE=real` se imprime de verdad y cada una usa su conexión. La
+escritura USB es no bloqueante y se corta a los `PRINTER_TIMEOUT` segundos (3)
+si la impresora no acepta datos; no depende de pcntl.
 
 > **En el Mac no se pueden probar las USB:** Docker Desktop para macOS no
 > puede pasar dispositivos USB a los contenedores. En desarrollo se usa el

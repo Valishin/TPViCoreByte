@@ -38,6 +38,10 @@ return [
     // Caracteres por línea: 48 en 80 mm (fuente A), 32 en 58 mm.
     'columns' => (int) env('PRINTER_COLUMNS', 48),
 
+    // Segundos que una petición web (p. ej. "Imprimir prueba" en /admin) espera
+    // el resultado de la cola `printing`. La web nunca imprime directamente.
+    'web_wait_seconds' => (float) env('PRINTER_WEB_WAIT', 5),
+
     'simulated_path' => env('PRINTER_SIMULATED_PATH', 'prints'),
 
 ];

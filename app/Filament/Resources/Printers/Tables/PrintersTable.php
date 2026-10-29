@@ -3,8 +3,13 @@
 namespace App\Filament\Resources\Printers\Tables;
 
 use App\Enums\PrinterStatus;
+use App\Enums\PrintJobKind;
+use App\Enums\PrintJobStatus;
 use App\Jobs\PrintTestPage;
 use App\Models\Printer;
+use App\Models\PrintJob;
+use App\Services\Pos\PrintJobDispatcher;
+use App\Services\Printing\PrinterManager;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -12,7 +17,6 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Bus;
 use Throwable;
 
 class PrintersTable
@@ -42,24 +46,33 @@ class PrintersTable
                     ->icon('heroicon-o-printer')
                     ->color('gray')
                     ->action(function (Printer $record) {
+                        // La petición web no imprime: encola en `printing` (un intento)
+                        // y espera el resultado como mucho PRINTER_WEB_WAIT segundos.
+                        $printing = app(PrintJobDispatcher::class);
                         try {
-                            // Síncrono: el resultado (o el error) se ve al momento.
-                            $result = Bus::dispatchNow(new PrintTestPage($record->id));
-                        } catch (Throwable $e) {
-                            Notification::make()->danger()->persistent()
-                                ->title("No se ha podido imprimir en {$record->name}")
-                                ->body($e->getMessage())
-                                ->send();
-
-                            return;
+                            $job = $printing->dispatch(null, $record, PrintJobKind::Test, PrintTestPage::ticket($record), by: auth()->user(), tries: 1);
+                        } catch (Throwable) {
+                            // Cola síncrona (tests): el fallo ya está registrado en el envío.
+                            $job = PrintJob::query()->where('printer_id', $record->id)->where('kind', PrintJobKind::Test)->latest('id')->first();
                         }
+                        $job = $printing->waitFor($job, (float) config('printing.web_wait_seconds'));
 
-                        Notification::make()->success()
-                            ->title("Prueba enviada a {$record->name}")
-                            ->body($result['mode'] === 'simulated'
-                                ? 'Modo simulado: guardada en '.basename($result['file']).' (storage/app/private/prints).'
-                                : "Enviada a {$result['target']}.")
-                            ->send();
+                        match ($job->status) {
+                            PrintJobStatus::Printed => Notification::make()->success()
+                                ->title("Prueba enviada a {$record->name}")
+                                ->body(app(PrinterManager::class)->mode() === PrinterManager::MODE_SIMULATED
+                                    ? 'Modo simulado: guardada en storage/app/private/prints.'
+                                    : "Impresa en {$record->address()}.")
+                                ->send(),
+                            PrintJobStatus::Failed => Notification::make()->danger()->persistent()
+                                ->title("No se ha podido imprimir en {$record->name}")
+                                ->body($job->error)
+                                ->send(),
+                            default => Notification::make()->warning()->persistent()
+                                ->title("{$record->name}: sin respuesta todavía")
+                                ->body('La prueba está en la cola de impresión. Si en unos segundos no sale, comprueba que el worker `printing` está en marcha y la impresora encendida.')
+                                ->send(),
+                        };
                     }),
                 EditAction::make(),
                 DeleteAction::make()->modalDescription('Las categorías y productos que la usaban se quedarán sin impresora.'),

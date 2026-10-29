@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Pos;
 
+use App\Enums\PrintJobKind;
 use App\Enums\PrintJobStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Pos\OrderResource;
@@ -25,7 +26,8 @@ class PrintController extends Controller
 
     public function failed(): JsonResponse
     {
-        $jobs = PrintJob::query()->where('status', PrintJobStatus::Failed)->with(['printer', 'order.table'])->latest('id')->limit(50)->get();
+        // Las páginas de prueba fallidas no generan aviso persistente (se ven en /admin al momento).
+        $jobs = PrintJob::query()->where('status', PrintJobStatus::Failed)->where('kind', '!=', PrintJobKind::Test)->with(['printer', 'order.table'])->latest('id')->limit(50)->get();
 
         return response()->json(['data' => $jobs->map(fn (PrintJob $job) => OrderResource::printJob($job))]);
     }

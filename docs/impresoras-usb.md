@@ -101,7 +101,7 @@ en él debe estar en ese grupo:
 
 - **En el host** (pruebas a mano): `sudo usermod -aG lp $USER` y vuelve a
   entrar en la sesión.
-- **En Docker**: los contenedores que imprimen (`printing` y `app`) llevan
+- **En Docker**: el contenedor que imprime (`printing`) lleva
   `group_add` con el **GID** del grupo `lp` del host (7 en Debian). Compruébalo:
 
   ```bash
@@ -111,12 +111,13 @@ en él debe estar en ese grupo:
 
 Si el TPV muestra *"Impresora no conectada o sin permiso de escritura en
 /dev/impresora-ticket"*, casi siempre es esto (o que el contenedor se creó
-antes de enchufar la impresora: `docker compose up -d --force-recreate printing app`).
+antes de enchufar la impresora: `docker compose up -d --force-recreate printing`).
 
 ## 5. Docker
 
-Ver `docker-compose.prod.yml`. Los contenedores `printing` y `app` montan los
-dispositivos:
+Ver `docker-compose.prod.yml`. Solo el contenedor `printing` (el worker de la
+cola de impresión) monta los dispositivos; las peticiones web nunca escriben
+en la impresora:
 
 ```yaml
 devices:
@@ -142,8 +143,14 @@ En **/admin → Configuración → Impresoras**:
 Y en `.env`: `PRINTER_MODE=real` (impresión real; cada impresora usa su
 conexión, red o USB). Después: `docker compose restart printing`.
 
-Pulsa **"Imprimir prueba"** en la fila de la impresora: sale la página de
-prueba o un aviso con el error exacto.
+Pulsa **"Imprimir prueba"** en la fila de la impresora: se manda a la cola
+`printing` y /admin espera el resultado como mucho 5 s (`PRINTER_WEB_WAIT`).
+Sale la página de prueba, un aviso con el error exacto o "sin respuesta
+todavía" si el worker `printing` está parado o la impresora no contesta.
+
+La escritura en el dispositivo es **no bloqueante** (`stream_select` con
+plazo), así que una impresora atascada nunca deja colgado al worker ni a una
+petición web, con o sin pcntl.
 
 ## Problemas típicos
 
