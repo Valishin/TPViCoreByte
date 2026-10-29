@@ -77,6 +77,9 @@
     }
 
     &__who {
+        display: flex;
+        align-items: center;
+        gap: $space-3;
         font-size: $font-size-lg;
         font-weight: $font-weight-bold;
     }
@@ -88,7 +91,7 @@
         text-align: center;
     }
 
-    // Escritorio/caja: nombres arriba y teclado debajo, todo centrado.
+    // Escritorio/caja: todo centrado (primero los nombres; al elegir, el PIN).
     html[data-layout='pos'] & {
         justify-items: center;
         align-content: center;

@@ -93,11 +93,11 @@ nueva debe cumplirlos.
 
 - **Rejilla de usuarios** con iniciales y color, y **teclado numérico grande**
   para el PIN.
-- **Escritorio / caja:** los **nombres arriba** y el **teclado debajo**, todo
-  **centrado**. Títulos **"Seleccione el usuario"** encima de los usuarios e
-  **"Introduce tu PIN"** encima del teclado.
-- El teclado del PIN está **en gris y bloqueado hasta que se selecciona el
-  usuario**.
+- **Igual en caja y en móvil:** primero **"Seleccione el usuario"** (personal
+  de sala y, aparte, **Repartidores**); al tocar uno, la lista se sustituye por
+  el usuario elegido (con **"Cambiar"**) y el teclado con **"Introduce tu
+  PIN"**. En caja, todo **centrado**.
+- Tras un bloqueo, el usuario que estaba ya viene elegido: solo teclea el PIN.
 - La **autorización de encargado** se pide en un modal (elegir encargado y
   teclear su PIN) **sin cerrar la sesión del camarero**.
 

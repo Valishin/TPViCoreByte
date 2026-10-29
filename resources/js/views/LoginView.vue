@@ -2,9 +2,9 @@
     <main class="v-login">
         <h1 class="v-login__brand">{{ locked ? 'Pantalla bloqueada' : 'TPV' }}</h1>
 
-        <!-- En móvil, al elegir nombre el teclado sustituye a la lista -->
-        <h2 v-if="ui.isPos || !selected" class="v-login__title">Seleccione el usuario</h2>
-        <div v-if="ui.isPos || !selected" class="v-login__staff">
+        <!-- Primero el usuario; al elegirlo, el teclado del PIN sustituye a la lista (caja y móvil) -->
+        <h2 v-if="!selected" class="v-login__title">Seleccione el usuario</h2>
+        <div v-if="!selected" class="v-login__staff">
             <button
                 v-for="p in floorStaff"
                 :key="p.id"
@@ -18,7 +18,7 @@
             <p v-if="loaded && !staff.length" class="v-login__hint">No hay camareros con PIN. Créalos en el backoffice (/admin).</p>
         </div>
         <!-- Repartidores aparte, debajo del personal de sala -->
-        <template v-if="couriers.length && (ui.isPos || !selected)">
+        <template v-if="couriers.length && !selected">
             <h2 class="v-login__title v-login__title--section">Repartidores</h2>
             <div class="v-login__staff">
                 <button
@@ -34,13 +34,14 @@
             </div>
         </template>
 
-        <div v-if="selected || ui.isPos" class="v-login__pad">
-            <h2 class="v-login__title">Introduce tu PIN</h2>
-            <p v-if="selected" class="v-login__who">
+        <div v-if="selected" class="v-login__pad">
+            <p class="v-login__who">
+                <span class="v-login__avatar" :style="{ background: selected.color }">{{ selected.initials }}</span>
                 {{ selected.name }}
-                <TpvButton v-if="!ui.isPos" variant="ghost" size="sm" @click="select(null)">Cambiar</TpvButton>
+                <TpvButton variant="secondary" @click="select(null)">Cambiar</TpvButton>
             </p>
-            <NumericKeypad v-model="pin" masked :length="4" :error="!!error" :disabled="!selected" @complete="submit" />
+            <h2 class="v-login__title">Introduce tu PIN</h2>
+            <NumericKeypad v-model="pin" masked :length="4" :error="!!error" @complete="submit" />
             <p class="v-login__error" role="alert">{{ error }}</p>
         </div>
     </main>
@@ -53,13 +54,11 @@ import NumericKeypad from '@/components/NumericKeypad.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import pos, { errorMessage } from '@/services/pos';
 import { useSessionStore } from '@/stores/session';
-import { useUiStore } from '@/stores/ui';
 import { useOrderStore } from '@/stores/order';
 
 const router = useRouter();
 const route = useRoute();
 const session = useSessionStore();
-const ui = useUiStore();
 const order = useOrderStore();
 
 const staff = ref([]);
