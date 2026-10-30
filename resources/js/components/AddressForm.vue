@@ -6,7 +6,16 @@
         </div>
         <div class="c-address-form__row">
             <TextField v-model="a.floor_door" label="Piso y puerta" :maxlength="50" placeholder="3º B" />
-            <TextField v-model="a.postal_code" label="Código postal" keyboard="numeric" inputmode="numeric" :maxlength="5" @update:model-value="suggestZone" />
+            <TextField
+                v-model="a.postal_code"
+                label="Código postal"
+                keyboard="numeric"
+                inputmode="numeric"
+                :maxlength="5"
+                :hint="zoneHint"
+                :error="zoneError"
+                @update:model-value="suggestZone"
+            />
             <TextField v-model="a.city" label="Población" :maxlength="255" />
         </div>
         <TextField v-model="a.instructions" label="Indicaciones" :maxlength="500" placeholder="Portal verde, timbre roto…" />
@@ -24,12 +33,11 @@
                 <span class="c-option__extra">Envío {{ money(z.delivery_fee) }} · mín. {{ money(z.minimum_order) }}</span>
             </button>
         </div>
-        <p v-if="a.postal_code?.length === 5 && !suggestedId" class="v-config__rule">Ese código postal no está en ninguna zona: elige una a mano.</p>
     </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import TextField from './TextField.vue';
 import pos from '@/services/pos';
 import { money } from '@/utils/format';
@@ -41,6 +49,16 @@ const emit = defineEmits(['update:modelValue']);
 const a = reactive({ street: '', number: '', floor_door: '', postal_code: '', city: '', instructions: '', delivery_zone_id: null, ...props.modelValue });
 const zones = ref([]);
 const suggestedId = ref(null);
+const checkedCp = ref('');
+
+// Zona por el CP, junto al campo (y en el teclado en pantalla mientras se escribe).
+const zoneHint = computed(() => {
+    const z = zones.value.find((zone) => zone.id === suggestedId.value);
+    return z && a.postal_code === checkedCp.value ? `✓ ${z.name} · envío ${money(z.delivery_fee)}` : '';
+});
+const zoneError = computed(() => (a.postal_code?.length === 5 && a.postal_code === checkedCp.value && !suggestedId.value
+    ? 'Ese CP no está en ninguna zona: elige una a mano.'
+    : ''));
 
 watch(a, () => emit('update:modelValue', { ...a }), { deep: true });
 
@@ -48,6 +66,7 @@ onMounted(async () => {
     const result = await pos.zones(a.postal_code).catch(() => ({ data: [] }));
     zones.value = result.data;
     suggestedId.value = result.suggested_id;
+    checkedCp.value = a.postal_code;
 });
 
 let last = '';
@@ -58,6 +77,7 @@ async function suggestZone(cp) {
     if (!result) return;
     zones.value = result.data;
     suggestedId.value = result.suggested_id;
+    checkedCp.value = cp;
     if (result.suggested_id) a.delivery_zone_id = result.suggested_id;
 }
 </script>

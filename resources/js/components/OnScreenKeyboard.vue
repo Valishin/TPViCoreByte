@@ -14,6 +14,8 @@
             <div class="c-keyboard__preview" aria-hidden="true">
                 <span v-if="keyboard.label" class="c-keyboard__label">{{ keyboard.label }}</span>
                 <span class="c-keyboard__value">{{ keyboard.value }}<span class="c-keyboard__caret"></span></span>
+                <!-- Aviso del campo (NIF no válido, zona por CP…): se ve mientras se teclea -->
+                <span v-if="keyboard.hint" :class="['c-keyboard__hint', { 'c-keyboard__hint--error': keyboard.hintError }]">{{ keyboard.hint }}</span>
             </div>
 
             <div v-if="keyboard.mode === 'numeric'" class="c-keyboard__grid">
@@ -51,7 +53,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     applyInputMode, backspace, closeKeyboard, done, hideKeyboard, insertText, isTextField, keyboard, keyboardEnabled,
-    letterFor, openKeyboard, pressAccent, suppressSystemKeyboard, toggleShift, typeLetter,
+    letterFor, openKeyboard, pressAccent, suppressSystemKeyboard, syncHint, toggleShift, typeLetter,
 } from '@/composables/useOnScreenKeyboard';
 import { useSessionStore } from '@/stores/session';
 
@@ -157,6 +159,16 @@ function scrollParent(el) {
     return null;
 }
 
+// El aviso del campo cambia al teclear (lo pone Vue en data-osk-hint / aria-invalid).
+let hintObserver = null;
+watch(() => keyboard.target, (el) => {
+    hintObserver?.disconnect();
+    if (!el) return;
+    hintObserver = new MutationObserver(() => syncHint(el));
+    hintObserver.observe(el, { attributes: true, attributeFilter: ['data-osk-hint', 'aria-invalid'] });
+    syncHint(el);
+});
+
 let resizeObserver = null;
 watch(visible, async (open) => {
     const html = document.documentElement;
@@ -244,6 +256,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
     document.removeEventListener('focusin', onFocusIn);
+    hintObserver?.disconnect();
     document.removeEventListener('pointerdown', onPointerDown, true);
     document.removeEventListener('focusout', onFocusOut);
     document.removeEventListener('input', onInput, true);

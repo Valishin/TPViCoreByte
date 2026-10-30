@@ -146,6 +146,21 @@
     }
 }
 
+// Aviso bajo el campo (también en el teclado en pantalla)
+.c-field__hint {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-bold;
+    color: $color-success;
+
+    &--error {
+        color: $color-danger;
+    }
+}
+
+.c-field__input[aria-invalid='true'] {
+    border-color: $color-danger;
+}
+
 // Chips de texto rápido (motivos de anulación, notas frecuentes)
 .c-chips {
     display: flex;

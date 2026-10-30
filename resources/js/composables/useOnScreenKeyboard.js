@@ -27,7 +27,15 @@ export const keyboard = reactive({
     accent: null,         // tecla muerta pendiente: '´' | '¨'
     dirty: false,         // se ha escrito con el teclado en pantalla desde que se enfocó
     hidden: false,        // "Ocultar": el campo sigue activo (teclado físico); vuelve al tocarlo
+    hint: '',             // aviso del campo (data-osk-hint): validación, zona por CP…
+    hintError: false,     // el aviso es un error (aria-invalid)
 });
+
+/** Copia el aviso del campo en el teclado (se llama al enfocar y cuando cambia). */
+export function syncHint(el = keyboard.target) {
+    keyboard.hint = el?.dataset?.oskHint ?? '';
+    keyboard.hintError = el?.getAttribute?.('aria-invalid') === 'true';
+}
 
 /** En caja nunca se abre el teclado del sistema. */
 export const suppressSystemKeyboard = computed(() => layout.value === 'pos');
@@ -92,6 +100,7 @@ export function openKeyboard(el) {
     keyboard.value = el.value;
     keyboard.accent = null;
     keyboard.shift = wantsCapital(el) ? 'once' : 'off';
+    syncHint(el);
 }
 
 export function closeKeyboard() {
@@ -99,6 +108,7 @@ export function closeKeyboard() {
     keyboard.target = null;
     keyboard.accent = null;
     keyboard.hidden = false;
+    keyboard.hint = '';
 }
 
 /** Oculta el teclado sin soltar el campo: se puede seguir con el físico. Al tocar el campo, vuelve. */

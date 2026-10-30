@@ -29,6 +29,37 @@
         }
     }
 
+    &__result--new {
+        border-style: dashed;
+        color: $color-primary;
+    }
+
+    // Con el teclado en pantalla: filas compactas (siguen siendo de 64 px) y sin márgenes de más.
+    &--typing {
+        gap: $space-2;
+
+        .c-recipient__result {
+            flex-direction: row;
+            align-items: center;
+            gap: $space-3;
+            padding: $space-2 $space-4;
+        }
+
+        .c-recipient__missing {
+            display: none;
+        }
+
+        // El campo sigue enfocado (recibe las teclas) pero no ocupa sitio.
+        .c-recipient__search {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+    }
+
     &__missing {
         color: $color-danger;
         font-weight: $font-weight-bold;
@@ -40,30 +71,10 @@
         gap: $space-3;
     }
 
-    &__wide,
-    &__taxid {
+    &__wide {
         grid-column: 1 / -1;
     }
 
-    &__taxid {
-        display: flex;
-        flex-direction: column;
-        gap: $space-1;
-    }
-
-    &__check {
-        min-height: 1.4em;
-        font-size: $font-size-sm;
-        font-weight: $font-weight-bold;
-
-        &--ok {
-            color: $color-success;
-        }
-
-        &--error {
-            color: $color-danger;
-        }
-    }
 
     // Destinatario elegido, en el cobro o la salida
     &__chosen {

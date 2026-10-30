@@ -1,31 +1,40 @@
 <template>
     <BottomSheet :open="open" :title="form ? (form.id ? 'Completar datos fiscales' : 'Nuevo cliente para factura') : title" @close="$emit('close')">
-        <!-- Buscar -->
-        <div v-if="!form" class="c-recipient">
-            <p v-if="hint" class="c-alert c-alert--warning"><span class="c-alert__text">{{ hint }}</span></p>
-            <TextField v-model="query" label="Buscar por NIF o nombre" placeholder="B12345674 o Restaurante…" autocomplete="off" />
-            <p v-if="searching" class="v-config__rule">Buscando…</p>
+        <!-- Buscar. Con el teclado en pantalla abierto, lo que se escribe y el aviso se
+             ven en la franja del teclado: el campo sale de la vista (sigue enfocado) y
+             quedan los 3 mejores resultados encima del teclado, sin pie. Se toca el
+             cliente sin pulsar "Hecho". -->
+        <div v-if="!form" :class="['c-recipient', { 'c-recipient--typing': typing }]">
+            <p v-if="hint && !typing" class="c-alert c-alert--warning"><span class="c-alert__text">{{ hint }}</span></p>
+            <div class="c-recipient__search">
+                <TextField v-model="query" label="Buscar por NIF o nombre" placeholder="B12345674 o Restaurante…" autocomplete="off" :hint="searchHint" />
+            </div>
+            <p v-if="typing && query.trim().length < 2" class="v-config__rule">Escribe el NIF o el nombre: los resultados salen aquí.</p>
             <div class="c-recipient__results">
-                <button v-for="c in results" :key="c.id" type="button" class="c-recipient__result" @click="pick(c)">
+                <button v-for="c in shown" :key="c.id" type="button" class="c-recipient__result" @click="pick(c)">
                     <strong>{{ c.legal_name || c.name }}</strong>
                     <span>{{ c.tax_id || 'Sin NIF' }}<template v-if="c.fiscal_address"> · {{ c.fiscal_address }}, {{ c.fiscal_city }}</template></span>
                     <small v-if="!c.has_fiscal_data" class="c-recipient__missing">Faltan datos fiscales: tócalo para completarlos</small>
                 </button>
+                <button v-if="typing && query.trim().length >= 2 && !searching && shown.length < MAX_WHILE_TYPING" type="button" class="c-recipient__result c-recipient__result--new" @click="newCustomer">
+                    <strong>+ Nuevo cliente «{{ query.trim() }}»</strong>
+                </button>
             </div>
-            <p v-if="query.length >= 2 && !searching && !results.length" class="v-config__rule">No hay ningún cliente con ese NIF o nombre.</p>
         </div>
 
         <!-- Alta rápida / completar -->
         <form v-else class="c-recipient__form" @submit.prevent="save">
             <TextField v-model="form.legal_name" class="c-recipient__wide" label="Nombre o razón social *" :maxlength="255" autocomplete="off" />
-            <div class="c-recipient__taxid">
-                <TextField v-model="form.tax_id" label="NIF / NIE / CIF / NIF-IVA *" :maxlength="30" autocomplete="off" />
-                <span :class="['c-recipient__check', taxError ? 'c-recipient__check--error' : 'c-recipient__check--ok']" aria-live="polite">
-                    <template v-if="!form.tax_id">&nbsp;</template>
-                    <template v-else-if="taxError">{{ taxError }}</template>
-                    <template v-else>✓ {{ taxIdLabels[form.tax_id_type || detected] }} válido</template>
-                </span>
-            </div>
+            <!-- La validación sale junto al campo y en el teclado en pantalla mientras se teclea -->
+            <TextField
+                v-model="form.tax_id"
+                class="c-recipient__wide"
+                label="NIF / NIE / CIF / NIF-IVA *"
+                :maxlength="30"
+                autocomplete="off"
+                :error="taxError || ''"
+                :hint="form.tax_id && !taxError ? `✓ ${taxIdLabels[passport ? 'otro' : detected]} válido` : ''"
+            />
             <label class="v-checkout__toggle c-recipient__wide">
                 <input v-model="passport" type="checkbox" /> Es otro documento (pasaporte, extranjero sin NIF-IVA)
             </label>
@@ -41,7 +50,7 @@
             <p v-if="error" class="c-alert c-alert--error c-recipient__wide"><span class="c-alert__text">{{ error }}</span></p>
         </form>
 
-        <template #footer>
+        <template v-if="form || !typing" #footer>
             <template v-if="!form">
                 <TpvButton variant="ghost" @click="$emit('close')">Cancelar</TpvButton>
                 <TpvButton variant="primary" block @click="newCustomer">+ Nuevo cliente con datos fiscales</TpvButton>
@@ -59,6 +68,7 @@ import { computed, ref, watch } from 'vue';
 import BottomSheet from './BottomSheet.vue';
 import TextField from './TextField.vue';
 import TpvButton from './TpvButton.vue';
+import { keyboard, keyboardEnabled } from '@/composables/useOnScreenKeyboard';
 import pos, { errorMessage } from '@/services/pos';
 import { useSessionStore } from '@/stores/session';
 import { detectTaxId, normalizeTaxId, taxIdError, taxIdLabels } from '@/utils/taxid';
@@ -86,6 +96,17 @@ const passport = ref(false);
 const busy = ref(false);
 const error = ref('');
 
+// Teclado en pantalla abierto (caja): la lista se reduce a lo que cabe encima.
+const typing = computed(() => keyboardEnabled.value && !!keyboard.target && !keyboard.hidden);
+const MAX_WHILE_TYPING = 3;
+const shown = computed(() => (typing.value ? results.value.slice(0, MAX_WHILE_TYPING) : results.value));
+const searchHint = computed(() => {
+    if (query.value.trim().length < 2) return '';
+    if (searching.value) return 'Buscando…';
+    if (!results.value.length) return 'Ningún cliente con ese NIF o nombre';
+    const more = results.value.length - shown.value.length;
+    return more > 0 ? `${results.value.length} encontrados (se ven ${shown.value.length}: afina la búsqueda)` : `${results.value.length} encontrado${results.value.length > 1 ? 's' : ''}`;
+});
 const detected = computed(() => detectTaxId(form.value?.tax_id));
 const taxError = computed(() => (form.value?.tax_id ? taxIdError(form.value.tax_id, passport.value ? 'otro' : null) : null));
 const canSave = computed(() => {

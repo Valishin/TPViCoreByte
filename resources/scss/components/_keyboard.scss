@@ -56,6 +56,18 @@
         unicode-bidi: plaintext;
     }
 
+    &__hint {
+        flex: none;
+        max-width: 50%;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+        color: $color-success;
+
+        &--error {
+            color: $color-danger;
+        }
+    }
+
     &__caret {
         display: inline-block;
         width: 2px;
