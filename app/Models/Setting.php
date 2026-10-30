@@ -39,6 +39,7 @@ class Setting extends Model
             'takeaway_prep_minutes' => 'integer',
             'delivery_minutes' => 'integer',
             'print_courier_copy' => 'boolean',
+            'invoice_require_address' => 'boolean',
         ];
     }
 
@@ -78,5 +79,17 @@ class Setting extends Model
     public function rectifyingTicketSeries(): BelongsTo
     {
         return $this->belongsTo(TicketSeries::class, 'rectifying_ticket_series_id');
+    }
+
+    /** Serie F: facturas completas (directas y canjes). Separada de la de tickets (art. 7.1). */
+    public function invoiceSeries(): BelongsTo
+    {
+        return $this->belongsTo(TicketSeries::class, 'invoice_series_id');
+    }
+
+    /** Serie FR: rectificativas de facturas completas (art. 6.1.a 2.º). */
+    public function invoiceRectifyingSeries(): BelongsTo
+    {
+        return $this->belongsTo(TicketSeries::class, 'invoice_rectifying_series_id');
     }
 }

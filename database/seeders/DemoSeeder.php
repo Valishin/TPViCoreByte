@@ -32,6 +32,8 @@ abstract class DemoSeeder extends Seeder
 
         $default = TicketSeries::create(['code' => 'T', 'name' => 'Tickets']);
         $rectifying = TicketSeries::create(['code' => 'R', 'name' => 'Rectificativos', 'is_rectifying' => true]);
+        $invoices = TicketSeries::create(['code' => 'F', 'name' => 'Facturas']);
+        $invoiceRectifying = TicketSeries::create(['code' => 'FR', 'name' => 'Rectificativas de facturas', 'is_rectifying' => true]);
 
         return Setting::create([
             'trade_name' => $tradeName,
@@ -47,6 +49,8 @@ abstract class DemoSeeder extends Seeder
             'enabled_order_types' => $orderTypes,
             'default_ticket_series_id' => $default->id,
             'rectifying_ticket_series_id' => $rectifying->id,
+            'invoice_series_id' => $invoices->id,
+            'invoice_rectifying_series_id' => $invoiceRectifying->id,
             'half_and_half_pricing' => HalfAndHalfPricing::MostExpensive,
             'half_and_half_modifier_pricing' => HalfAndHalfModifierPricing::Full,
             'delivery_fee_vat_rate' => 1000,

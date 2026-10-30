@@ -27,6 +27,8 @@ class SettingFactory extends Factory
             'enabled_order_types' => OrderType::cases(),
             'default_ticket_series_id' => TicketSeries::factory(),
             'rectifying_ticket_series_id' => TicketSeries::factory()->state(['is_rectifying' => true]),
+            'invoice_series_id' => TicketSeries::factory()->state(['code' => 'F']),
+            'invoice_rectifying_series_id' => TicketSeries::factory()->state(['code' => 'FR', 'is_rectifying' => true]),
             'half_and_half_pricing' => HalfAndHalfPricing::MostExpensive,
             'half_and_half_modifier_pricing' => HalfAndHalfModifierPricing::Full,
             'delivery_fee_vat_rate' => 1000,

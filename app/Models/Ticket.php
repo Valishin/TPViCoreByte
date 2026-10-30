@@ -6,6 +6,7 @@ use App\Enums\DiscountType;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
 use App\Enums\RectificationMethod;
+use App\Enums\RectificationReason;
 use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Exceptions\ImmutableTicketException;
@@ -14,13 +15,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * Ticket (factura simplificada o rectificativa). INMUTABLE.
+ * Documento fiscal: ticket (factura simplificada), factura completa, factura de
+ * canje y sus rectificativas (ver TicketType). INMUTABLE.
  *
  * Una vez creado solo pueden cambiar `payment_status` / `paid_at` (cobro
  * posterior, p. ej. al volver el repartidor) y `status` de emitido a
- * rectificado. Nunca se borra. La base de datos refuerza esta regla con un
+ * rectificado o a canjeado. Nunca se borra. La base de datos refuerza esta regla con un
  * trigger (ver migración create_ticket_tables).
  */
 #[Unguarded]
@@ -43,7 +46,7 @@ class Ticket extends Model
 
             if ($ticket->isDirty('status')) {
                 $from = TicketStatus::from($ticket->getRawOriginal('status'));
-                if (! ($from === TicketStatus::Issued && $ticket->status === TicketStatus::Rectified)) {
+                if (! ($from === TicketStatus::Issued && in_array($ticket->status, [TicketStatus::Rectified, TicketStatus::Exchanged], true))) {
                     throw new ImmutableTicketException("Transición de estado no permitida: {$from->value} → {$ticket->status->value}");
                 }
             }
@@ -76,6 +79,8 @@ class Ticket extends Model
             'issuer' => 'array',
             'customer' => 'array',
             'delivery_address' => 'array',
+            'recipient' => 'array',
+            'operation_date' => 'date',
             'rectified_amounts' => 'array',
             'issued_at' => 'datetime',
             'paid_at' => 'datetime',
@@ -139,6 +144,34 @@ class Ticket extends Model
     public function rectifiedTicket(): BelongsTo
     {
         return $this->belongsTo(Ticket::class, 'rectified_ticket_id');
+    }
+
+    /** Factura completa (canje) que sustituye a este ticket, si la hay. */
+    public function exchangedBy(): HasOne
+    {
+        return $this->hasOne(Ticket::class, 'replaces_ticket_id');
+    }
+
+    /** Ticket que sustituye esta factura de canje (art. 15.6). */
+    public function replacedTicket(): BelongsTo
+    {
+        return $this->belongsTo(Ticket::class, 'replaces_ticket_id');
+    }
+
+    public function isFullInvoice(): bool
+    {
+        return $this->type->isFullInvoice();
+    }
+
+    public function rectificationReason(): ?RectificationReason
+    {
+        return RectificationReason::tryFrom((string) $this->rectification_reason_code);
+    }
+
+    /** TipoFactura de VERI*FACTU (F1, F2, F3, R1-R5). */
+    public function verifactuType(): string
+    {
+        return $this->type->verifactuType($this->rectificationReason());
     }
 
     public function rectifications(): HasMany

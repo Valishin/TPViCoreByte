@@ -29,7 +29,9 @@ class SetupCommandTest extends TestCase
         $this->assertMatchesRegularExpression('/^\d{4}$/', $result['admin_pin']);
         $this->assertSame('Bar Sant Pol', Setting::current()->trade_name);
         $this->assertSame(['mesa', 'barra', 'para_llevar'], Setting::current()->enabled_order_types->map->value->all());
-        $this->assertEqualsCanonicalizing(['T', 'R'], TicketSeries::pluck('code')->all());
+        $this->assertEqualsCanonicalizing(['T', 'R', 'F', 'FR'], TicketSeries::pluck('code')->all());
+        $this->assertSame('F', Setting::current()->invoiceSeries->code);
+        $this->assertSame('FR', Setting::current()->invoiceRectifyingSeries->code);
         $admin = User::where('email', 'jefa@barsantpol.cat')->sole();
         $this->assertTrue(password_verify($result['admin_password'], $admin->password));
         $this->assertTrue($admin->checkPin($result['admin_pin']));
@@ -47,7 +49,7 @@ class SetupCommandTest extends TestCase
         $this->assertNull($again['admin_password']);
         $this->assertSame('Cambiado en /admin', Setting::current()->trade_name);
         $this->assertTrue(password_verify($first['admin_password'], User::sole()->password));
-        $this->assertSame(2, TicketSeries::count());
+        $this->assertSame(4, TicketSeries::count());
 
         $reset = $this->runSetup(['--admin-email' => 'a@b.cat', '--reset-password' => true]);
         $this->assertNotSame($first['admin_password'], $reset['admin_password']);

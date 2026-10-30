@@ -48,6 +48,8 @@ class SetupCommand extends Command
         $result = DB::transaction(function () use ($email, $types) {
             $default = TicketSeries::query()->firstOrCreate(['code' => 'T'], ['name' => 'Tickets']);
             $rectifying = TicketSeries::query()->firstOrCreate(['code' => 'R'], ['name' => 'Rectificativos', 'is_rectifying' => true]);
+            $invoices = TicketSeries::query()->firstOrCreate(['code' => 'F'], ['name' => 'Facturas']);
+            $invoiceRectifying = TicketSeries::query()->firstOrCreate(['code' => 'FR'], ['name' => 'Rectificativas de facturas', 'is_rectifying' => true]);
 
             $created = false;
             if (! Setting::query()->exists()) {
@@ -59,6 +61,8 @@ class SetupCommand extends Command
                     'enabled_order_types' => $types->all(),
                     'default_ticket_series_id' => $default->id,
                     'rectifying_ticket_series_id' => $rectifying->id,
+                    'invoice_series_id' => $invoices->id,
+                    'invoice_rectifying_series_id' => $invoiceRectifying->id,
                     'half_and_half_pricing' => HalfAndHalfPricing::MostExpensive,
                     'half_and_half_modifier_pricing' => HalfAndHalfModifierPricing::Full,
                     'ticket_footer' => "Gracias por su visita\nIVA incluido",

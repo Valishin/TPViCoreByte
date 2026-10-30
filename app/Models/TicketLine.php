@@ -29,6 +29,7 @@ class TicketLine extends Model
             'modifiers' => 'array',
             'quantity' => 'integer',
             'unit_price' => 'integer',
+            'unit_price_net' => 'integer', // sin IVA, en diezmilésimas de euro (art. 6.1.f)
             'vat_rate' => 'integer',
             'reference_price' => 'integer',
             'allocated_amount' => 'integer',
