@@ -88,6 +88,30 @@ ask TPV_VERSION "Versión" "1.0.0"
 SLUG="$(slug "$LOCAL_NAME")"
 ok "Local: $LOCAL_NAME · IP $LAN_IP · admin $ADMIN_EMAIL · $TPV_IMAGE:$TPV_VERSION"
 
+# VERI*FACTU (docs/verifactu/PLAN.md, Q5): activo desde la primera factura, en el
+# entorno de producción de la AEAT, con el certificado obligatorio.
+say "Datos fiscales y VERI*FACTU"
+ask LEGAL_NAME "Razón social del titular" "$LOCAL_NAME"
+ask TAX_ID "NIF del titular" ""
+ask VAT_REGIME "Régimen de IVA: 01 general, 20 simplificado (confírmalo con el cliente o su gestor)" "01"
+ask CORPORATE_TAX "¿Declara el Impuesto sobre Sociedades? (si/no)" "si"
+ask VERIFACTU_CERT "Certificado electrónico (.p12/.pfx)" ""
+VERIFACTU_CERT_MODE="${VERIFACTU_CERT_MODE:-obligado}"
+VERIFACTU_CERT_KIND="${VERIFACTU_CERT_KIND:-personal}"
+[ -n "${TAX_ID:-}" ] || { echo "Falta TAX_ID (NIF del titular)." >&2; exit 1; }
+case "$VAT_REGIME" in 01|20) ;; *) echo "VAT_REGIME debe ser 01 o 20." >&2; exit 1 ;; esac
+case "$CORPORATE_TAX" in
+    si|sí|s) VERIFACTU_OBLIGATION_DATE=2027-01-01 ;;
+    no|n) VERIFACTU_OBLIGATION_DATE=2027-07-01 ;;
+    *) echo "CORPORATE_TAX debe ser si o no." >&2; exit 1 ;;
+esac
+[ -n "${VERIFACTU_CERT:-}" ] && [ -r "$VERIFACTU_CERT" ] || { echo "Falta el certificado de VERI*FACTU (VERIFACTU_CERT): es obligatorio." >&2; exit 1; }
+VERIFACTU_CERT_PASSWORD="${VERIFACTU_CERT_PASSWORD:-}"
+if [ -z "$VERIFACTU_CERT_PASSWORD" ] && [ -t 0 ]; then
+    read -r -s -p "  Contraseña del certificado: " VERIFACTU_CERT_PASSWORD; echo
+fi
+ok "Titular: $LEGAL_NAME ($TAX_ID) · régimen $VAT_REGIME · obligación $VERIFACTU_OBLIGATION_DATE · certificado $(basename "$VERIFACTU_CERT")"
+
 # --- 1. Sistema -------------------------------------------------------------------
 say "Sistema: zona horaria, NTP, actualizaciones de seguridad, TRIM del SSD"
 run apt-get update -qq
@@ -258,6 +282,12 @@ if [ -f "$ENV" ]; then
     envset "$ENV" REVERB_APP_ID "$(( (RANDOM << 15 | RANDOM) % 900000 + 100000 ))"
     envset "$ENV" REVERB_APP_KEY "$(rand 10)"
     envset "$ENV" REVERB_APP_SECRET "$(rand 20)"
+    # Número de instalación del SIF (SistemaInformatico/NumeroInstalacion): uno por
+    # equipo. Se conserva al reinstalar o restaurar en el mismo equipo (envset no lo
+    # pisa); un equipo nuevo genera otro y sigue la cadena del último registro (Q6).
+    envset "$ENV" VERIFACTU_INSTALLATION_NUMBER "$(date +%Y%m%d%H%M%S)-$(rand 4)"
+    sed -i "s|^VERIFACTU_OBLIGATION_DATE=.*|VERIFACTU_OBLIGATION_DATE=${VERIFACTU_OBLIGATION_DATE}|" "$ENV"
+    grep -q '^VERIFACTU_OBLIGATION_DATE=' "$ENV" || echo "VERIFACTU_OBLIGATION_DATE=${VERIFACTU_OBLIGATION_DATE}" >> "$ENV"
     sed -i -e "s|^APP_NAME=.*|APP_NAME=\"${LOCAL_NAME//|/\\|}\"|" -e "s|^APP_URL=.*|APP_URL=http://${LAN_IP}|" \
         -e "s|^APP_LAN_IP=.*|APP_LAN_IP=${LAN_IP}|" -e "s|^TPV_IMAGE=.*|TPV_IMAGE=${TPV_IMAGE}|" "$ENV"
     grep -qE '^TPV_VERSION=.+' "$ENV" || sed -i "s|^TPV_VERSION=.*|TPV_VERSION=${TPV_VERSION}|" "$ENV"
@@ -279,7 +309,14 @@ else
     until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(compose ps -q pgsql)")" = healthy ]; do sleep 2; done
     compose run --rm --no-deps -T app php artisan migrate --force
     compose up -d
-    SETUP="$(compose run --rm --no-deps -T app php artisan tpv:setup --name="$LOCAL_NAME" --admin-email="$ADMIN_EMAIL" --types="$ORDER_TYPES" --json | tail -1)"
+    SETUP="$(compose run --rm --no-deps -T app php artisan tpv:setup --name="$LOCAL_NAME" --admin-email="$ADMIN_EMAIL" --types="$ORDER_TYPES" \
+        --legal-name="$LEGAL_NAME" --tax-id="$TAX_ID" --vat-regime="$VAT_REGIME" --json | tail -1)"
+    # Certificado (la contraseña por la entrada estándar, nunca en la línea de órdenes)
+    # y activación de VERI*FACTU antes de la primera factura. Si falla, se para aquí.
+    printf '%s\n' "$VERIFACTU_CERT_PASSWORD" | compose run --rm --no-deps -T -v "$(realpath "$VERIFACTU_CERT"):/tmp/certificado.p12:ro" \
+        app php artisan tpv:verifactu:certificate /tmp/certificado.p12 --mode="$VERIFACTU_CERT_MODE" --kind="$VERIFACTU_CERT_KIND"
+    compose run --rm --no-deps -T app php artisan tpv:setup --admin-email="$ADMIN_EMAIL" --verifactu
+    ok "VERI*FACTU activo (producción AEAT)"
     PASSWORD="$(echo "$SETUP" | sed -nE 's/.*"admin_password":"([^"]+)".*/\1/p')"
     PIN="$(echo "$SETUP" | sed -nE 's/.*"admin_pin":"([^"]+)".*/\1/p')"
     if [ -n "$PASSWORD" ]; then
@@ -330,7 +367,8 @@ cat <<SUMMARY
 
   Siguientes pasos:
    1. Reinicia (sudo reboot) y comprueba que arranca el kiosko.
-   2. /admin → Ajustes del local: datos fiscales reales (NIF, razón social, dirección).
+   2. /admin → Ajustes del local: dirección fiscal. /admin → VERI*FACTU: certificado y estado.
+      Haz una venta de prueba y comprueba su QR y que el registro sale «Correcto».
    3. /admin → Impresoras: red (IP:9100) o USB (/dev/usb/impresora-<nombre>) e "Imprimir prueba".
    4. /admin → Usuarios: camareros y encargados con su PIN.
    5. Guarda la APP_KEY (en /root/tpv-credenciales.txt) en el gestor de contraseñas,

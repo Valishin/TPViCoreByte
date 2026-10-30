@@ -128,6 +128,17 @@ impresoras USB (`nombre:idVendor:idProduct[:serie]`, ver `lsusb`), tu clave
 pública age, el destino de las copias, la clave de Tailscale y, si se quiere,
 horario de pantalla y actualización automática (vacíos = nunca).
 
+**VERI\*FACTU (obligatorio en producción).** También lleva la razón social y el
+**NIF** del titular, el **régimen de IVA** (`01` general, `20` simplificado —
+**confírmalo con el cliente o su gestor**), si declara el **Impuesto sobre
+Sociedades** (sí → obligado desde el 01/01/2027; no → desde el 01/07/2027) y
+el **certificado electrónico** (`.p12`/`.pfx`) con su modo (`obligado` o
+`representante`) y tipo (`personal` o `sello`). La contraseña del certificado
+se pide al instalar (mejor no dejarla en el fichero). Sin certificado el
+instalador se para. Con todo ello instala el certificado y **activa
+VERI\*FACTU en el entorno de producción de la AEAT antes de la primera
+factura**: cada ticket y factura lleva su QR y se envía a Hacienda.
+
 El instalador (se puede volver a lanzar sin perder nada):
 
 1. Zona horaria **Europe/Madrid**, NTP, actualizaciones de seguridad
@@ -146,6 +157,9 @@ El instalador (se puede volver a lanzar sin perder nada):
 6. **TPV** en `/opt/tpv`: `.env` con **claves y contraseñas nuevas** (APP_KEY,
    base de datos, Reverb), imagen, migraciones y el **admin real** (sin datos
    de demo). Contraseña, PIN y **APP_KEY** en `/root/tpv-credenciales.txt` (solo root).
+   Número de instalación de VERI\*FACTU (`VERIFACTU_INSTALLATION_NUMBER`, uno por
+   equipo) y fecha de obligación (`VERIFACTU_OBLIGATION_DATE`) en el `.env`;
+   certificado instalado (cifrado con la APP_KEY) y VERI\*FACTU activo.
 7. Resumen con la URL, la IP y los siguientes pasos.
 
 Reinicia (`reboot`): la pantalla debe mostrar la pantalla de PIN del TPV.
@@ -163,13 +177,19 @@ admin y la contraseña de `/root/tpv-credenciales.txt`.
 4. **Carta**: categorías (con su impresora), productos, modificadores.
 5. **Sala**: salas y mesas.
 6. **Guarda la `APP_KEY` de este cliente en el gestor de contraseñas, junto con
-   la clave privada age** (y, en la fase de VERI\*FACTU, el certificado digital).
+   la clave privada age** y el certificado digital (`.p12`) con su contraseña.
    La base de datos guarda cifrados con ella algunos datos (la contraseña SMTP
-   de Ajustes). Las copias de seguridad los llevan cifrados: si se pierde la
+   de Ajustes y el **certificado de VERI\*FACTU** con su contraseña). Las copias de seguridad los llevan cifrados: si se pierde la
    `APP_KEY`, esos campos son ilegibles al restaurar en otro equipo y hay que
    volver a introducirlos. Al restaurar en un equipo nuevo, pon la misma
    `APP_KEY` en su `/opt/tpv/.env` antes de `tpv-restore`.
-7. Borra el fichero de credenciales cuando lo hayas guardado todo:
+7. **VERI\*FACTU**: /admin → VERI\*FACTU muestra «Activo», entorno
+   «Producción» y el certificado con su caducidad (aviso 30 días antes). Haz
+   una venta real de prueba (por ejemplo, un café): el ticket sale con el QR
+   y la leyenda, y en la tabla de registros pasa a «Correcto» en un minuto.
+   Escanea el QR con el móvil: la sede de la AEAT debe encontrar la factura.
+   Para anularla, «Anular por error» (genera el registro de anulación).
+8. Borra el fichero de credenciales cuando lo hayas guardado todo:
    `shred -u /root/tpv-credenciales.txt`.
 
 ## 6. Impresoras
@@ -278,6 +298,19 @@ tpv-restore /root/tpv-20261104-230000-cierre_z.dump.age --identity /media/usb/tp
 
 Para la app, vacía la base de datos, la restaura y vuelve a arrancar. Si la
 copia es de una versión anterior: `cd /opt/tpv && docker compose exec app php artisan migrate --force`.
+
+**VERI\*FACTU al restaurar.** La copia lleva los registros de facturación
+encadenados, su estado en la AEAT y el certificado (cifrado con la APP_KEY).
+Restaurando **en el mismo equipo** se conserva su número de instalación (está
+en `/opt/tpv/.env`, que no se toca). En un **equipo nuevo** es una
+reinstalación: `install.sh` le da un número de instalación nuevo y, al
+restaurar, la cadena sigue desde el último registro de la copia (pendiente de
+confirmar con el asesor: duda Q6 de `docs/verifactu/dudas-asesor.md`). Pon la
+misma `APP_KEY` antes de restaurar o vuelve a subir el certificado en /admin →
+VERI\*FACTU. Después: `docker compose exec app php artisan tpv:verifactu:verify`
+(debe decir «Cadena correcta») y **no** emitas nada si la copia no es la última:
+los registros posteriores a la copia ya estarían en la AEAT y la cadena local
+quedaría por detrás (avisa al soporte).
 
 ### Descifrar y restaurar en otro equipo (equipo nuevo, comprobación, inspección)
 

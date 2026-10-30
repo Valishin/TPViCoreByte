@@ -9,6 +9,9 @@ Local: ____________________  Fecha: __________  Versión: ________  Técnico: __
 - [ ] Clave pública age (`age1…`) y destino remoto de las copias (en la UE)
 - [ ] Clave de Tailscale de un solo uso
 - [ ] Datos fiscales del local (razón social, NIF, dirección) y lista de personal con PIN
+- [ ] **Confirmar el régimen de IVA con el cliente o su gestor**: 01 general / 20 simplificado → ____
+- [ ] ¿Declara el Impuesto sobre Sociedades? (sí → VERI\*FACTU obligatorio el 01/01/2027; no → 01/07/2027) → ____
+- [ ] **Certificado electrónico** (`.p12`/`.pfx`) del titular o de su representante, vigente, y su contraseña
 
 ## Equipo
 - [ ] BIOS: **encender al recibir corriente** (Power On after AC loss)
@@ -38,11 +41,19 @@ Local: ____________________  Fecha: __________  Versión: ________  Técnico: __
 - [ ] Pedido de prueba: comanda en cocina, cobro, ticket; anular con rectificativo
 - [ ] Abrir y cerrar caja (Z de prueba) — ⚠ los Z son correlativos: hazlo antes de empezar a vender
 
+## VERI\*FACTU
+- [ ] /admin → VERI\*FACTU: «Activo», entorno **Producción**, certificado del NIF correcto y su caducidad
+- [ ] Venta de prueba: el ticket lleva el **QR** y «VERI\*FACTU» arriba; el registro pasa a **Correcto**
+- [ ] QR escaneado con el móvil: la sede de la AEAT encuentra la factura
+- [ ] `tpv:verifactu:verify` → «Cadena correcta»
+- [ ] Sin avisos de VERI\*FACTU en la caja ni en /admin
+- [ ] /admin → Acerca de: declaración responsable visible
+
 ## Copias y soporte
 - [ ] `docker compose exec app php artisan tpv:backup` → OK y subida al destino remoto
 - [ ] Restauración probada (en otro equipo o en una prueba): la clave privada funciona
 - [ ] Clave privada age guardada en **dos sitios** fuera del mini PC
-- [ ] **APP_KEY de este cliente** (`/root/tpv-credenciales.txt`) guardada en el gestor de contraseñas, junto con la clave privada age (y, con VERI\*FACTU, el certificado digital)
+- [ ] **APP_KEY de este cliente** (`/root/tpv-credenciales.txt`) guardada en el gestor de contraseñas, junto con la clave privada age y el **certificado digital** con su contraseña (cifrado en la base de datos con la APP_KEY)
 - [ ] /admin sin aviso de copias
 - [ ] Tailscale: `ssh` por Tailscale funciona; *key expiry* desactivado
 - [ ] (Si hay SAI) NUT configurado y `upsmon -c fsd` probado

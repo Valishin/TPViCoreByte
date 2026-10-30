@@ -203,7 +203,7 @@ class Verifactu extends Page implements HasTable
 
                     return;
                 }
-                if (! TaxId::isValid($settings->tax_id)) {
+                if (! TaxId::isValidSpanish($settings->tax_id)) {
                     Notification::make()->danger()->title('El NIF del local no es válido: revísalo en Ajustes del local.')->send();
 
                     return;

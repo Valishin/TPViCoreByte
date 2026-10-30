@@ -11,6 +11,26 @@ ADMIN_EMAIL="jefa@ejemplo.cat"
 # Tipos de pedido: mesa,barra,para_llevar,domicilio
 ORDER_TYPES="mesa,barra"
 
+# --- Datos fiscales y VERI*FACTU (obligatorio en producción) ---
+# Razón social y NIF del titular (el que factura). Deben coincidir con el certificado.
+LEGAL_NAME="Pizzería Bella Napoli SL"
+TAX_ID=""
+# Régimen de IVA: 01 = general, 20 = simplificado (módulos).
+# CONFIRMAR EL RÉGIMEN CON EL CLIENTE O SU GESTOR antes de instalar.
+VAT_REGIME="01"
+# ¿El titular declara el Impuesto sobre Sociedades? si → VERI*FACTU obligatorio el
+# 01/01/2027; no (autónomo) → 01/07/2027. Solo afecta a los avisos y al bloqueo.
+CORPORATE_TAX="si"
+# Certificado electrónico (.p12/.pfx) del titular o de su representante. Obligatorio:
+# VERI*FACTU se activa con la primera factura. La contraseña se pide al instalar
+# si se deja vacía (mejor no guardarla aquí).
+VERIFACTU_CERT=""
+VERIFACTU_CERT_PASSWORD=""
+# obligado = del propio titular · representante = de quien lo representa (p. ej. la gestoría)
+VERIFACTU_CERT_MODE="obligado"
+# personal (persona física o representante de entidad) · sello (certificado de sello de entidad)
+VERIFACTU_CERT_KIND="personal"
+
 # --- Imagen ---
 TPV_IMAGE="ghcr.io/CAMBIAR/tpv-hosteleria"
 TPV_VERSION="1.0.0"

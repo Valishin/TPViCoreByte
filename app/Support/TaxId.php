@@ -68,6 +68,12 @@ final class TaxId
     }
 
     /** Mensaje de error legible, o null si es válido. */
+    /** NIF español (NIF, NIE o CIF) válido: el que exige la AEAT al emisor (VERI*FACTU). */
+    public static function isValidSpanish(?string $value): bool
+    {
+        return in_array(self::detect($value), [TaxIdType::Nif, TaxIdType::Nie, TaxIdType::Cif], true) && self::isValid($value);
+    }
+
     public static function error(?string $value, ?TaxIdType $type = null): ?string
     {
         if (self::isValid($value, $type)) {

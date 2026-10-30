@@ -6,11 +6,13 @@ use App\Enums\CashSessionStatus;
 use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Models\CashSession;
+use App\Models\FiscalRecord;
 use App\Models\Setting;
 use App\Models\Ticket;
 use App\Support\AllowedInReadOnly;
 use App\Support\Format;
 use Barryvdh\DomPDF\Facade\Pdf;
+use DOMDocument;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -64,6 +66,14 @@ class FiscalExportService
         $zip->addFromString('desglose_iva.csv', $this->csv($this->vatRows($tickets)));
         $zip->addFromString('cierres_z.csv', $this->csv($this->closureRows($closures)));
 
+        // Registros de facturación VERI*FACTU generados en el periodo (RRSIF 8.2.f
+        // y OM 7.k: exportables con su contenido íntegro), con su estado en la AEAT.
+        $records = FiscalRecord::query()->whereBetween('created_at', [$from, $to])->with('state.submission')->orderBy('id')->get();
+        if ($records->isNotEmpty()) {
+            $zip->addFromString('registros_verifactu.csv', $this->csv($this->recordRows($records)));
+            $zip->addFromString('registros_verifactu.xml', $this->recordsXml($records));
+        }
+
         $data = [
             'settings' => Setting::current(),
             'from' => $from, 'to' => $to,
@@ -73,7 +83,7 @@ class FiscalExportService
         // Subconjunto de fuentes: solo los caracteres usados (como en la factura).
         $zip->addFromString('tickets.pdf', Pdf::loadView('pdf.fiscal-tickets', $data)->setPaper('a4', 'landscape')->setOption('isFontSubsettingEnabled', true)->output());
         $zip->addFromString('cierres_z.pdf', Pdf::loadView('pdf.fiscal-closures', $data)->setPaper('a4')->setOption('isFontSubsettingEnabled', true)->output());
-        $zip->addFromString('LEEME.txt', $this->readme($from, $to, $simplified->count(), $rectifying->count(), $closures->count(), $invoices->count()));
+        $zip->addFromString('LEEME.txt', $this->readme($from, $to, $simplified->count(), $rectifying->count(), $closures->count(), $invoices->count(), $records->count()));
         $zip->close();
 
         return $path;
@@ -191,7 +201,38 @@ class FiscalExportService
         return $cents === null ? '' : Format::moneyInput($cents);
     }
 
-    private function readme(Carbon $from, Carbon $to, int $tickets, int $rectifying, int $closures, int $invoices = 0): string
+    private function recordRows(Collection $records): array
+    {
+        $rows = [['registro', 'operacion', 'nif_emisor', 'num_serie', 'fecha_expedicion', 'tipo_factura', 'cuota_total', 'importe_total',
+            'subsanacion', 'generado', 'huella_anterior', 'huella', 'estado', 'codigo_error', 'error', 'csv_envio', 'estado_consulta_aeat']];
+        foreach ($records as $r) {
+            $rows[] = [
+                $r->id, $r->isAlta() ? 'Alta' : 'Anulación', $r->issuer_nif, $r->invoice_number, $r->issue_date, $r->invoice_type ?? '',
+                $this->amount($r->tax_total), $this->amount($r->amount_total), $r->is_correction ? 'S' : 'N', $r->generated_at,
+                $r->previous_hash ?? '', $r->hash, $r->state?->status ?? '', $r->state?->error_code ?? '', $r->state?->error_message ?? '',
+                $r->state?->submission?->csv ?? '', $r->state?->aeat_status ?? '',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /** Contenido íntegro de cada registro (el mismo XML que se envía a la AEAT). */
+    private function recordsXml(Collection $records): string
+    {
+        $doc = new DOMDocument('1.0', 'UTF-8');
+        $doc->formatOutput = true;
+        $root = $doc->appendChild($doc->createElement('RegistrosFacturacion'));
+        foreach ($records as $record) {
+            $fragment = new DOMDocument;
+            $fragment->loadXML($record->xml);
+            $root->appendChild($doc->importNode($fragment->documentElement, true));
+        }
+
+        return (string) $doc->saveXML();
+    }
+
+    private function readme(Carbon $from, Carbon $to, int $tickets, int $rectifying, int $closures, int $invoices = 0, int $records = 0): string
     {
         $s = Setting::current();
 
@@ -202,7 +243,10 @@ class FiscalExportService
             ."rectificativos.csv          Rectificativas de tickets (R) y de facturas (FR) ({$rectifying})\n"
             ."lineas.csv                  Líneas de todos los tickets\n"
             ."desglose_iva.csv            Desglose de IVA por ticket y tipo\n"
-            ."cierres_z.csv / .pdf        Cierres de caja Z ({$closures})\n\n"
+            ."cierres_z.csv / .pdf        Cierres de caja Z ({$closures})\n"
+            .($records ? "registros_verifactu.csv/.xml  Registros de facturación VERI*FACTU ({$records}): huella encadenada,\n"
+                ."                            estado en la AEAT y XML íntegro de cada registro\n" : '')
+            ."\n"
             ."Importes en euros con coma decimal, IVA incluido salvo base y cuota. CSV separado por punto y coma.\n"
             ."Los canjes (factura que sustituye a un ticket, art. 15.6 RD 1619/2012) no suman en el resumen de IVA:\n"
             ."su ticket ya está incluido; en tickets.csv figura como canjeado con la factura que lo sustituye.\n"
