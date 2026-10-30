@@ -27,6 +27,7 @@ class CustomersTable
                         $digits = preg_replace('/\D+/', '', $search);
                         $digits === '' ? $query->whereRaw('false') : $query->where('phone', 'like', "%{$digits}%");
                     }),
+                TextColumn::make('tax_id')->label('NIF')->placeholder('—')->searchable()->toggleable(),
                 TextColumn::make('addresses_count')->label('Direcciones')->counts('addresses')->alignEnd(),
                 TextColumn::make('orders_count')->label('Pedidos')->sortable()->alignEnd(),
                 TextColumn::make('last_order_at')->label('Último pedido')->dateTime('d/m/Y')->sortable()->placeholder('—'),
@@ -34,6 +35,8 @@ class CustomersTable
                     ->formatStateUsing(fn () => 'Anonimizado'),
             ])
             ->filters([
+                TernaryFilter::make('fiscal')->label('Con datos fiscales')
+                    ->queries(true: fn ($q) => $q->whereNotNull('tax_id'), false: fn ($q) => $q->whereNull('tax_id')),
                 TernaryFilter::make('anonymized')->label('Anonimizados')
                     ->queries(
                         true: fn (Builder $q) => $q->whereNotNull('anonymized_at'),

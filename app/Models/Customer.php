@@ -21,6 +21,24 @@ class Customer extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saving(function (Customer $customer) {
+            if ($customer->tax_id) {
+                // Tipo y país deducidos del NIF si no se indican.
+                $customer->tax_id_type ??= TaxId::detect($customer->tax_id) ?? TaxIdType::Other;
+                if (! $customer->fiscal_country) {
+                    $prefix = substr($customer->tax_id, 0, 2);
+                    $customer->fiscal_country = $customer->tax_id_type === TaxIdType::VatEu ? ($prefix === 'EL' ? 'GR' : $prefix) : 'ES';
+                }
+            }
+            // Cliente solo de facturación (empresa): su nombre es la razón social.
+            if (blank($customer->name) && filled($customer->legal_name)) {
+                $customer->name = $customer->legal_name;
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\DiagnosticsController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\NetworkController;
 use App\Http\Controllers\Pos\AuthController;
+use App\Http\Controllers\Pos\BillingCustomerController;
 use App\Http\Controllers\Pos\CashController;
 use App\Http\Controllers\Pos\CatalogController;
 use App\Http\Controllers\Pos\CheckoutController;
@@ -67,6 +68,11 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::patch('/customers/{customer}', [CustomerController::class, 'update'])->name('pos.customers.update');
     Route::post('/customers/{customer}/addresses', [CustomerController::class, 'addAddress'])->name('pos.customers.addresses');
     Route::get('/delivery-zones', [CustomerController::class, 'zones'])->name('pos.delivery-zones');
+
+    // Destinatarios de factura (datos fiscales)
+    Route::get('/billing-customers', [BillingCustomerController::class, 'index'])->name('pos.billing-customers.index');
+    Route::post('/billing-customers', [BillingCustomerController::class, 'store'])->name('pos.billing-customers.store');
+    Route::put('/billing-customers/{customer}', [BillingCustomerController::class, 'update'])->name('pos.billing-customers.update');
 
     // Pedidos para llevar y a domicilio
     Route::get('/takeaway-orders', [TakeawayOrderController::class, 'index'])->name('pos.takeaway.index');

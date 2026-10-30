@@ -64,4 +64,33 @@ class CustomerResourceTest extends FilamentTestCase
             ->callAction(TestAction::make('exportData')->table($customer))
             ->assertFileDownloaded("cliente-{$customer->id}-datos.json");
     }
+
+    public function test_company_without_phone_with_valid_fiscal_data(): void
+    {
+        Livewire::test(CreateCustomer::class)
+            ->fillForm(['legal_name' => 'Restaurants del Port SL', 'tax_id' => 'B12345678', 'fiscal_address' => 'Passeig, 5',
+                'fiscal_postal_code' => '17220', 'fiscal_city' => 'Sant Feliu de Guíxols'])
+            ->call('create')
+            ->assertHasFormErrors(['tax_id']);
+
+        Livewire::test(CreateCustomer::class)
+            ->fillForm(['legal_name' => 'Restaurants del Port SL', 'tax_id' => 'B12345674', 'fiscal_address' => 'Passeig, 5',
+                'fiscal_postal_code' => '17220', 'fiscal_city' => 'Sant Feliu de Guíxols', 'email_invoices_accepted_at' => true,
+                'billing_email' => 'a@port.cat'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $customer = Customer::query()->where('tax_id', 'B12345674')->sole();
+        $this->assertNull($customer->phone);
+        $this->assertSame('Restaurants del Port SL', $customer->name);
+        $this->assertTrue($customer->acceptsEmailInvoices());
+    }
+
+    public function test_phone_or_tax_id_is_required(): void
+    {
+        Livewire::test(CreateCustomer::class)
+            ->fillForm(['name' => 'Nadie'])
+            ->call('create')
+            ->assertHasFormErrors(['phone']);
+    }
 }
