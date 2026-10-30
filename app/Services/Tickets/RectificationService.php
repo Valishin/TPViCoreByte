@@ -18,6 +18,8 @@ use App\Models\User;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\PrintJobDispatcher;
 use App\Services\Pos\ReceiptFormatter;
+use App\Services\Verifactu\EmissionGuard;
+use App\Services\Verifactu\FiscalRecordGenerator;
 use App\Support\InvoiceRules;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +116,8 @@ class RectificationService
             throw new LogicException('Este ticket ya tiene rectificativos: por sustitución solo se puede rectificar una vez.');
         }
         $session = CheckoutService::openSession() ?? throw new CashSessionRequiredException;
+
+        EmissionGuard::assertCanIssue();
 
         return DB::transaction(function () use ($original, $by, $reason, $method, $quantities, $refundMethod, $print, $session, $withRefund, $reasonCode, $newRecipient, $fullInvoice) {
             $original = Ticket::query()->whereKey($original->id)->lockForUpdate()->firstOrFail();
@@ -271,6 +275,7 @@ class RectificationService
                 ]);
             }
 
+            app(FiscalRecordGenerator::class)->alta($rectifying);   // R1-R5 (RRSIF 10.1.g)
             $original->update(['status' => TicketStatus::Rectified]);
 
             if ($print && ($printer = PrintJobDispatcher::ticketPrinter())) {

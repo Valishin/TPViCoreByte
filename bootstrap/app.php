@@ -7,6 +7,7 @@ use App\Exceptions\InvoiceRequiredException;
 use App\Exceptions\MinimumOrderException;
 use App\Exceptions\OpenOrdersException;
 use App\Exceptions\TableUnavailableException;
+use App\Exceptions\VerifactuRequiredException;
 use App\Http\Middleware\EnsurePosStaff;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -52,6 +53,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (ExchangeOtherYearException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => $e->getMessage(), 'code' => 'exchange_other_year', 'year' => $e->year], 409);
+            }
+        });
+        $exceptions->render(function (VerifactuRequiredException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage(), 'code' => 'verifactu_required'], 423);
             }
         });
         $exceptions->render(function (InvoiceRequiredException $e, Request $request) {

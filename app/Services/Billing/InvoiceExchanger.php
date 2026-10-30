@@ -13,6 +13,8 @@ use App\Models\TicketLine;
 use App\Models\User;
 use App\Services\Pos\CheckoutService;
 use App\Services\Tickets\TicketNumberService;
+use App\Services\Verifactu\EmissionGuard;
+use App\Services\Verifactu\FiscalRecordGenerator;
 use App\Support\InvoiceRules;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -35,6 +37,8 @@ class InvoiceExchanger
     public function exchange(Ticket $ticket, Customer $recipient, User $by, bool $confirmOtherYear = false): Ticket
     {
         InvoiceRules::assertRecipient($recipient);
+
+        EmissionGuard::assertCanIssue();
 
         return DB::transaction(function () use ($ticket, $recipient, $by, $confirmOtherYear) {
             $ticket = Ticket::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
@@ -85,6 +89,7 @@ class InvoiceExchanger
                 'paid_at' => $ticket->paid_at ?? now(),
             ]);
             $this->copyLines($ticket, $invoice);
+            app(FiscalRecordGenerator::class)->alta($invoice);   // F3 (RRSIF 10.1.h)
             $ticket->update(['status' => TicketStatus::Exchanged]);
 
             return $invoice;

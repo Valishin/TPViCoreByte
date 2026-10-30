@@ -14,6 +14,8 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Orders\OrderService;
 use App\Services\Orders\OrderTotalsCalculator;
+use App\Services\Verifactu\EmissionGuard;
+use App\Services\Verifactu\FiscalRecordGenerator;
 use App\Support\InvoiceRules;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -41,6 +43,8 @@ class TicketIssuer
         if (! $order->isOpen()) {
             throw new LogicException('Solo se puede emitir ticket de un pedido abierto.');
         }
+
+        EmissionGuard::assertCanIssue();
 
         return DB::transaction(function () use ($order, $by, $session, $idempotencyKey, $recipient) {
             $settings = Setting::current();
@@ -99,6 +103,8 @@ class TicketIssuer
             ]);
 
             $this->copyLines($ticket, $order);
+            // Registro de facturación de alta, en la misma transacción (RRSIF 9).
+            app(FiscalRecordGenerator::class)->alta($ticket);
             $this->orders->close($order);
 
             if ($order->customer) {
