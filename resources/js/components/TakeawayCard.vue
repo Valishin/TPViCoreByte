@@ -55,7 +55,14 @@ const actions = computed(() => {
             return [{ key: 'ready', label: 'Listo' }];
         case 'listo':
             if (o.type === 'domicilio') return [{ key: 'dispatch', label: 'Dar salida' }];
-            return o.status !== 'abierto' || o.prepaid_method
+            // Prepagado y aún sin ticket: al entregar se emite el ticket o, si lo pide, la factura.
+            if (o.status === 'abierto' && o.prepaid_method) {
+                return [
+                    { key: 'deliver', label: 'Entregar', variant: 'success' },
+                    { key: 'deliver_invoice', label: 'Entregar con factura', variant: 'secondary' },
+                ];
+            }
+            return o.status !== 'abierto'
                 ? [{ key: 'deliver', label: 'Entregar', variant: 'success' }]
                 : [{ key: 'checkout', label: 'Cobrar y entregar', variant: 'success' }];
         case 'en_reparto':

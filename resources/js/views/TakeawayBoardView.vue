@@ -123,6 +123,11 @@ function action(key, order) {
             return run(order, key, () => pos.takeawayStatus(order.id, 'listo'));
         case 'deliver':
             return run(order, key, () => pos.takeawayStatus(order.id, 'entregado'), () => notices.success('Entregado'));
+        case 'deliver_invoice':
+            // "Factura con datos" al entregar un prepagado, como en el cobro y en "Dar salida".
+            invoiceHint.value = '';
+            handingOver.value = order;
+            return;
         case 'checkout':
             return router.push(`/pedidos/${order.id}/cobrar`);
         case 'dispatch':
