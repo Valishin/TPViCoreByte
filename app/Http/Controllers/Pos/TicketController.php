@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Ticket;
 use App\Services\Billing\InvoiceExchanger;
+use App\Services\Billing\InvoiceMailer;
 use App\Services\Billing\InvoicePdf;
 use App\Services\Pos\AuthorizationService;
 use App\Services\Pos\CheckoutService;
@@ -96,6 +97,14 @@ class TicketController extends Controller
         return response()->json(['data' => self::summary($invoice->load(['order.table', 'issuedBy', 'payments', 'rectifiedTicket', 'replacedTicket']))], 201);
     }
 
+    /** Enviar (o reenviar) la factura por email. */
+    public function email(Request $request, Ticket $ticket, InvoiceMailer $mailer): JsonResponse
+    {
+        $email = $mailer->queue($ticket, $request->user());
+
+        return response()->json(['data' => ['id' => $email->id, 'to' => $email->to, 'status' => $email->status]], 202);
+    }
+
     /** PDF A4 de una factura completa. */
     public function pdf(Ticket $ticket, InvoicePdf $pdf): Response
     {
@@ -129,6 +138,9 @@ class TicketController extends Controller
             'can_exchange' => $ticket->type->value === 'simplificada' && $ticket->status->value === 'emitido'
                 && $ticket->payment_status->value === 'pagado',
             'other_year' => $ticket->issued_at->year !== now()->year,
+            'email' => ($e = $ticket->type->isFullInvoice() ? $ticket->emails()->first() : null)
+                ? ['to' => $e->to, 'status' => $e->status, 'sent_at' => $e->sent_at?->toIso8601String(), 'error' => $e->last_error]
+                : null,
         ];
     }
 }

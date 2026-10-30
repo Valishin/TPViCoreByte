@@ -9,6 +9,7 @@ use App\Filament\Components\VatRateSelect;
 use App\Filament\Resources\Categories\Schemas\CategoryForm;
 use App\Models\Setting;
 use App\Models\TicketSeries;
+use App\Services\Billing\InvoiceMailer;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
@@ -26,6 +27,7 @@ use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Mail;
 use UnitEnum;
 
 /**
@@ -99,6 +101,32 @@ class LocalSettings extends Page
                         ->required()
                         ->validationMessages(['required' => 'Activa al menos un tipo de pedido.']),
                 ]),
+                Section::make('Facturas con datos del cliente')->columns(2)->columnSpanFull()
+                    ->description('Factura completa (RD 1619/2012): serie F para facturas y canjes de tickets, FR para sus rectificativas.')
+                    ->schema([
+                        Select::make('invoice_series_id')->label('Serie de facturas')
+                            ->options(fn () => TicketSeries::query()->where('is_rectifying', false)->where('is_active', true)->pluck('name', 'id'))
+                            ->required(),
+                        Select::make('invoice_rectifying_series_id')->label('Serie de rectificativas de facturas')
+                            ->options(fn () => TicketSeries::query()->where('is_rectifying', true)->where('is_active', true)->pluck('name', 'id'))
+                            ->required(),
+                        Toggle::make('invoice_require_address')->label('Domicilio del destinatario obligatorio')->inline(false)->columnSpanFull()
+                            ->helperText('Activado: también para particulares (art. 6.1.e). Pendiente de confirmar con el asesor si los particulares pueden ir sin domicilio.'),
+                    ]),
+                Section::make('Correo saliente (facturas por email)')->columns(3)->columnSpanFull()
+                    ->description('Para enviar el PDF de las facturas a los clientes que lo aceptan. La contraseña se guarda cifrada con APP_KEY.')
+                    ->schema([
+                        TextInput::make('smtp_host')->label('Servidor SMTP')->placeholder('smtp.ejemplo.com')->maxLength(255),
+                        TextInput::make('smtp_port')->label('Puerto')->numeric()->integer()->placeholder('587'),
+                        Select::make('smtp_encryption')->label('Cifrado')->options(['tls' => 'STARTTLS (587)', 'ssl' => 'SSL/TLS (465)', 'none' => 'Ninguno'])
+                            ->default('tls'),
+                        TextInput::make('smtp_username')->label('Usuario')->maxLength(255),
+                        TextInput::make('smtp_password')->label('Contraseña')->password()->revealable()
+                            ->placeholder(fn () => filled(Setting::current()->smtp_password) ? '•••••• (guardada; escribe otra para cambiarla)' : '')
+                            ->dehydrated(fn ($state) => filled($state)),
+                        TextInput::make('mail_from_address')->label('Remitente (email)')->email()->maxLength(255),
+                        TextInput::make('mail_from_name')->label('Remitente (nombre)')->maxLength(255)->placeholder('Nombre comercial'),
+                    ]),
                 Section::make('Numeración')->columnSpan(1)->schema([
                     Select::make('default_ticket_series_id')->label('Serie de tickets')
                         ->options(fn () => TicketSeries::query()->where('is_rectifying', false)->where('is_active', true)->pluck('name', 'id'))
@@ -156,9 +184,31 @@ class LocalSettings extends Page
                 ->footer([
                     Actions::make([
                         Action::make('save')->label('Guardar ajustes')->submit('save')->keyBindings(['mod+s']),
+                        $this->sendTestEmailAction(),
                     ]),
                 ]),
         ]);
+    }
+
+    /** Email de prueba con el SMTP guardado (a la dirección del remitente o a otra). */
+    public function sendTestEmailAction(): Action
+    {
+        return Action::make('sendTestEmail')->label('Enviar email de prueba')->icon(Heroicon::OutlinedEnvelope)->color('gray')
+            ->schema([TextInput::make('to')->label('Enviar a')->email()->required()->default(fn () => Setting::current()->mail_from_address)])
+            ->action(function (array $data) {
+                if (! InvoiceMailer::configured()) {
+                    Notification::make()->warning()->title('Guarda primero el servidor SMTP y el remitente.')->send();
+
+                    return;
+                }
+                try {
+                    InvoiceMailer::configureMailer();
+                    Mail::mailer(InvoiceMailer::MAILER)->raw('Email de prueba del TPV: el correo saliente funciona.', fn ($m) => $m->to($data['to'])->subject('Prueba del TPV'));
+                    Notification::make()->success()->title("Enviado a {$data['to']}")->send();
+                } catch (\Throwable $e) {
+                    Notification::make()->danger()->title('No se ha podido enviar')->body($e->getMessage())->persistent()->send();
+                }
+            });
     }
 
     public function save(): void

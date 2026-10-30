@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Unguarded]
 class Setting extends Model
 {
+    protected $hidden = ['smtp_password'];
+
     use HasFactory;
 
     protected function casts(): array
@@ -40,6 +42,8 @@ class Setting extends Model
             'delivery_minutes' => 'integer',
             'print_courier_copy' => 'boolean',
             'invoice_require_address' => 'boolean',
+            'smtp_password' => 'encrypted', // con APP_KEY: guárdala con la clave age (docs/instalacion-minipc.md)
+            'smtp_port' => 'integer',
         ];
     }
 

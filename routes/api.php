@@ -108,6 +108,7 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::post('/tickets/{ticket}/rectify', [TicketController::class, 'rectify'])->name('pos.tickets.rectify');
     Route::post('/tickets/{ticket}/exchange', [TicketController::class, 'exchange'])->name('pos.tickets.exchange');
     Route::get('/tickets/{ticket}/pdf', [TicketController::class, 'pdf'])->name('pos.tickets.pdf');
+    Route::post('/tickets/{ticket}/email', [TicketController::class, 'email'])->name('pos.tickets.email');
 
     Route::get('/printers', [PrintController::class, 'printers'])->name('pos.printers');
     Route::get('/print-jobs/failed', [PrintController::class, 'failed'])->name('pos.print-jobs.failed');

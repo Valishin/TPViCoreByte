@@ -174,6 +174,11 @@ class Ticket extends Model
         return $this->type->verifactuType($this->rectificationReason());
     }
 
+    public function emails(): HasMany
+    {
+        return $this->hasMany(InvoiceEmail::class)->latest('id');
+    }
+
     public function rectifications(): HasMany
     {
         return $this->hasMany(Ticket::class, 'rectified_ticket_id');

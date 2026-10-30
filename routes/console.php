@@ -15,3 +15,6 @@ Schedule::command('tpv:backup --reason=diaria')->dailyAt('05:00')->withoutOverla
 Schedule::command('tpv:backup --reason=arranque --if-older=24')->everyFifteenMinutes()->withoutOverlapping();
 // Sin internet, la subida remota se reintenta cada hora.
 Schedule::command('tpv:backup --upload-only')->hourly()->withoutOverlapping();
+
+// Facturas por email que no salieron (sin internet): se reintentan cada hora.
+Schedule::command('tpv:invoices-retry-email')->hourly()->withoutOverlapping();
