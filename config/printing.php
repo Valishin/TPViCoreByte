@@ -38,6 +38,10 @@ return [
     // Caracteres por línea: 48 en 80 mm (fuente A), 32 en 58 mm.
     'columns' => (int) env('PRINTER_COLUMNS', 48),
 
+    // Resolución de las impresoras térmicas (puntos por mm): 8 = 203 ppp, la habitual en 58 y 80 mm.
+    // Se usa para imprimir el QR tributario a su tamaño en milímetros (30-40 mm).
+    'dots_per_mm' => (int) env('PRINTER_DOTS_PER_MM', 8),
+
     // Segundos que una petición web (p. ej. "Imprimir prueba" en /admin) espera
     // el resultado de la cola `printing`. La web nunca imprime directamente.
     'web_wait_seconds' => (float) env('PRINTER_WEB_WAIT', 5),

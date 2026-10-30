@@ -61,6 +61,17 @@ class Ticket
         return $this;
     }
 
+    /**
+     * QR tributario de VERI*FACTU como imagen ráster de tamaño fijo en papel
+     * (30-40 mm, nivel M): App\Services\Verifactu\TaxQr. La imagen se genera al imprimir.
+     */
+    public function taxQr(string $url): static
+    {
+        $this->operations[] = ['type' => 'tax_qr', 'data' => $url];
+
+        return $this;
+    }
+
     /** Añade al final las operaciones de otro ticket. */
     public function append(self $other): static
     {

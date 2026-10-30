@@ -14,6 +14,7 @@ use App\Models\Ticket;
 use App\Models\TicketLine;
 use App\Services\Billing\InvoiceDocument;
 use App\Services\Printing\Ticket as Printable;
+use App\Services\Verifactu\TaxQr;
 use App\Support\Format;
 use App\Support\MapsLink;
 
@@ -38,6 +39,7 @@ class ReceiptFormatter
             $p->line('*** COPIA ***', Printable::ALIGN_CENTER, bold: true, reverse: true);
         }
 
+        $this->taxQrBlock($p, $ticket);
         $p->title($issuer['trade_name'] ?? '')
             ->line($issuer['legal_name'] ?? '', Printable::ALIGN_CENTER)
             ->line('NIF '.($issuer['tax_id'] ?? ''), Printable::ALIGN_CENTER);
@@ -107,8 +109,6 @@ class ReceiptFormatter
                 $this->payment($p, $payment);
             }
         }
-
-        $this->verifactuBlock($p, $ticket);
 
         $p->feed();
         foreach (preg_split('/\R/', (string) Setting::current()->ticket_footer) as $footer) {
@@ -235,6 +235,8 @@ class ReceiptFormatter
             $p->line('*** COPIA ***', Printable::ALIGN_CENTER, bold: true, reverse: true);
         }
 
+        $this->taxQrBlock($p, $ticket);
+
         // Emisor (c, d, e)
         $issuer = $doc['issuer'];
         if ($issuer['trade_name']) {
@@ -308,7 +310,6 @@ class ReceiptFormatter
                 $this->payment($p, $payment);
             }
         }
-        $this->verifactuBlock($p, $ticket);
         $p->feed();
         foreach (preg_split('/\R/', $doc['footer']) as $footer) {
             if ($footer !== '') {
@@ -467,9 +468,20 @@ class ReceiptFormatter
      * "Factura verificable en la sede electrónica de la AEAT" / "VERI*FACTU".
      * Se implementará en la fase de VeriFactu (datos en fiscal_records).
      */
-    private function verifactuBlock(Printable $p, Ticket $ticket): void
+    /**
+     * QR tributario al principio del documento, antes de su contenido, con
+     * «QR tributario:» encima y «VERI*FACTU» debajo (OM 20 y 21; especificación
+     * del QR, apdo. 3). Solo si el documento tiene registro de facturación.
+     */
+    private function taxQrBlock(Printable $p, Ticket $ticket): void
     {
-        // Pendiente: $p->qr(...) y leyenda. De momento no se imprime nada.
+        if (! $url = TaxQr::for($ticket)) {
+            return;
+        }
+        $p->line('QR tributario:', Printable::ALIGN_CENTER, bold: true)
+            ->taxQr($url)
+            ->line(TaxQr::LEGEND_SHORT, Printable::ALIGN_CENTER, bold: true)
+            ->feed();
     }
 
     private function lineName(TicketLine $line): string

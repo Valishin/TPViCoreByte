@@ -31,11 +31,21 @@
     table.vat th, table.vat td { border: 1px solid #ccc; padding: 3px 4px; }
     table.vat th { background: #f2f2f2; }
     .box { border: 1px solid #bbb; padding: 6px 8px; margin-bottom: 10px; }
-    .verifactu { border: 1px dashed #bbb; height: 0; margin-top: 12px; }
+    /* QR tributario arriba, centrado, antes del contenido (especificación del QR, apdo. 3 y ejemplo h). */
+    .verifactu { text-align: center; margin: 0 0 10px; }
+    .verifactu .qr-label, .verifactu .qr-legend { font-size: 11px; font-weight: bold; }
+    .verifactu img { display: block; margin: 2px auto; }
     .footer { margin-top: 18px; text-align: center; color: #555; font-size: 8.5px; }
 </style>
 </head>
 <body>
+@if ($qr)
+    <div class="verifactu">
+        <div class="qr-label">QR tributario:</div>
+        <img src="{{ $qr['src'] }}" style="width: {{ $qr['width_mm'] }}mm; height: {{ $qr['width_mm'] }}mm" alt="QR tributario">
+        <div class="qr-legend">{{ \App\Services\Verifactu\TaxQr::LEGEND_LONG }}</div>
+    </div>
+@endif
 <table class="head"><tr>
     <td>
         @if ($logo)<img class="logo" src="{{ $logo }}" alt="">@endif
@@ -113,8 +123,6 @@
     <p class="muted">Forma de pago: {{ $doc['payments']->map(fn ($p) => $p->method->label().' '.Format::money($p->amount))->implode(' · ') }}</p>
 @endif
 
-{{-- Hueco para el QR de VERI*FACTU y la leyenda (fase de VERI*FACTU; tipo {{ $doc['verifactu_type'] }}) --}}
-<div class="verifactu"></div>
 
 @if (trim($doc['footer']) !== '')<div class="footer">{!! nl2br(e($doc['footer'])) !!}</div>@endif
 </body>

@@ -3,10 +3,12 @@
 namespace App\Services\Printing;
 
 use App\Models\Printer as PrinterModel;
+use App\Services\Verifactu\TaxQr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Mike42\Escpos\CapabilityProfile;
+use Mike42\Escpos\EscposImage;
 use Mike42\Escpos\PrintConnectors\DummyPrintConnector;
 use Mike42\Escpos\PrintConnectors\NetworkPrintConnector;
 use Mike42\Escpos\PrintConnectors\PrintConnector;
@@ -208,6 +210,15 @@ class PrinterManager
                     $printer->qrCode($op['data'], Printer::QR_ECLEVEL_M, $op['size'] ?? 6);
                     $printer->setJustification(Printer::JUSTIFY_LEFT);
                     break;
+                case 'tax_qr':
+                    // Ráster a 203 ppp (8 puntos/mm): el tamaño en papel no depende del modelo de impresora.
+                    $file = tempnam(sys_get_temp_dir(), 'qr').'.png';
+                    file_put_contents($file, TaxQr::png($op['data'], (int) config('printing.dots_per_mm', 8)));
+                    $printer->setJustification(Printer::JUSTIFY_CENTER);
+                    $printer->bitImage(EscposImage::load($file, false));
+                    $printer->setJustification(Printer::JUSTIFY_LEFT);
+                    @unlink($file);
+                    break;
             }
         }
         // Sin $printer->close(): finalizaría el conector y perderíamos los
@@ -250,6 +261,9 @@ class PrinterManager
                     break;
                 case 'qr':
                     $out[] = "[QR] {$op['data']}";
+                    break;
+                case 'tax_qr':
+                    $out[] = '[QR tributario '.TaxQr::sizing($op['data'])['mm']." mm] {$op['data']}";
                     break;
             }
         }
