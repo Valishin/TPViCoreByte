@@ -91,6 +91,8 @@ const pos = {
     myDelivered: (id, payments) => api.post(`/my-deliveries/${id}/delivered`, { payments }).then((r) => r.data.data),
     myNotDelivered: (id, payload) => api.post(`/my-deliveries/${id}/not-delivered`, payload).then((r) => r.data),
 
+    verifactuStatus: () => api.get('/verifactu/status').then((r) => r.data.notices),
+    about: () => api.get('/about').then((r) => r.data),
     printers: () => api.get('/printers').then((r) => r.data.data),
     failedJobs: () => api.get('/print-jobs/failed').then((r) => r.data.data),
     retryJob: (id) => api.post(`/print-jobs/${id}/retry`).then((r) => r.data.data),

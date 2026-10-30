@@ -14,6 +14,7 @@ const routes = [
     { path: '/pedidos/:orderId(\\d+)/cobrar', name: 'takeaway-checkout', component: () => import('@/views/CheckoutView.vue') },
     { path: '/repartos', name: 'my-deliveries', component: () => import('@/views/MyDeliveriesView.vue'), meta: { courier: true } },
     { path: '/repartidores', name: 'couriers', component: () => import('@/views/CouriersView.vue') },
+    { path: '/acerca', name: 'about', component: () => import('@/views/AboutView.vue') },
     { path: '/estado', name: 'estado', component: () => import('@/views/EstadoView.vue'), meta: { public: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
 ];

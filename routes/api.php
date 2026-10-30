@@ -16,6 +16,7 @@ use App\Http\Controllers\Pos\PrintController;
 use App\Http\Controllers\Pos\RoomController;
 use App\Http\Controllers\Pos\TakeawayOrderController;
 use App\Http\Controllers\Pos\TicketController;
+use App\Http\Controllers\Pos\VerifactuController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('api.health');
@@ -113,6 +114,8 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
 
     Route::get('/printers', [PrintController::class, 'printers'])->name('pos.printers');
     Route::get('/print-jobs/failed', [PrintController::class, 'failed'])->name('pos.print-jobs.failed');
+    Route::get('/verifactu/status', [VerifactuController::class, 'status'])->name('pos.verifactu.status');
+    Route::get('/about', [VerifactuController::class, 'about'])->name('pos.about');
     Route::post('/print-jobs/{printJob}/retry', [PrintController::class, 'retry'])->name('pos.print-jobs.retry');
     Route::post('/print-jobs/{printJob}/redirect', [PrintController::class, 'redirect'])->name('pos.print-jobs.redirect');
 });

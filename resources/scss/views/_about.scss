@@ -1,0 +1,42 @@
+@use '../tokens' as *;
+
+// «Acerca de»: datos del sistema y declaración responsable (AboutView.vue)
+.v-about {
+    &__body {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: $space-4;
+    }
+
+    &__facts {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: $space-2 $space-4;
+        margin-bottom: $space-6;
+
+        dt {
+            font-weight: $font-weight-bold;
+            color: $color-text-muted;
+        }
+    }
+
+    &__declaration {
+        line-height: 1.5;
+
+        h1 {
+            font-size: $font-size-lg;
+            margin-bottom: $space-3;
+        }
+
+        h2 {
+            font-size: $font-size-base;
+            margin: $space-4 0 $space-2;
+        }
+
+        p,
+        li,
+        blockquote {
+            margin-bottom: $space-2;
+        }
+    }
+}

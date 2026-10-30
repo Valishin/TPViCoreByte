@@ -4,6 +4,7 @@ namespace Tests\Feature\Filament;
 
 use App\Filament\Pages\Verifactu;
 use App\Models\Setting;
+use App\Services\Verifactu\CertificateStore;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Tests\Feature\Verifactu\CertificateTest;
@@ -33,5 +34,48 @@ class VerifactuPageTest extends FilamentTestCase
             ->call('save')->assertHasNoFormErrors();
         $this->assertSame('produccion', Setting::current()->verifactu_environment);
         $this->assertSame('20', Setting::current()->vat_regime_key);
+    }
+
+    public function test_activation_requires_certificate(): void
+    {
+        Setting::current()->update(['tax_id' => 'B12345674']);
+        Livewire::test(Verifactu::class)->callAction('activate', ['starts_at' => now()->toDateTimeString()])
+            ->assertNotified('Sube antes el certificado electrónico.');
+        $this->assertFalse((bool) Setting::current()->verifactu_enabled);
+
+        app(CertificateStore::class)->import(CertificateTest::p12(['organizationIdentifier' => 'VATES-B12345674']), 'secreto');
+        Livewire::test(Verifactu::class)->callAction('activate', ['starts_at' => now()->toDateTimeString()])
+            ->assertNotified('VERI*FACTU activado');
+        $this->assertTrue((bool) Setting::current()->verifactu_enabled);
+        $this->assertNotNull(Setting::current()->verifactu_started_at);
+    }
+
+    public function test_renouncing_before_any_send_disables_and_after_a_send_lasts_until_31_december(): void
+    {
+        Setting::current()->update(['verifactu_enabled' => true, 'verifactu_started_at' => now()->subDay()]);
+        Livewire::test(Verifactu::class)->callAction('renounce')->assertNotified('VERI*FACTU desactivado');
+        $this->assertFalse((bool) Setting::current()->verifactu_enabled);
+
+        Setting::current()->update(['verifactu_enabled' => true, 'verifactu_started_at' => now()->subDay(), 'verifactu_first_sent_at' => now()->subHour()]);
+        Livewire::test(Verifactu::class)->callAction('renounce');
+        $settings = Setting::current();
+        $this->assertTrue((bool) $settings->verifactu_enabled);
+        $this->assertSame(now('Europe/Madrid')->year.'-12-31', $settings->verifactu_end_date->toDateString());
+    }
+
+    public function test_admin_shows_persistent_notices(): void
+    {
+        Setting::current()->update(['verifactu_enabled' => true, 'verifactu_started_at' => now()->subMinute()]);
+        $this->get('/admin')->assertOk()->assertSee('activo pero no hay certificado', false);
+    }
+
+    public function test_verify_chain_action(): void
+    {
+        Livewire::test(Verifactu::class)->callAction('verifyChain')->assertNotified('Cadena correcta: 0 registros');
+    }
+
+    public function test_about_page_shows_the_declaration(): void
+    {
+        $this->get('/admin/acerca-de')->assertOk()->assertSee('DECLARACIÓN RESPONSABLE', false)->assertSee('iCOREBYTE TPV');
     }
 }

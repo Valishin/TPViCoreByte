@@ -2,6 +2,7 @@
     <template v-if="showShell">
         <TopBar :title="title" @lock="lock" />
         <PrintAlerts v-if="!session.isCourier" />
+        <VerifactuAlerts v-if="!session.isCourier" />
     </template>
     <RouterView />
     <AuthorizeModal />
@@ -17,6 +18,7 @@ import AuthorizeModal from '@/components/AuthorizeModal.vue';
 import LanAddress from '@/components/LanAddress.vue';
 import OnScreenKeyboard from '@/components/OnScreenKeyboard.vue';
 import PrintAlerts from '@/components/PrintAlerts.vue';
+import VerifactuAlerts from '@/components/VerifactuAlerts.vue';
 import ToastHost from '@/components/ToastHost.vue';
 import TopBar from '@/components/TopBar.vue';
 import { useInactivity } from '@/composables/useInactivity';

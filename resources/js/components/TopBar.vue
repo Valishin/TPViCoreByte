@@ -26,6 +26,7 @@
                 :aria-current="isActive(item.path) ? 'page' : null"
                 @click="router.push(item.path)"
             >{{ item.label }}</TpvButton>
+            <TpvButton variant="ghost" icon aria-label="Acerca de" @click="router.push('/acerca')">ⓘ</TpvButton>
             <TpvButton variant="ghost" icon :aria-label="ui.theme === 'dark' ? 'Tema claro' : 'Tema oscuro'" @click="ui.toggleTheme()">
                 {{ ui.theme === 'dark' ? '☀' : '☾' }}
             </TpvButton>
@@ -41,6 +42,7 @@
                 <TpvButton variant="secondary" size="lg" block @click="ui.toggleTheme()">
                     {{ ui.theme === 'dark' ? '☀ Tema claro' : '☾ Tema oscuro' }}
                 </TpvButton>
+                <TpvButton variant="secondary" size="lg" block @click="go('/acerca')">Acerca de</TpvButton>
                 <TpvButton variant="secondary" size="lg" block @click="menu = false; $emit('lock')">Bloquear</TpvButton>
             </div>
         </BottomSheet>
