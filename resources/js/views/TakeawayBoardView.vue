@@ -53,7 +53,7 @@
         </section>
 
         <DispatchSheet :order="dispatching" :busy="!!dispatching && busy[dispatching.id] === 'dispatch'" :invoice-hint="invoiceHint" @confirm="dispatchTo" @close="dispatching = null" />
-        <InvoiceRecipientSheet :open="!!handingOver" :hint="invoiceHint" :initial-query="handingOver?.customer_name ?? ''" @close="handingOver = null" @select="deliverWithInvoice" />
+        <InvoiceRecipientSheet :open="!!handingOver" :hint="invoiceHint" @close="handingOver = null" @select="deliverWithInvoice" />
     </main>
 </template>
 
