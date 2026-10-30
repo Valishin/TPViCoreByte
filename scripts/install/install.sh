@@ -291,6 +291,24 @@ CRED
     fi
 fi
 
+# APP_KEY: sin ella, los campos cifrados de la base de datos (contraseña SMTP;
+# certificado de VERI*FACTU en el futuro) son ilegibles en una restauración.
+# Va SIEMPRE a /root/tpv-credenciales.txt para guardarla en el gestor de
+# contraseñas junto a la clave privada age.
+if [ -f "$ENV" ]; then
+    APP_KEY_VALUE="$(grep -E '^APP_KEY=' "$ENV" | cut -d= -f2-)"
+    CRED_FILE="${ROOT}/root/tpv-credenciales.txt"
+    if ! grep -qF "APP_KEY=${APP_KEY_VALUE}" "$CRED_FILE" 2>/dev/null; then
+        if [ "$DRY_RUN" = 1 ] && [ -z "$ROOT" ]; then
+            echo "  [dry-run] añadiría APP_KEY a /root/tpv-credenciales.txt"
+        else
+            mkdir -p "$(dirname "$CRED_FILE")"
+            { [ -f "$CRED_FILE" ] && cat "$CRED_FILE"; printf '%s\n' "APP_KEY=${APP_KEY_VALUE}   (guárdala con la clave privada age: sin ella no se leen los datos cifrados de las copias)"; } > "$CRED_FILE.tmp"
+            chmod 600 "$CRED_FILE.tmp" && mv "$CRED_FILE.tmp" "$CRED_FILE"
+        fi
+    fi
+fi
+
 # Actualización automática (opcional; por defecto, a mano con tpv-update).
 if [ -n "${AUTO_UPDATE_AT:-}" ]; then
     put /etc/cron.d/tpv-update 644 <<CONF
@@ -305,7 +323,7 @@ fi
 say "Listo"
 cat <<SUMMARY
   TPV:       http://${LAN_IP}/        (la pantalla táctil lo abre sola al reiniciar)
-  Admin:     http://${LAN_IP}/admin   ${ADMIN_EMAIL}  (contraseña y PIN en /root/tpv-credenciales.txt)
+  Admin:     http://${LAN_IP}/admin   ${ADMIN_EMAIL}  (contraseña, PIN y APP_KEY en /root/tpv-credenciales.txt)
   Móviles:   misma wifi → http://${LAN_IP}
   Remoto:    Tailscale → http://tpv-${SLUG}   ·   ssh por Tailscale
   Copias:    ${BACKUP_REMOTE:-solo locales (configura BACKUP_REMOTE)} · clave pública ${BACKUP_AGE_RECIPIENT:-SIN CONFIGURAR}
@@ -315,5 +333,7 @@ cat <<SUMMARY
    2. /admin → Ajustes del local: datos fiscales reales (NIF, razón social, dirección).
    3. /admin → Impresoras: red (IP:9100) o USB (/dev/usb/impresora-<nombre>) e "Imprimir prueba".
    4. /admin → Usuarios: camareros y encargados con su PIN.
-   5. Sigue docs/checklist-instalacion.md.
+   5. Guarda la APP_KEY (en /root/tpv-credenciales.txt) en el gestor de contraseñas,
+      junto con la clave privada age de las copias.
+   6. Sigue docs/checklist-instalacion.md.
 SUMMARY

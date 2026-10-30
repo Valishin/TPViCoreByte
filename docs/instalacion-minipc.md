@@ -145,7 +145,7 @@ El instalador (se puede volver a lanzar sin perder nada):
 5. **Tailscale** con SSH.
 6. **TPV** en `/opt/tpv`: `.env` con **claves y contraseñas nuevas** (APP_KEY,
    base de datos, Reverb), imagen, migraciones y el **admin real** (sin datos
-   de demo). Contraseña y PIN en `/root/tpv-credenciales.txt` (solo root).
+   de demo). Contraseña, PIN y **APP_KEY** en `/root/tpv-credenciales.txt` (solo root).
 7. Resumen con la URL, la IP y los siguientes pasos.
 
 Reinicia (`reboot`): la pantalla debe mostrar la pantalla de PIN del TPV.
@@ -162,7 +162,14 @@ admin y la contraseña de `/root/tpv-credenciales.txt`.
 3. **Usuarios**: camareros y encargados con su PIN (y repartidores si hay reparto).
 4. **Carta**: categorías (con su impresora), productos, modificadores.
 5. **Sala**: salas y mesas.
-6. Borra el fichero de credenciales cuando las hayas guardado:
+6. **Guarda la `APP_KEY` de este cliente en el gestor de contraseñas, junto con
+   la clave privada age** (y, en la fase de VERI\*FACTU, el certificado digital).
+   La base de datos guarda cifrados con ella algunos datos (la contraseña SMTP
+   de Ajustes). Las copias de seguridad los llevan cifrados: si se pierde la
+   `APP_KEY`, esos campos son ilegibles al restaurar en otro equipo y hay que
+   volver a introducirlos. Al restaurar en un equipo nuevo, pon la misma
+   `APP_KEY` en su `/opt/tpv/.env` antes de `tpv-restore`.
+7. Borra el fichero de credenciales cuando lo hayas guardado todo:
    `shred -u /root/tpv-credenciales.txt`.
 
 ## 6. Impresoras
@@ -254,6 +261,11 @@ cd /opt/tpv
 docker compose exec app php artisan tpv:backup            # copia + subida ahora
 docker compose exec app sh -c 'ls -lh /backups; rclone ls "$BACKUP_REMOTE"'
 ```
+
+> **Qué hay que guardar fuera del mini PC, por cliente** (gestor de contraseñas):
+> la clave privada age (dos sitios), la **APP_KEY** (`/opt/tpv/.env`) y, con
+> VERI\*FACTU, el certificado digital. Sin la clave age no se descifran las
+> copias; sin la APP_KEY, los datos cifrados que llevan dentro.
 
 ### Restaurar en el mini PC
 

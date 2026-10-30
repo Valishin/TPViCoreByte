@@ -42,6 +42,7 @@ Local: ____________________  Fecha: __________  Versión: ________  Técnico: __
 - [ ] `docker compose exec app php artisan tpv:backup` → OK y subida al destino remoto
 - [ ] Restauración probada (en otro equipo o en una prueba): la clave privada funciona
 - [ ] Clave privada age guardada en **dos sitios** fuera del mini PC
+- [ ] **APP_KEY de este cliente** (`/root/tpv-credenciales.txt`) guardada en el gestor de contraseñas, junto con la clave privada age (y, con VERI\*FACTU, el certificado digital)
 - [ ] /admin sin aviso de copias
 - [ ] Tailscale: `ssh` por Tailscale funciona; *key expiry* desactivado
 - [ ] (Si hay SAI) NUT configurado y `upsmon -c fsd` probado
