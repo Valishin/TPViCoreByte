@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pos;
 
 use App\Enums\AuthorizationAction;
 use App\Enums\PaymentMethod;
+use App\Enums\RectificationReason;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Ticket;
@@ -32,7 +33,8 @@ class TicketController extends Controller
             'payments' => $ticket->payments->map(fn ($p) => [
                 'method' => $p->method->value, 'amount' => $p->amount, 'tendered' => $p->tendered, 'change' => $p->change, 'tip' => $p->tip,
             ])->values(),
-            'remaining' => $ticket->type->value === 'simplificada' ? $rectifications->remaining($ticket) : [],
+            'remaining' => in_array($ticket->type->value, ['simplificada', 'completa', 'completa_canje'], true) && $ticket->status->value !== 'canjeado'
+                ? $rectifications->remaining($ticket) : [],
             'rectifications' => $ticket->rectifications->map(fn ($r) => ['id' => $r->id, 'number' => $r->fullNumber(), 'total' => $r->total])->values(),
             'reprints' => CheckoutService::reprintCount($ticket),
         ]]);
@@ -57,6 +59,7 @@ class TicketController extends Controller
             'lines' => ['nullable', 'array'], // ticket_line_id => unidades; vacío = anulación total
             'lines.*' => ['integer', 'min:0'],
             'refund_method' => ['nullable', Rule::enum(PaymentMethod::class)],
+            'reason_code' => ['nullable', Rule::enum(RectificationReason::class)], // facturas completas (tipo R1-R4)
             'authorization_token' => ['nullable', 'string'],
         ]);
         $authorization->require(AuthorizationAction::VoidTicket, $request->user(), $data['authorization_token'] ?? null, $ticket, $data['reason']);
@@ -65,6 +68,7 @@ class TicketController extends Controller
             $ticket, $request->user(), $data['reason'],
             empty($data['lines']) ? null : array_map('intval', $data['lines']),
             isset($data['refund_method']) ? PaymentMethod::from($data['refund_method']) : null,
+            reasonCode: isset($data['reason_code']) ? RectificationReason::from($data['reason_code']) : null,
         );
 
         return response()->json(['data' => self::summary($rectifying->load(['order.table', 'issuedBy', 'payments', 'rectifiedTicket']))], 201);

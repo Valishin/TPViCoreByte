@@ -6,9 +6,11 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\PrintJobKind;
 use App\Enums\RectificationMethod;
+use App\Enums\RectificationReason;
 use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Exceptions\CashSessionRequiredException;
+use App\Models\Customer;
 use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketLine;
@@ -16,6 +18,7 @@ use App\Models\User;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\PrintJobDispatcher;
 use App\Services\Pos\ReceiptFormatter;
+use App\Support\InvoiceRules;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -49,17 +52,32 @@ class RectificationService
      * @param  array<int, int>|null  $quantities  ticket_line_id (raíz) => unidades a anular; null = todo
      * @param  bool  $refund  false: sin devolución (p. ej. domicilio no entregado: no se llegó a cobrar)
      */
-    public function byDifferences(Ticket $original, User $by, string $reason, ?array $quantities = null, ?PaymentMethod $refundMethod = null, bool $print = true, bool $refund = true): Ticket
+    public function byDifferences(Ticket $original, User $by, string $reason, ?array $quantities = null, ?PaymentMethod $refundMethod = null, bool $print = true, bool $refund = true, ?RectificationReason $reasonCode = null): Ticket
     {
-        return $this->rectify($original, $by, $reason, RectificationMethod::Differences, $quantities, $refundMethod, $print, $refund);
+        return $this->rectify($original, $by, $reason, RectificationMethod::Differences, $quantities, $refundMethod, $print, $refund, $reasonCode);
     }
 
     /**
      * @param  array<int, int>  $removed  ticket_line_id (raíz) => unidades que se quitan del ticket corregido
      */
-    public function bySubstitution(Ticket $original, User $by, string $reason, array $removed, ?PaymentMethod $refundMethod = null, bool $print = false): Ticket
+    public function bySubstitution(Ticket $original, User $by, string $reason, array $removed, ?PaymentMethod $refundMethod = null, bool $print = false, ?RectificationReason $reasonCode = null, ?Customer $newRecipient = null): Ticket
     {
-        return $this->rectify($original, $by, $reason, RectificationMethod::Substitution, $removed, $refundMethod, $print);
+        return $this->rectify($original, $by, $reason, RectificationMethod::Substitution, $removed, $refundMethod, $print, true, $reasonCode, $newRecipient);
+    }
+
+    /**
+     * Factura completa con datos del destinatario erróneos: rectificativa por
+     * sustitución con los mismos importes y los datos correctos (art. 15.1: la
+     * factura no cumple el art. 6).
+     */
+    public function correctRecipient(Ticket $original, Customer $newRecipient, User $by, string $reason, bool $print = false): Ticket
+    {
+        if (! $original->type->isFullInvoice()) {
+            throw new LogicException('Solo las facturas completas tienen destinatario.');
+        }
+        InvoiceRules::assertRecipient($newRecipient);
+
+        return $this->bySubstitution($original, $by, $reason, [], print: $print, reasonCode: RectificationReason::RecipientData, newRecipient: $newRecipient);
     }
 
     /** Unidades de cada línea raíz que aún se pueden rectificar. */
@@ -77,11 +95,14 @@ class RectificationService
             ->all();
     }
 
-    private function rectify(Ticket $original, User $by, string $reason, RectificationMethod $method, ?array $quantities, ?PaymentMethod $refundMethod, bool $print, bool $withRefund = true): Ticket
+    private function rectify(Ticket $original, User $by, string $reason, RectificationMethod $method, ?array $quantities, ?PaymentMethod $refundMethod, bool $print, bool $withRefund = true, ?RectificationReason $reasonCode = null, ?Customer $newRecipient = null): Ticket
     {
-        if ($original->type !== TicketType::Simplified) {
-            throw new LogicException('Solo se pueden rectificar facturas simplificadas.');
+        // Se rectifican tickets (→ rectificativo R5, serie R) y facturas completas,
+        // directas o de canje (→ rectificativa R1-R4, serie FR): art. 6.1.a 2.º y 15.
+        if (! in_array($original->type, [TicketType::Simplified, TicketType::Invoice, TicketType::InvoiceExchange], true)) {
+            throw new LogicException('Solo se pueden rectificar tickets y facturas (no otro rectificativo).');
         }
+        $fullInvoice = $original->type->isFullInvoice();
         if ($original->status === TicketStatus::Exchanged) {
             // Canjeado por una factura completa: cualquier corrección, sobre la factura.
             throw new LogicException('Este ticket se canjeó por la factura '.$original->exchangedBy?->fullNumber().': rectifica la factura.');
@@ -94,7 +115,7 @@ class RectificationService
         }
         $session = CheckoutService::openSession() ?? throw new CashSessionRequiredException;
 
-        return DB::transaction(function () use ($original, $by, $reason, $method, $quantities, $refundMethod, $print, $session, $withRefund) {
+        return DB::transaction(function () use ($original, $by, $reason, $method, $quantities, $refundMethod, $print, $session, $withRefund, $reasonCode, $newRecipient, $fullInvoice) {
             $original = Ticket::query()->whereKey($original->id)->lockForUpdate()->firstOrFail();
             $roots = $original->lines()->whereNull('parent_line_id')->get();
             $children = $original->lines()->whereNotNull('parent_line_id')->get()->groupBy('parent_line_id');
@@ -109,12 +130,15 @@ class RectificationService
                 }
                 $affected[$root->id] = $units;
             }
-            if (array_sum($affected) === 0) {
+            // Sin líneas afectadas solo vale la corrección del destinatario (sustitución).
+            if (array_sum($affected) === 0 && ! ($newRecipient && $method === RectificationMethod::Substitution)) {
                 throw new InvalidArgumentException('Elige qué anular.');
             }
 
             $settings = Setting::current();
-            $series = $settings->rectifyingTicketSeries ?? throw new LogicException('No hay serie de rectificativos.');
+            $series = $fullInvoice
+                ? ($settings->invoiceRectifyingSeries ?? throw new LogicException('No hay serie de rectificativas de facturas (FR).'))
+                : ($settings->rectifyingTicketSeries ?? throw new LogicException('No hay serie de rectificativos.'));
 
             // Líneas del rectificativo: por diferencias, lo anulado en negativo;
             // por sustitución, lo que queda (el ticket corregido).
@@ -181,7 +205,7 @@ class RectificationService
                 'ticket_series_id' => $series->id,
                 'series_code' => $series->code,
                 'number' => $this->numbers->next($series),
-                'type' => TicketType::Rectifying,
+                'type' => $original->type->rectifyingType(),
                 'status' => TicketStatus::Issued,
                 'order_id' => $original->order_id,
                 'order_type' => $original->order_type,
@@ -191,6 +215,10 @@ class RectificationService
                 'rectified_ticket_id' => $original->id,
                 'rectification_method' => $method,
                 'rectification_reason' => $reason,
+                // Motivo codificado (tipo R1-R4 de VERI*FACTU) solo en facturas completas; los tickets son R5.
+                'rectification_reason_code' => $fullInvoice
+                    ? ($reasonCode ?? ($newRecipient ? RectificationReason::RecipientData : RectificationReason::ErrorOrDiscount))->value
+                    : null,
                 'rectified_amounts' => $method === RectificationMethod::Substitution
                     ? ['base' => $original->tax_base, 'tax' => $original->tax_amount, 'total' => $original->total] : null,
                 'subtotal' => $subtotal,
@@ -205,8 +233,10 @@ class RectificationService
                 'total' => $total,
                 'vat_breakdown' => $breakdown,
                 'issuer' => $settings->issuerSnapshot(),
-                'customer_id' => $original->customer_id,
+                'customer_id' => $newRecipient?->id ?? $original->customer_id,
                 'customer' => $original->customer,
+                'recipient' => $newRecipient?->recipientSnapshot() ?? $original->recipient,
+                'operation_date' => $original->operation_date ?? $original->issued_at->toDateString(),
                 'delivery_address' => $original->delivery_address,
                 'payment_status' => PaymentStatus::Paid,
                 'paid_at' => now(),
@@ -224,7 +254,10 @@ class RectificationService
             $refund = $method === RectificationMethod::Differences ? $total : $total - $original->total;
             if ($refund < 0 && $withRefund) {
                 $rectifying->payments()->create([
-                    'method' => $refundMethod ?? $original->payments()->orderByDesc('amount')->first()?->method ?? PaymentMethod::Cash,
+                    // Factura de canje: el cobro está en el ticket que sustituyó.
+                    'method' => $refundMethod
+                        ?? ($original->replacedTicket ?? $original)->payments()->orderByDesc('amount')->first()?->method
+                        ?? PaymentMethod::Cash,
                     'amount' => $refund,
                     'user_id' => $by->id,
                     'cash_session_id' => $session->id,
@@ -252,6 +285,7 @@ class RectificationService
             'variant_name' => $line->variant_name,
             'quantity' => $quantity,
             'unit_price' => $line->unit_price,
+            'unit_price_net' => $line->unit_price_net,
             'vat_rate' => $line->vat_rate,
             'reference_price' => $line->reference_price,
             'allocated_amount' => $line->allocated_amount,
