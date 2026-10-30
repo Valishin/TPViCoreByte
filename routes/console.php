@@ -18,3 +18,5 @@ Schedule::command('tpv:backup --upload-only')->hourly()->withoutOverlapping();
 
 // Facturas por email que no salieron (sin internet): se reintentan cada hora.
 Schedule::command('tpv:invoices-retry-email')->hourly()->withoutOverlapping();
+// VERI*FACTU: envío de pendientes (control de flujo dentro) y reintento tras incidencias (OM 16.2 y 16.4).
+Schedule::command('tpv:verifactu:send')->everyMinute()->withoutOverlapping();

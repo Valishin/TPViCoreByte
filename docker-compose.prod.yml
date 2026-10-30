@@ -60,7 +60,7 @@ services:
     queue:
         <<: *app
         # default + email (facturas en PDF; cada job fija sus reintentos)
-        command: ['php', 'artisan', 'queue:work', '--queue=default,email', '--sleep=1', '--tries=3', '--timeout=90', '--max-time=3600']
+        command: ['php', 'artisan', 'queue:work', '--queue=default,email,verifactu', '--sleep=1', '--tries=3', '--timeout=90', '--max-time=3600']
         mem_limit: 384m
         healthcheck:
             test: ['CMD', 'pgrep', '-f', 'queue:work']

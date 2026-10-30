@@ -2,6 +2,7 @@
 
 namespace App\Services\Verifactu;
 
+use App\Jobs\SendVerifactuRecords;
 use App\Models\FiscalRecord;
 use App\Models\FiscalRecordState;
 use App\Models\Setting;
@@ -72,8 +73,11 @@ class FiscalRecordGenerator
             'corrects_record_id' => $corrects?->id,
             'xml' => $xml,
         ]);
-        FiscalRecordState::create(['fiscal_record_id' => $record->id, 'status' => FiscalRecordState::PENDING]);
+        // Generado durante una incidencia de envío: irá con Incidencia = S (OM 16.4).
+        FiscalRecordState::create(['fiscal_record_id' => $record->id, 'status' => FiscalRecordState::PENDING, 'incident' => $head->incident_since !== null]);
         $head->update(['last_record_id' => $record->id]);
+        // Se intenta enviar en cuanto se confirme la transacción (respetando el control de flujo).
+        DB::afterCommit(fn () => SendVerifactuRecords::dispatch()->onQueue('verifactu'));
 
         return $record;
     }

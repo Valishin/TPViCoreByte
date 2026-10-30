@@ -27,7 +27,7 @@ final class RecordBuilder
     /**
      * Registro de alta de un documento.
      *
-     * @param  array{correction?: bool, previous_rejection?: ?string}  $flags  Subsanacion / RechazoPrevio (L4, L17)
+     * @param  array{correction?: bool, previous_rejection?: ?string, recipient_not_censused?: bool}  $flags  Subsanacion / RechazoPrevio (L4, L17)
      * @return array{xml: string, hash: string, columns: array<string, mixed>}
      */
     public function alta(Ticket $ticket, Setting $settings, ?FiscalRecord $previous, string $generatedAt, array $flags = []): array
@@ -86,7 +86,7 @@ final class RecordBuilder
 
         // Destinatario: obligatorio en F1, F3 y R1-R4; prohibido en F2 y R5 (VAL 3.1.3.13).
         if ($ticket->recipient && ! in_array($type, ['F2', 'R5'], true)) {
-            $this->recipient($this->el($this->el($root, 'Destinatarios'), 'IDDestinatario'), $ticket->recipient);
+            $this->recipient($this->el($this->el($root, 'Destinatarios'), 'IDDestinatario'), $ticket->recipient, ! empty($flags['recipient_not_censused']));
         }
 
         $desglose = $this->el($root, 'Desglose');
@@ -204,11 +204,20 @@ final class RecordBuilder
      * Destinatario: NIF español o IDOtro (lista L7). NIF-IVA UE → 02 (sin
      * CodigoPais, VAL 3.1.3.13); pasaporte u otro documento → 03 con el país.
      */
-    private function recipient(DOMElement $parent, array $recipient): void
+    private function recipient(DOMElement $parent, array $recipient, bool $notCensused = false): void
     {
         $this->el($parent, 'NombreRazon', self::text($recipient['name'] ?? '', 120));
         $taxId = self::nif($recipient['tax_id'] ?? '');
         $type = TaxIdType::tryFrom((string) ($recipient['tax_id_type'] ?? ''));
+        if ($notCensused) {
+            // Subsanación del error 2001: NIF correcto pero no censado → IDOtro, IDType 07, país ES (VAL 3.1.3.13).
+            $other = $this->el($parent, 'IDOtro');
+            $this->el($other, 'CodigoPais', 'ES');
+            $this->el($other, 'IDType', '07');
+            $this->el($other, 'ID', $taxId);
+
+            return;
+        }
         if (in_array($type, [TaxIdType::VatEu, TaxIdType::Other], true)) {
             $other = $this->el($parent, 'IDOtro');
             if ($type === TaxIdType::Other) {

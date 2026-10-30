@@ -42,7 +42,7 @@ services:
     # en producción será queue:work.
     queue:
         image: 'sail-8.4/app'
-        command: ['php', 'artisan', 'queue:listen', '--queue=default,email', '--tries=1', '--timeout=60']
+        command: ['php', 'artisan', 'queue:listen', '--queue=default,email,verifactu', '--tries=1', '--timeout=60']
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
