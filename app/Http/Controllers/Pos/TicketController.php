@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Pos;
 use App\Enums\AuthorizationAction;
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Ticket;
+use App\Services\Billing\InvoiceExchanger;
 use App\Services\Pos\AuthorizationService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Tickets\RectificationService;
@@ -68,8 +70,22 @@ class TicketController extends Controller
         return response()->json(['data' => self::summary($rectifying->load(['order.table', 'issuedBy', 'payments', 'rectifiedTicket']))], 201);
     }
 
+    /** Canjear el ticket por una factura completa con los datos de un cliente (art. 15.6). */
+    public function exchange(Request $request, Ticket $ticket, InvoiceExchanger $exchanger): JsonResponse
+    {
+        $data = $request->validate([
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'confirm_other_year' => ['boolean'],
+        ]);
+        $invoice = $exchanger->exchange($ticket, Customer::query()->findOrFail($data['customer_id']), $request->user(), $data['confirm_other_year'] ?? false);
+
+        return response()->json(['data' => self::summary($invoice->load(['order.table', 'issuedBy', 'payments', 'rectifiedTicket', 'replacedTicket']))], 201);
+    }
+
     public static function summary(Ticket $ticket): array
     {
+        $ticket->loadMissing(['exchangedBy', 'replacedTicket']);
+
         return [
             'id' => $ticket->id,
             'number' => $ticket->fullNumber(),
@@ -82,6 +98,14 @@ class TicketController extends Controller
             'total' => $ticket->total,
             'payment_methods' => $ticket->payments->pluck('method')->map->value->unique()->values(),
             'rectifies' => $ticket->rectifiedTicket?->fullNumber(),
+            'type_label' => $ticket->type->label(),
+            'recipient' => $ticket->recipient ? ['name' => $ticket->recipient['name'] ?? null, 'tax_id' => $ticket->recipient['tax_id'] ?? null] : null,
+            'replaces' => $ticket->replacedTicket?->fullNumber(),
+            'exchanged_by' => $ticket->exchangedBy?->fullNumber(),
+            // Se puede canjear: ticket cobrado, sin rectificativos ni canje.
+            'can_exchange' => $ticket->type->value === 'simplificada' && $ticket->status->value === 'emitido'
+                && $ticket->payment_status->value === 'pagado',
+            'other_year' => $ticket->issued_at->year !== now()->year,
         ];
     }
 }

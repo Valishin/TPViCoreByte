@@ -82,6 +82,10 @@ class RectificationService
         if ($original->type !== TicketType::Simplified) {
             throw new LogicException('Solo se pueden rectificar facturas simplificadas.');
         }
+        if ($original->status === TicketStatus::Exchanged) {
+            // Canjeado por una factura completa: cualquier corrección, sobre la factura.
+            throw new LogicException('Este ticket se canjeó por la factura '.$original->exchangedBy?->fullNumber().': rectifica la factura.');
+        }
         if (blank($reason)) {
             throw new InvalidArgumentException('Indica el motivo.');
         }

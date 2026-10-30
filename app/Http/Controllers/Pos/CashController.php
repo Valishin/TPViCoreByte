@@ -88,11 +88,19 @@ class CashController extends Controller
     }
 
     /** Tickets de la caja abierta (o de hoy si no hay), los más recientes primero. */
-    public function tickets(): JsonResponse
+    /** Tickets de la caja abierta (o de hoy); con ?q=T-000123 o 123, búsqueda por número en todos. */
+    public function tickets(Request $request): JsonResponse
     {
         $session = CheckoutService::openSession();
+        $search = trim((string) $request->query('q', ''));
         $tickets = Ticket::query()
-            ->when($session, fn ($q) => $q->where('cash_session_id', $session->id), fn ($q) => $q->whereDate('issued_at', today()))
+            ->when($search !== '', function ($q) use ($search) {
+                preg_match('/^(?:([A-Za-z]+)-?)?0*(\d+)$/', str_replace(' ', '', $search), $m);
+                if (! $m) {
+                    return $q->whereRaw('false');
+                }
+                $q->where('number', (int) $m[2])->when($m[1] ?? '', fn ($q) => $q->where('series_code', strtoupper($m[1])));
+            }, fn ($q) => $q->when($session, fn ($q) => $q->where('cash_session_id', $session->id), fn ($q) => $q->whereDate('issued_at', today())))
             ->with(['order.table', 'issuedBy', 'payments', 'rectifiedTicket'])
             ->latest('id')->limit(100)->get();
 
