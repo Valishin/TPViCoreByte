@@ -1,0 +1,91 @@
+@use '../tokens' as *;
+
+// Destinatario de la factura (InvoiceRecipientSheet.vue)
+.c-recipient {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+
+    &__results {
+        display: flex;
+        flex-direction: column;
+        gap: $space-2;
+    }
+
+    &__result {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        min-height: $touch-target;
+        padding: $space-3 $space-4;
+        border: 2px solid $color-border;
+        border-radius: $radius-md;
+        background: $color-surface-2;
+        text-align: left;
+
+        span {
+            color: $color-text-muted;
+        }
+    }
+
+    &__missing {
+        color: $color-danger;
+        font-weight: $font-weight-bold;
+    }
+
+    &__form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: $space-3;
+    }
+
+    &__wide,
+    &__taxid {
+        grid-column: 1 / -1;
+    }
+
+    &__taxid {
+        display: flex;
+        flex-direction: column;
+        gap: $space-1;
+    }
+
+    &__check {
+        min-height: 1.4em;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+
+        &--ok {
+            color: $color-success;
+        }
+
+        &--error {
+            color: $color-danger;
+        }
+    }
+
+    // Destinatario elegido, en el cobro o la salida
+    &__chosen {
+        display: flex;
+        align-items: center;
+        gap: $space-2;
+        padding: $space-2 $space-3;
+        border: 2px solid $color-primary;
+        border-radius: $radius-md;
+
+        > span {
+            flex: 1;
+        }
+
+        small {
+            display: block;
+            color: $color-text-muted;
+        }
+    }
+}
+
+// En el móvil, una columna.
+html[data-layout='mobile'] .c-recipient__form {
+    grid-template-columns: 1fr;
+}

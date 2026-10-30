@@ -8,10 +8,16 @@
 
         <!-- Cobrado -->
         <section v-if="done" class="v-checkout__done">
-            <p class="v-checkout__done-title">Cobrado · {{ done.ticket.number }}</p>
+            <p class="v-checkout__done-title">Cobrado · {{ done.ticket.type === 'completa' ? 'Factura ' : '' }}{{ done.ticket.number }}</p>
+            <p v-if="done.ticket.recipient" class="v-config__rule">{{ done.ticket.recipient.name }} · {{ done.ticket.recipient.tax_id }}</p>
+            <p v-if="done.ticket.email" class="v-config__rule">Email a {{ done.ticket.email.to }}: {{ emailStatus(done.ticket.email) }}</p>
             <p v-if="done.change" class="v-checkout__change">Cambio <strong>{{ money(done.change) }}</strong></p>
             <div class="v-checkout__done-actions">
                 <TpvButton variant="secondary" size="lg" @click="reprint">Imprimir copia</TpvButton>
+                <template v-if="done.ticket.type === 'completa'">
+                    <TpvButton variant="secondary" size="lg" @click="openPdf(done.ticket)">PDF</TpvButton>
+                    <TpvButton variant="secondary" size="lg" :loading="mailing" @click="sendEmail">{{ done.ticket.email ? 'Reenviar email' : 'Enviar por email' }}</TpvButton>
+                </template>
                 <TpvButton variant="primary" size="lg" @click="router.replace(home)">{{ takeaway ? 'Volver a pedidos' : 'Volver a mesas' }}</TpvButton>
             </div>
         </section>
@@ -112,15 +118,22 @@
                     </TpvButton>
                 </template>
 
+                <div v-if="recipient" class="c-recipient__chosen">
+                    <span>Factura a <strong>{{ recipient.legal_name }}</strong><small>{{ recipient.tax_id }}<template v-if="recipient.fiscal_city"> · {{ recipient.fiscal_city }}</template></small></span>
+                    <TpvButton variant="secondary" size="sm" @click="recipientOpen = true">Cambiar</TpvButton>
+                    <TpvButton variant="ghost" size="sm" aria-label="Quitar los datos de factura" @click="recipient = null">✕</TpvButton>
+                </div>
+                <TpvButton v-else variant="secondary" block @click="recipientOpen = true">Factura con datos</TpvButton>
+
                 <label class="v-checkout__toggle">
-                    <input v-model="printTicket" type="checkbox" /> Imprimir ticket
+                    <input v-model="printTicket" type="checkbox" /> {{ recipient ? 'Imprimir factura' : 'Imprimir ticket' }}
                 </label>
                 <label v-if="parts > 1" class="v-checkout__toggle">
                     <input v-model="receipts" type="checkbox" /> Justificante de pago para cada parte
                 </label>
 
                 <TpvButton variant="success" size="lg" block :disabled="remaining !== 0 || busy" :loading="busy" @click="charge">
-                    Cobrar {{ money(o.total) }}
+                    {{ recipient ? 'Cobrar y facturar' : 'Cobrar' }} {{ money(o.total) }}
                 </TpvButton>
             </section>
         </div>
@@ -128,6 +141,7 @@
         <DiscountSheet :target="discountTarget" @close="discountTarget = null" />
         <OpenCashDialog :open="openCash" @close="openCash = false" @opened="openCash = false; charge()" />
         <SplitSheet :open="splitOpen" @close="splitOpen = false" @split="onSplit" />
+        <InvoiceRecipientSheet :open="recipientOpen" :hint="recipientHint" @close="recipientOpen = false; recipientHint = ''" @select="onRecipient" />
     </main>
 </template>
 
@@ -136,6 +150,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AmountKeypad from '@/components/AmountKeypad.vue';
 import DiscountSheet from '@/components/DiscountSheet.vue';
+import InvoiceRecipientSheet from '@/components/InvoiceRecipientSheet.vue';
 import OpenCashDialog from '@/components/OpenCashDialog.vue';
 import SplitSheet from '@/components/SplitSheet.vue';
 import TpvButton from '@/components/TpvButton.vue';
@@ -144,7 +159,7 @@ import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
 import { useOrderStore } from '@/stores/order';
 import { useSessionStore } from '@/stores/session';
-import { money, uid } from '@/utils/format';
+import { emailStatus, money, uid } from '@/utils/format';
 
 const route = useRoute();
 // Para llevar: se cobra desde "Pedidos" y se vuelve allí.
@@ -177,6 +192,11 @@ const done = ref(null);
 const openCash = ref(false);
 const discountTarget = ref(null);
 const splitOpen = ref(false);
+// Factura completa con los datos del cliente (serie F) en vez del ticket.
+const recipient = ref(null);
+const recipientOpen = ref(false);
+const recipientHint = ref('');
+const mailing = ref(false);
 // Un identificador por intento de cobro: si la petición llega dos veces, un solo ticket.
 let idempotencyKey = uid();
 
@@ -244,12 +264,17 @@ async function charge() {
             payments: payments.value,
             print: printTicket.value,
             payment_receipts: receipts.value,
+            invoice_customer_id: recipient.value?.id,
         });
         idempotencyKey = uid();
         order.clear();
     } catch (e) {
         if (errorCode(e) === 'cash_session_required') openCash.value = true;
-        else notices.error(errorMessage(e));
+        else if (errorCode(e) === 'invoice_required') {
+            // Más de 3.000 €: no se puede emitir ticket (art. 4.2.e RD 1619/2012).
+            recipientHint.value = errorMessage(e);
+            recipientOpen.value = true;
+        } else notices.error(errorMessage(e));
     } finally {
         busy.value = false;
     }
@@ -261,6 +286,28 @@ async function reprint() {
         notices.success('Copia enviada a la impresora');
     } catch (e) {
         if (!isCancelled(e)) notices.error(errorMessage(e));
+    }
+}
+function onRecipient(c) {
+    recipient.value = c;
+    recipientOpen.value = false;
+    // Si venía del aviso de los 3.000 €, se cobra ya (un toque menos).
+    if (recipientHint.value && remaining.value === 0) charge();
+    recipientHint.value = '';
+}
+function openPdf(t) {
+    window.open(pos.invoicePdfUrl(t.id), '_blank');
+}
+async function sendEmail() {
+    mailing.value = true;
+    try {
+        const e = await pos.emailInvoice(done.value.ticket.id);
+        done.value.ticket.email = { to: e.to, status: e.status };
+        notices.success(`Factura en cola para ${e.to}`);
+    } catch (e) {
+        notices.error(errorMessage(e));
+    } finally {
+        mailing.value = false;
     }
 }
 function onSplit(newOrder) {

@@ -47,3 +47,11 @@ export function uid() {
     const bytes = crypto.getRandomValues(new Uint8Array(16));
     return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** Estado del envío de una factura por email. */
+export function emailStatus(email) {
+    if (!email) return '';
+    if (email.status === 'enviado') return email.sent_at ? `enviada a las ${time(email.sent_at)}` : 'enviada';
+    if (email.status === 'error') return `error, se reintentará${email.error ? ` (${email.error})` : ''}`;
+    return 'en cola';
+}

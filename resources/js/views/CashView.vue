@@ -13,7 +13,8 @@
 
         <template v-else-if="cash">
             <section class="v-cash__stats">
-                <div class="v-cash__stat"><span>Ventas</span><strong>{{ money(report.sales_total) }}</strong><small>{{ report.tickets.count }} tickets · {{ report.rectifications.count }} rectif.</small></div>
+                <div class="v-cash__stat"><span>Ventas</span><strong>{{ money(report.sales_total) }}</strong><small>{{ report.tickets.count }} tickets<template v-if="report.invoices?.count"> · {{ report.invoices.count }} facturas</template> · {{ report.rectifications.count }} rectif.</small></div>
+                <div v-if="report.exchanges?.count" class="v-cash__stat"><span>Canjes por factura</span><strong>{{ report.exchanges.count }}</strong><small>{{ money(report.exchanges.total) }} · no suman (el ticket ya se contó)</small></div>
                 <div v-for="m in report.by_method" :key="m.method" class="v-cash__stat">
                     <span>{{ m.label }}{{ m.refunds_count ? ' (neto)' : '' }}</span>
                     <strong>{{ money(m.amount) }}</strong>
@@ -31,22 +32,50 @@
             </section>
 
             <section class="v-cash__tickets">
-                <h2 class="v-cash__subtitle">Tickets de esta caja</h2>
-                <p v-if="!tickets.length" class="v-config__rule">Aún no hay tickets.</p>
-                <div v-for="t in tickets" :key="t.id" :class="['v-cash__ticket', { 'v-cash__ticket--void': t.status === 'rectificado', 'v-cash__ticket--rect': t.type === 'rectificativa' }]">
+                <div class="v-cash__tickets-head">
+                    <h2 class="v-cash__subtitle">{{ searched ? `Resultado de «${searched}»` : 'Tickets de esta caja' }}</h2>
+                    <form class="v-cash__search" @submit.prevent="search">
+                        <TextField v-model="q" placeholder="Nº de ticket (T-000123)" autocomplete="off" />
+                        <TpvButton type="submit" variant="secondary" :disabled="!q.trim()">Buscar</TpvButton>
+                        <TpvButton v-if="searched" variant="ghost" @click="q = ''; searched = ''; load()">✕</TpvButton>
+                    </form>
+                </div>
+                <p v-if="!tickets.length" class="v-config__rule">{{ searched ? 'No hay ningún ticket con ese número.' : 'Aún no hay tickets.' }}</p>
+                <div v-for="t in tickets" :key="t.id" :class="['v-cash__ticket', { 'v-cash__ticket--void': t.status !== 'emitido', 'v-cash__ticket--rect': t.type.startsWith('rectificativa') }]">
                     <span class="v-cash__ticket-main">
-                        <strong>{{ t.number }}</strong> · {{ time(t.issued_at) }} · {{ t.table ? `Mesa ${t.table}` : typeLabel(t.order_type) }}
-                        <small>{{ t.issued_by }} · {{ t.payment_methods.join(', ') }}<template v-if="t.rectifies"> · rectifica {{ t.rectifies }}</template><template v-if="t.status === 'rectificado'"> · RECTIFICADO</template></small>
+                        <strong>{{ t.number }}</strong><template v-if="t.type !== 'simplificada'"> · {{ t.type_label }}</template> · {{ time(t.issued_at) }} · {{ t.table ? `Mesa ${t.table}` : typeLabel(t.order_type) }}
+                        <small>
+                            <template v-if="t.recipient">{{ t.recipient.name }} ({{ t.recipient.tax_id }}) · </template>{{ t.issued_by }} · {{ t.payment_methods.join(', ') }}<template v-if="t.rectifies"> · rectifica {{ t.rectifies }}</template><template v-if="t.replaces"> · sustituye a {{ t.replaces }}</template>
+                            <template v-if="t.status === 'rectificado'"> · RECTIFICADO</template><template v-if="t.exchanged_by"> · CANJEADO por {{ t.exchanged_by }}</template>
+                            <template v-if="t.email"> · email {{ emailStatus(t.email) }}</template>
+                        </small>
                     </span>
                     <strong>{{ money(t.total) }}</strong>
-                    <TpvButton variant="secondary" size="sm" @click="reprint(t)">Copia</TpvButton>
-                    <TpvButton v-if="t.type === 'simplificada'" variant="danger" size="sm" @click="voiding = t">Anular</TpvButton>
+                    <span class="v-cash__ticket-actions">
+                        <TpvButton variant="secondary" size="sm" @click="reprint(t)">Copia</TpvButton>
+                        <TpvButton v-if="t.can_exchange" variant="primary" size="sm" @click="exchanging = t">Hacer factura</TpvButton>
+                        <template v-if="isInvoice(t)">
+                            <TpvButton variant="secondary" size="sm" @click="openPdf(t)">PDF</TpvButton>
+                            <TpvButton variant="secondary" size="sm" :loading="busy === `mail-${t.id}`" @click="sendEmail(t)">Email</TpvButton>
+                        </template>
+                        <TpvButton v-if="t.status === 'emitido' && (t.type === 'simplificada' || isInvoice(t))" variant="danger" size="sm" @click="voiding = t">Anular</TpvButton>
+                    </span>
                 </div>
             </section>
         </template>
 
         <OpenCashDialog :open="openOpen" @close="openOpen = false" @opened="openOpen = false; load()" />
         <VoidTicketSheet :ticket="voiding" @close="voiding = null" @done="voiding = null; load()" />
+        <InvoiceRecipientSheet :open="!!exchanging" :title="exchanging ? `Factura del ticket ${exchanging.number}` : ''" @close="exchanging = null" @select="(c) => exchange(c, false)" />
+
+        <!-- Canje de un ticket de otro año (aviso, sin límite de plazo) -->
+        <ModalDialog :open="!!otherYear" title="Ticket de otro año" @close="otherYear = null">
+            <p class="c-modal__text">{{ otherYear?.message }}</p>
+            <template #actions>
+                <TpvButton variant="ghost" @click="otherYear = null">Cancelar</TpvButton>
+                <TpvButton variant="primary" :loading="busy === 'exchange'" @click="exchange(otherYear.customer, true)">Hacer la factura igualmente</TpvButton>
+            </template>
+        </ModalDialog>
 
         <!-- Cierre Z -->
         <ModalDialog :open="closeOpen" title="Cierre de caja (Z)" @close="closeOpen = false">
@@ -86,6 +115,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AmountKeypad from '@/components/AmountKeypad.vue';
 import DenominationCounter from '@/components/DenominationCounter.vue';
+import InvoiceRecipientSheet from '@/components/InvoiceRecipientSheet.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import OpenCashDialog from '@/components/OpenCashDialog.vue';
 import TextField from '@/components/TextField.vue';
@@ -95,7 +125,7 @@ import pos, { errorCode, errorMessage } from '@/services/pos';
 import { useSessionStore } from '@/stores/session';
 import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
-import { money, time } from '@/utils/format';
+import { emailStatus, money, time } from '@/utils/format';
 
 const router = useRouter();
 const session = useSessionStore();
@@ -115,6 +145,11 @@ const breakdown = ref(null);
 const notes = ref('');
 const openOrders = ref([]);
 const closed = ref(null);
+const q = ref('');
+const searched = ref('');
+const exchanging = ref(null);
+const otherYear = ref(null);
+const isInvoice = (t) => t.type === 'completa' || t.type === 'completa_canje';
 
 const report = computed(() => cash.value?.report);
 const difference = computed(() => counted.value - (report.value?.cash.expected ?? 0));
@@ -159,6 +194,45 @@ function drawer() {
 }
 function reprint(t) {
     guarded('reprint', () => authorize.withAuthorization('reimprimir', (token) => pos.reprint(t.id, { authorization_token: token })), () => notices.success(`Copia de ${t.number} enviada`));
+}
+async function search() {
+    const term = q.value.trim();
+    if (!term) return;
+    try {
+        tickets.value = await pos.searchTickets(term);
+        searched.value = term;
+    } catch (e) {
+        notices.error(errorMessage(e));
+    }
+}
+/** Canje del ticket por factura completa (art. 15.6 RD 1619/2012). */
+async function exchange(customer, confirmOtherYear) {
+    const ticket = exchanging.value ?? otherYear.value?.ticket;
+    busy.value = 'exchange';
+    try {
+        const invoice = await pos.exchange(ticket.id, { customer_id: customer.id, confirm_other_year: confirmOtherYear });
+        exchanging.value = null;
+        otherYear.value = null;
+        notices.success(`Factura ${invoice.number} emitida (sustituye a ${ticket.number})`);
+        if (searched.value) await search();
+        else await load();
+    } catch (e) {
+        if (errorCode(e) === 'exchange_other_year') {
+            otherYear.value = { ticket, customer, message: errorMessage(e) };
+            exchanging.value = null;
+        } else notices.error(errorMessage(e));
+    } finally {
+        busy.value = null;
+    }
+}
+function openPdf(t) {
+    window.open(pos.invoicePdfUrl(t.id), '_blank');
+}
+function sendEmail(t) {
+    guarded(`mail-${t.id}`, async () => {
+        const e = await pos.emailInvoice(t.id);
+        t.email = { to: e.to, status: e.status };
+    }, () => notices.success(`Factura ${t.number} en cola para ${t.email.to}`));
 }
 async function closeCash(force) {
     busy.value = 'z';

@@ -52,7 +52,8 @@
             </div>
         </section>
 
-        <DispatchSheet :order="dispatching" :busy="!!dispatching && busy[dispatching.id] === 'dispatch'" @confirm="dispatchTo" @close="dispatching = null" />
+        <DispatchSheet :order="dispatching" :busy="!!dispatching && busy[dispatching.id] === 'dispatch'" :invoice-hint="invoiceHint" @confirm="dispatchTo" @close="dispatching = null" />
+        <InvoiceRecipientSheet :open="!!handingOver" :hint="invoiceHint" :initial-query="handingOver?.customer_name ?? ''" @close="handingOver = null" @select="deliverWithInvoice" />
     </main>
 </template>
 
@@ -60,9 +61,10 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import DispatchSheet from '@/components/DispatchSheet.vue';
+import InvoiceRecipientSheet from '@/components/InvoiceRecipientSheet.vue';
 import TakeawayCard from '@/components/TakeawayCard.vue';
 import TpvButton from '@/components/TpvButton.vue';
-import pos, { errorMessage } from '@/services/pos';
+import pos, { errorCode, errorMessage } from '@/services/pos';
 import { useNoticesStore } from '@/stores/notices';
 import { COLUMNS, useTakeawayStore } from '@/stores/takeaway';
 import { useUiStore } from '@/stores/ui';
@@ -76,6 +78,9 @@ const tab = ref('pendiente');
 const showDone = ref(false);
 const busy = reactive({});
 const dispatching = ref(null);
+// Más de 3.000 € (art. 4.2.c RD 1619/2012): el servidor pide factura con datos.
+const invoiceHint = ref('');
+const handingOver = ref(null);
 
 const tabs = computed(() => [
     ...COLUMNS.map((c) => ({ ...c, count: store.byStatus(c.status).length })),
@@ -102,7 +107,9 @@ async function run(order, key, fn, ok) {
         if (result?.takeaway) store.upsert(result.takeaway);
         ok?.(result);
     } catch (e) {
-        notices.error(errorMessage(e));
+        if (errorCode(e) === 'invoice_required') invoiceHint.value = errorMessage(e);
+        if (errorCode(e) === 'invoice_required' && key === 'deliver') handingOver.value = order;
+        else if (errorCode(e) !== 'invoice_required') notices.error(errorMessage(e));
     } finally {
         delete busy[order.id];
     }
@@ -126,11 +133,18 @@ function action(key, order) {
     }
 }
 
-function dispatchTo(courier) {
+function dispatchTo(courier, recipient) {
     const order = dispatching.value;
-    run(order, 'dispatch', () => pos.dispatch(order.id, courier.id), (r) => {
+    invoiceHint.value = '';
+    run(order, 'dispatch', () => pos.dispatch(order.id, courier.id, recipient?.id), (r) => {
         dispatching.value = null;
-        notices.success(`Sale con ${courier.name} · ticket ${r.ticket.number}`);
+        notices.success(`Sale con ${courier.name} · ${recipient ? 'factura' : 'ticket'} ${r.ticket.number}`);
     });
+}
+function deliverWithInvoice(customer) {
+    const order = handingOver.value;
+    handingOver.value = null;
+    invoiceHint.value = '';
+    run(order, 'deliver', () => pos.takeawayStatus(order.id, 'entregado', customer.id), () => notices.success('Entregado con factura'));
 }
 </script>

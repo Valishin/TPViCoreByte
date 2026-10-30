@@ -83,6 +83,7 @@ class AuthController extends Controller
                 'discount_limit_bp' => $settings->discount_limit_bp,
                 'print_ticket_on_checkout' => $settings->print_ticket_on_checkout,
                 'show_onscreen_keyboard_pos' => $settings->show_onscreen_keyboard_pos,
+                'invoice_require_address' => $settings->invoice_require_address,
             ],
             'permissions' => [
                 'authorize' => AuthorizationService::canAuthorize($request->user()),

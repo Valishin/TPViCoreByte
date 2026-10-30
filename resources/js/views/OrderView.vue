@@ -86,7 +86,7 @@
             </template>
         </ModalDialog>
 
-        <DispatchSheet v-if="o?.type === 'domicilio'" :order="dispatching" :busy="sending" @confirm="dispatchTo" @close="dispatching = null" />
+        <DispatchSheet v-if="o?.type === 'domicilio'" :order="dispatching" :busy="sending" :invoice-hint="invoiceHint" @confirm="dispatchTo" @close="dispatching = null" />
 
         <BottomSheet :open="cancelOpen" title="Cancelar pedido" @close="cancelOpen = false">
             <p class="v-config__rule">{{ order.order?.send_count ? 'Ya se envió a cocina: se imprimirá la anulación y necesita autorización de encargado.' : 'Todavía no se ha enviado nada a cocina.' }}</p>
@@ -162,6 +162,7 @@ const prechecking = ref(false);
 const failedJob = ref(null);
 const belowMinimum = ref(null);
 const dispatching = ref(null);
+const invoiceHint = ref('');
 const cancelOpen = ref(false);
 const cancelReason = ref('');
 const cancelling = ref(false);
@@ -290,16 +291,19 @@ async function goDispatch() {
     if (order.pendingCount) await send();
     if (!order.pendingCount && !belowMinimum.value) dispatching.value = o.value.takeaway;
 }
-async function dispatchTo(courier) {
+async function dispatchTo(courier, recipient) {
     sending.value = true;
+    invoiceHint.value = '';
     try {
-        const result = await pos.dispatch(o.value.id, courier.id);
+        const result = await pos.dispatch(o.value.id, courier.id, recipient?.id);
         board.upsert(result.takeaway);
         dispatching.value = null;
-        notices.success(`Sale con ${courier.name} · ticket ${result.ticket.number}`);
+        notices.success(`Sale con ${courier.name} · ${recipient ? 'factura' : 'ticket'} ${result.ticket.number}`);
         router.replace('/pedidos');
     } catch (e) {
-        notices.error(errorMessage(e));
+        // Más de 3.000 €: se abre la ficha de datos fiscales (art. 4.2.c RD 1619/2012).
+        if (errorCode(e) === 'invoice_required') invoiceHint.value = errorMessage(e);
+        else notices.error(errorMessage(e));
     } finally {
         sending.value = false;
     }

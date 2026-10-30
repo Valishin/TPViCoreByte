@@ -138,7 +138,7 @@ class TicketController extends Controller
             'can_exchange' => $ticket->type->value === 'simplificada' && $ticket->status->value === 'emitido'
                 && $ticket->payment_status->value === 'pagado',
             'other_year' => $ticket->issued_at->year !== now()->year,
-            'email' => ($e = $ticket->type->isFullInvoice() ? $ticket->emails()->first() : null)
+            'email' => ($e = $ticket->type->isFullInvoice() ? $ticket->emails()->latest('id')->first() : null)
                 ? ['to' => $e->to, 'status' => $e->status, 'sent_at' => $e->sent_at?->toIso8601String(), 'error' => $e->last_error]
                 : null,
         ];

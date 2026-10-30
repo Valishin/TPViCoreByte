@@ -55,6 +55,32 @@
         padding: $space-3;
     }
 
+    &__tickets-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-2;
+        margin-bottom: $space-2;
+
+        .v-cash__subtitle {
+            margin-bottom: 0;
+        }
+    }
+
+    &__search {
+        display: flex;
+        gap: $space-2;
+        align-items: center;
+    }
+
+    &__ticket-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: $space-2;
+    }
+
     &__subtitle {
         margin-bottom: $space-2;
         font-size: $font-size-lg;
@@ -62,7 +88,7 @@
 
     &__ticket {
         display: grid;
-        grid-template-columns: 1fr auto auto auto;
+        grid-template-columns: 1fr auto auto;
         align-items: center;
         gap: $space-2;
         padding: $space-2 0;
