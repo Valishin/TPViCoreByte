@@ -55,15 +55,18 @@ class CourierController extends Controller
         return response()->json(['settlement' => self::settlement($settlement)], 201);
     }
 
-    /** No entregado: rectificativo total sin devolución (con autorización). */
+    /** No entregado (con autorización): anulación si no se cobró; rectificativo con devolución si estaba prepagado. */
     public function notDelivered(Request $request, Order $order): JsonResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:120'], 'authorization_token' => ['nullable', 'string']]);
-        $rectifying = $this->couriers->failDelivery($order, $request->user(), $data['reason'], $data['authorization_token'] ?? null);
+        $result = $this->couriers->failDelivery($order, $request->user(), $data['reason'], $data['authorization_token'] ?? null);
+        $rectifying = $result['rectifying'];
 
         return response()->json([
             'takeaway' => (new TakeawayOrderResource($order->fresh()))->resolve($request),
-            'rectifying' => ['id' => $rectifying->id, 'number' => $rectifying->fullNumber(), 'total' => $rectifying->total],
+            'outcome' => $result['outcome'],
+            'annulled' => $rectifying ? null : ['id' => $result['ticket']->id, 'number' => $result['ticket']->fullNumber()],
+            'rectifying' => $rectifying ? ['id' => $rectifying->id, 'number' => $rectifying->fullNumber(), 'total' => $rectifying->total] : null,
         ]);
     }
 

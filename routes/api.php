@@ -107,6 +107,7 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::post('/tickets/{ticket}/reprint', [TicketController::class, 'reprint'])->name('pos.tickets.reprint');
     Route::post('/tickets/{ticket}/rectify', [TicketController::class, 'rectify'])->name('pos.tickets.rectify');
     Route::post('/tickets/{ticket}/exchange', [TicketController::class, 'exchange'])->name('pos.tickets.exchange');
+    Route::post('/tickets/{ticket}/annul', [TicketController::class, 'annul'])->name('pos.tickets.annul');
     Route::get('/tickets/{ticket}/pdf', [TicketController::class, 'pdf'])->name('pos.tickets.pdf');
     Route::post('/tickets/{ticket}/email', [TicketController::class, 'email'])->name('pos.tickets.email');
 

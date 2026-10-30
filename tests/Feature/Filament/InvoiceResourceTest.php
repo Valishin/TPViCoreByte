@@ -86,10 +86,12 @@ class InvoiceResourceTest extends FilamentTestCase
         $this->assertSame(TicketType::InvoiceExchange, $invoice->type);
         $this->assertSame(TicketStatus::Exchanged, $ticket->refresh()->status);
 
-        // Canjeado: ya no se puede canjear ni rectificar.
+        // Canjeado: no se vuelve a canjear ni a anular por error; se rectifica solo por diferencias (FAQ 27).
         Livewire::test(ViewTicket::class, ['record' => $ticket->id])
             ->assertActionHidden('exchange')
-            ->assertActionHidden('voidTicket');
+            ->assertActionHidden('annul')
+            ->assertActionHidden('substitute')
+            ->assertActionVisible('voidTicket');
     }
 
     public function test_rectify_full_invoice_with_reason_code(): void

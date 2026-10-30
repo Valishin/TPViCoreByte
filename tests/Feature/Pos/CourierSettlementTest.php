@@ -7,6 +7,7 @@ use App\Models\CashMovement;
 use App\Models\Order;
 use App\Models\PrintJob;
 use App\Models\Ticket;
+use App\Models\TicketAnnulment;
 use App\Models\User;
 use App\Services\Cash\CashReportService;
 
@@ -115,7 +116,8 @@ class CourierSettlementTest extends TakeawayTestCase
         $this->assertSame('pendiente', $this->ticketOf($a)->payment_status->value);
     }
 
-    public function test_not_delivered_rectifies_without_refund_and_leaves_pending(): void
+    /** Sin cobrar: no hubo venta → anulación (NotDeliveredPolicy; RRSIF 11.1). */
+    public function test_not_delivered_unpaid_is_annulled_and_leaves_pending(): void
     {
         $session = $this->openCash();
         $id = $this->outForDelivery($this->javi);
@@ -126,13 +128,14 @@ class CourierSettlementTest extends TakeawayTestCase
         $this->asWaiter()->postJson("/api/takeaway-orders/{$id}/not-delivered", ['reason' => 'No está en casa', 'authorization_token' => $this->managerToken('no_entregado')])
             ->assertOk()
             ->assertJsonPath('takeaway.delivery_status', 'no_entregado')
-            ->assertJsonPath('rectifying.total', -2150);
+            ->assertJsonPath('outcome', 'anulacion')
+            ->assertJsonPath('rectifying', null);
 
         $original = $this->ticketOf($id);
-        $this->assertSame('rectificado', $original->status->value);
-        $rect = Ticket::query()->where('rectified_ticket_id', $original->id)->sole();
-        $this->assertSame(0, $rect->payments()->count()); // sin devolución: no se cobró
-        $this->assertSame('No entregado: No está en casa', $rect->rectification_reason);
+        $this->assertSame('anulado', $original->status->value);
+        $this->assertSame(0, Ticket::query()->where('rectified_ticket_id', $original->id)->count());
+        $this->assertSame('No entregado: No está en casa', TicketAnnulment::query()->where('ticket_id', $original->id)->value('reason'));
+        $this->assertSame(0, $original->payments()->count()); // no se cobró: nada que devolver
 
         $report = app(CashReportService::class)->build($session->refresh());
         $this->assertSame(0, $report['delivery_pending']['count']);

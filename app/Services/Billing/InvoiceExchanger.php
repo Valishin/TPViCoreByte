@@ -26,9 +26,15 @@ use LogicException;
  *
  * La factura (tipo completa_canje, F3 en VERI*FACTU, serie F) tiene los mismos
  * importes, líneas y desglose de IVA que el ticket, la fecha de expedición de
- * hoy y la de la operación del ticket (art. 6.1.i), y lo referencia. El ticket
- * queda "canjeado": no se puede canjear otra vez ni rectificar (cualquier
- * corrección, sobre la factura).
+ * hoy y la de la operación del ticket (art. 6.1.i), y lo referencia
+ * (FacturasSustituidas). El ticket queda "canjeado" y no se vuelve a canjear.
+ *
+ * Correcciones, según la FAQ 27 de la AEAT para desarrolladores (v1.3):
+ *  - Datos del cliente mal en la F3 (caso 1): F3 en negativo con los mismos
+ *    importes + F3 nueva con los datos correctos, ambas sustituyendo al ticket.
+ *    La F3 errónea queda "rectificada". No se usan R1-R4 para una F3.
+ *  - Devolución o rectificación del ticket canjeado (casos 2 y 3): rectificativo
+ *    R5 del ticket + F3 de ese R5 para el cliente (ver RectificationService).
  */
 class InvoiceExchanger
 {
@@ -47,53 +53,98 @@ class InvoiceExchanger
                 throw new ExchangeOtherYearException($ticket->issued_at->year);
             }
 
-            $settings = Setting::current();
-            $series = $settings->invoiceSeries ?? throw new LogicException('No hay serie de facturas (F) en los ajustes.');
-
-            // Año y número de la misma fecha de emisión que se guarda (art. 6.1.a).
-            $issuedAt = now();
-            $number = $this->numbers->next($series, $issuedAt);
-            $invoice = Ticket::create([
-                'ticket_series_id' => $series->id,
-                'series_code' => $series->code,
-                ...$number->attributes(),
-                'type' => TicketType::InvoiceExchange,
-                'status' => TicketStatus::Issued,
-                'order_id' => $ticket->order_id,
-                'order_type' => $ticket->order_type,
-                // Canje: no es una venta nueva (el ticket ya contó en su Z), pero
-                // se asocia a la caja abierta para listarlo en ella.
-                'cash_session_id' => CheckoutService::openSession()?->id,
-                'issued_by' => $by->id,
-                'issued_at' => $issuedAt,
-                'operation_date' => $ticket->issued_at->toDateString(),
-                'replaces_ticket_id' => $ticket->id,
-                'subtotal' => $ticket->subtotal,
-                'lines_discount' => $ticket->lines_discount,
-                'discount_type' => $ticket->discount_type,
-                'discount_value' => $ticket->discount_value,
-                'discount_amount' => $ticket->discount_amount,
-                'discount_reason' => $ticket->discount_reason,
-                'delivery_fee' => $ticket->delivery_fee,
-                'delivery_fee_vat_rate' => $ticket->delivery_fee_vat_rate,
-                'tax_base' => $ticket->tax_base,
-                'tax_amount' => $ticket->tax_amount,
-                'total' => $ticket->total,
-                'vat_breakdown' => $ticket->vat_breakdown,
-                'issuer' => $settings->issuerSnapshot(),
-                'customer_id' => $recipient->id,
-                'customer' => $ticket->customer,
-                'recipient' => $recipient->recipientSnapshot(),
-                'delivery_address' => $ticket->delivery_address,
-                'payment_status' => PaymentStatus::Paid, // el cobro está en el ticket
-                'paid_at' => $ticket->paid_at ?? now(),
-            ]);
-            $this->copyLines($ticket, $invoice);
-            app(FiscalRecordGenerator::class)->alta($invoice);   // F3 (RRSIF 10.1.h)
+            $invoice = $this->issueExchange($ticket, $ticket, $recipient->recipientSnapshot(), $recipient->id, $by);
             $ticket->update(['status' => TicketStatus::Exchanged]);
 
             return $invoice;
         });
+    }
+
+    /**
+     * FAQ 27 caso 1: datos del cliente erróneos en una F3. Devuelve la F3 nueva
+     * (la negativa queda enlazada al mismo ticket).
+     */
+    public function correctRecipient(Ticket $exchange, Customer $recipient, User $by): Ticket
+    {
+        InvoiceRules::assertRecipient($recipient);
+        EmissionGuard::assertCanIssue();
+
+        return DB::transaction(function () use ($exchange, $recipient, $by) {
+            $exchange = Ticket::query()->whereKey($exchange->id)->lockForUpdate()->firstOrFail();
+            if ($exchange->type !== TicketType::InvoiceExchange || $exchange->status !== TicketStatus::Issued || $exchange->total < 0) {
+                throw new LogicException('Solo se corrige una factura de canje vigente.');
+            }
+            $replaced = $exchange->replacedTicket ?? throw new LogicException('La factura de canje no indica a qué ticket sustituye.');
+
+            $this->issueExchange($exchange, $replaced, $exchange->recipient, $exchange->customer_id, $by, negate: true);
+            $new = $this->issueExchange($exchange, $replaced, $recipient->recipientSnapshot(), $recipient->id, $by);
+            $exchange->update(['status' => TicketStatus::Rectified]);
+
+            return $new;
+        });
+    }
+
+    /**
+     * FAQ 27 casos 2 y 3: F3 del rectificativo R5 de un ticket canjeado, para el
+     * mismo cliente que la F3 vigente. Se llama dentro de la transacción del R5.
+     */
+    public function exchangeRectifying(Ticket $rectifying, Ticket $currentExchange, User $by): Ticket
+    {
+        return $this->issueExchange($rectifying, $rectifying, $currentExchange->recipient, $currentExchange->customer_id, $by);
+    }
+
+    /**
+     * Emite una F3 (serie F) con los importes, líneas y desglose de $source
+     * (en negativo si $negate) que sustituye a $replaces, y genera su registro.
+     */
+    private function issueExchange(Ticket $source, Ticket $replaces, array $recipient, ?int $customerId, User $by, bool $negate = false): Ticket
+    {
+        $settings = Setting::current();
+        $series = $settings->invoiceSeries ?? throw new LogicException('No hay serie de facturas (F) en los ajustes.');
+        $sign = $negate ? -1 : 1;
+
+        // Año y número de la misma fecha de emisión que se guarda (art. 6.1.a).
+        $issuedAt = now();
+        $number = $this->numbers->next($series, $issuedAt);
+        $invoice = Ticket::create([
+            'ticket_series_id' => $series->id,
+            'series_code' => $series->code,
+            ...$number->attributes(),
+            'type' => TicketType::InvoiceExchange,
+            'status' => TicketStatus::Issued,
+            'order_id' => $source->order_id,
+            'order_type' => $source->order_type,
+            // Canje: no es una venta nueva (el ticket ya contó en su Z), pero
+            // se asocia a la caja abierta para listarlo en ella.
+            'cash_session_id' => CheckoutService::openSession()?->id,
+            'issued_by' => $by->id,
+            'issued_at' => $issuedAt,
+            'operation_date' => ($source->operation_date ?? $source->issued_at)->toDateString(),
+            'replaces_ticket_id' => $replaces->id,
+            'subtotal' => $sign * $source->subtotal,
+            'lines_discount' => $sign * $source->lines_discount,
+            'discount_type' => $source->discount_type,
+            'discount_value' => $source->discount_value,
+            'discount_amount' => $sign * $source->discount_amount,
+            'discount_reason' => $source->discount_reason,
+            'delivery_fee' => $sign * $source->delivery_fee,
+            'delivery_fee_vat_rate' => $source->delivery_fee_vat_rate,
+            'tax_base' => $sign * $source->tax_base,
+            'tax_amount' => $sign * $source->tax_amount,
+            'total' => $sign * $source->total,
+            'vat_breakdown' => array_map(fn (array $v) => ['rate' => $v['rate'], 'base' => $sign * $v['base'], 'tax' => $sign * $v['tax'], 'total' => $sign * $v['total']], $source->vat_breakdown ?? []),
+            'issuer' => $settings->issuerSnapshot(),
+            'customer_id' => $customerId,
+            'customer' => $source->customer,
+            'recipient' => $recipient,
+            'delivery_address' => $source->delivery_address,
+            'payment_status' => PaymentStatus::Paid, // el cobro está en el ticket
+            'paid_at' => $source->paid_at ?? now(),
+        ]);
+        $this->copyLines($source, $invoice, $sign);
+        app(FiscalRecordGenerator::class)->alta($invoice);   // F3 (RRSIF 10.1.h)
+
+        return $invoice;
     }
 
     /** @throws LogicException con el motivo legible */
@@ -113,7 +164,7 @@ class InvoiceExchanger
         }
     }
 
-    private function copyLines(Ticket $from, Ticket $to): void
+    private function copyLines(Ticket $from, Ticket $to, int $sign = 1): void
     {
         $map = [];
         foreach ($from->lines()->orderByRaw('parent_line_id IS NOT NULL')->orderBy('id')->get() as $line) {
@@ -122,6 +173,9 @@ class InvoiceExchanger
             $copy->ticket_id = $to->id;
             $copy->parent_line_id = $line->parent_line_id ? $map[$line->parent_line_id] : null;
             $copy->unit_price_net ??= self::netFromTicketLine($line, $from);
+            foreach (['quantity', 'discount_amount', 'order_discount_amount', 'line_total', 'taxable_amount'] as $column) {
+                $copy->{$column} = $sign * (int) $copy->{$column};
+            }
             $copy->save();
             $map[$line->id] = $copy->id;
         }

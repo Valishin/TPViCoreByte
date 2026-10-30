@@ -48,7 +48,8 @@ const units = reactive({});
 const reason = ref('');
 const refund = ref('efectivo');
 const busy = ref(false);
-const reasons = ['Error al cobrar', 'Cliente devuelve producto', 'Producto en mal estado', 'Ticket duplicado'];
+// "Ticket duplicado" no es una rectificación: no hubo venta → «Anular por error» (RRSIF 11.1).
+const reasons = ['Error al cobrar', 'Cliente devuelve producto', 'Producto en mal estado'];
 const methods = [{ value: 'efectivo', label: 'Efectivo' }, { value: 'tarjeta', label: 'Tarjeta' }, { value: 'bizum', label: 'Bizum' }, { value: 'otro', label: 'Otro' }];
 
 const roots = computed(() => (detail.value?.lines ?? []).filter((l) => !l.parent_line_id));

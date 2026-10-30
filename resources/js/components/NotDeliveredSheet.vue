@@ -48,7 +48,7 @@ async function confirm() {
     try {
         const result = await authorize.withAuthorization('no_entregado', (token) =>
             (props.courier ? pos.myNotDelivered : pos.notDelivered)(props.order.id, { reason: reason.value, authorization_token: token }));
-        notices.success(result.rectifying ? `No entregado · rectificativo ${result.rectifying.number}` : 'Marcado como no entregado');
+        notices.success(result.rectifying ? `No entregado · rectificativo ${result.rectifying.number}` : result.annulled ? `No entregado · ticket ${result.annulled.number} anulado` : 'Marcado como no entregado');
         emit('done', result.takeaway ?? result.data);
     } catch (e) {
         if (!isCancelled(e)) notices.error(errorMessage(e));

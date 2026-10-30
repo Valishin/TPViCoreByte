@@ -27,7 +27,9 @@ class CashReportService
         // Canjes de tickets por factura (art. 15.6): NO son ventas nuevas (el
         // ticket ya contó en su Z). Se listan aparte y no suman.
         $exchanges = $documents->where('type', TicketType::InvoiceExchange);
-        $tickets = $documents->reject(fn (Ticket $t) => $t->type === TicketType::InvoiceExchange)->values();
+        // Anulados (emitidos por error, sin venta: RRSIF 11.1): no son ventas ni IVA; se listan aparte.
+        $annulled = $documents->where('status', TicketStatus::Annulled);
+        $tickets = $documents->reject(fn (Ticket $t) => $t->type === TicketType::InvoiceExchange || $t->status === TicketStatus::Annulled)->values();
         $payments = Payment::query()->where('cash_session_id', $session->id)->with('user')->get();
         $simplified = $tickets->where('type', TicketType::Simplified);
         $invoices = $tickets->where('type', TicketType::Invoice);
@@ -70,6 +72,7 @@ class CashReportService
             'tickets' => ['count' => $simplified->count(), 'total' => (int) $simplified->sum('total')],
             'invoices' => ['count' => $invoices->count(), 'total' => (int) $invoices->sum('total')],
             'rectifications' => ['count' => $rectifying->count(), 'total' => (int) $rectifying->sum('total')],
+            'annulled' => ['count' => $annulled->count(), 'total' => (int) $annulled->sum('total'), 'items' => $annulled->map(fn (Ticket $t) => ['number' => $t->fullNumber(), 'total' => $t->total])->values()->all()],
             'exchanges' => [
                 'count' => $exchanges->count(),
                 'total' => (int) $exchanges->sum('total'),

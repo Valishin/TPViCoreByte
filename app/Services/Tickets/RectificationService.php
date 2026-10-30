@@ -15,6 +15,7 @@ use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketLine;
 use App\Models\User;
+use App\Services\Billing\InvoiceExchanger;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\PrintJobDispatcher;
 use App\Services\Pos\ReceiptFormatter;
@@ -77,6 +78,10 @@ class RectificationService
         if (! $original->type->isFullInvoice()) {
             throw new LogicException('Solo las facturas completas tienen destinatario.');
         }
+        // Factura de canje: F3 negativa + F3 nueva, no R4 (FAQ 27 de la AEAT, caso 1).
+        if ($original->type === TicketType::InvoiceExchange) {
+            return app(InvoiceExchanger::class)->correctRecipient($original, $newRecipient, $by);
+        }
         InvoiceRules::assertRecipient($newRecipient);
 
         return $this->bySubstitution($original, $by, $reason, [], print: $print, reasonCode: RectificationReason::RecipientData, newRecipient: $newRecipient);
@@ -99,15 +104,23 @@ class RectificationService
 
     private function rectify(Ticket $original, User $by, string $reason, RectificationMethod $method, ?array $quantities, ?PaymentMethod $refundMethod, bool $print, bool $withRefund = true, ?RectificationReason $reasonCode = null, ?Customer $newRecipient = null): Ticket
     {
-        // Se rectifican tickets (→ rectificativo R5, serie R) y facturas completas,
-        // directas o de canje (→ rectificativa R1-R4, serie FR): art. 6.1.a 2.º y 15.
-        if (! in_array($original->type, [TicketType::Simplified, TicketType::Invoice, TicketType::InvoiceExchange], true)) {
+        // Se rectifican tickets (→ rectificativo R5, serie R) y facturas completas
+        // directas (→ rectificativa R1-R4, serie FR): art. 6.1.a 2.º y 15.
+        if ($original->type === TicketType::InvoiceExchange) {
+            // FAQ 27: una F3 no se rectifica; se rectifica el ticket (R5 + F3 del R5) o se corrige el cliente.
+            throw new LogicException('Las facturas de canje no se rectifican: rectifica el ticket '.$original->replacedTicket?->fullNumber()
+                .' (se emitirá su rectificativo y una factura de canje para el cliente) o corrige el destinatario.');
+        }
+        if (! in_array($original->type, [TicketType::Simplified, TicketType::Invoice], true)) {
             throw new LogicException('Solo se pueden rectificar tickets y facturas (no otro rectificativo).');
         }
+        if ($original->status === TicketStatus::Annulled) {
+            throw new LogicException('Este documento está anulado: no se puede rectificar.');
+        }
         $fullInvoice = $original->type->isFullInvoice();
-        if ($original->status === TicketStatus::Exchanged) {
-            // Canjeado por una factura completa: cualquier corrección, sobre la factura.
-            throw new LogicException('Este ticket se canjeó por la factura '.$original->exchangedBy?->fullNumber().': rectifica la factura.');
+        $exchange = $original->status === TicketStatus::Exchanged ? $original->exchangedBy : null;
+        if ($exchange && $method === RectificationMethod::Substitution) {
+            throw new LogicException('Un ticket canjeado solo se rectifica por diferencias (FAQ 27): se emitirá también la factura de canje del rectificativo.');
         }
         if (blank($reason)) {
             throw new InvalidArgumentException('Indica el motivo.');
@@ -119,7 +132,7 @@ class RectificationService
 
         EmissionGuard::assertCanIssue();
 
-        return DB::transaction(function () use ($original, $by, $reason, $method, $quantities, $refundMethod, $print, $session, $withRefund, $reasonCode, $newRecipient, $fullInvoice) {
+        return DB::transaction(function () use ($original, $by, $reason, $method, $quantities, $refundMethod, $print, $session, $withRefund, $reasonCode, $newRecipient, $fullInvoice, $exchange) {
             $original = Ticket::query()->whereKey($original->id)->lockForUpdate()->firstOrFail();
             $roots = $original->lines()->whereNull('parent_line_id')->get();
             $children = $original->lines()->whereNotNull('parent_line_id')->get()->groupBy('parent_line_id');
@@ -276,10 +289,18 @@ class RectificationService
             }
 
             app(FiscalRecordGenerator::class)->alta($rectifying);   // R1-R5 (RRSIF 10.1.g)
-            $original->update(['status' => TicketStatus::Rectified]);
+            if ($exchange) {
+                // Ticket canjeado: el cliente recibe la F3 del rectificativo (FAQ 27, casos 2 y 3). Sigue "canjeado".
+                $exchangeOfRectifying = app(InvoiceExchanger::class)->exchangeRectifying($rectifying, $exchange, $by);
+            } else {
+                $original->update(['status' => TicketStatus::Rectified]);
+            }
 
             if ($print && ($printer = PrintJobDispatcher::ticketPrinter())) {
                 $this->printing->dispatch(null, $printer, PrintJobKind::Receipt, $this->formatter->ticket($rectifying->refresh(), $printer->columns), by: $by, forTicket: $rectifying, session: $session);
+                if (isset($exchangeOfRectifying)) {
+                    $this->printing->dispatch(null, $printer, PrintJobKind::Receipt, $this->formatter->ticket($exchangeOfRectifying->refresh(), $printer->columns), by: $by, forTicket: $exchangeOfRectifying, session: $session);
+                }
             }
 
             return $rectifying;

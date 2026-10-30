@@ -3,6 +3,7 @@
 namespace App\Services\Fiscal;
 
 use App\Enums\CashSessionStatus;
+use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Models\CashSession;
 use App\Models\Setting;
@@ -53,7 +54,8 @@ class FiscalExportService
         $invoices = $tickets->whereIn('type', [TicketType::Invoice, TicketType::InvoiceExchange]);
         $rectifying = $tickets->whereIn('type', [TicketType::Rectifying, TicketType::InvoiceRectifying]);
         // Totales de IVA sin los canjes: su ticket ya está en el periodo en que se emitió.
-        $taxable = $tickets->reject(fn (Ticket $t) => $t->type === TicketType::InvoiceExchange);
+        // Sin canjes (ya contó su ticket) ni anulados (emitidos por error, sin venta: RRSIF 11.1).
+        $taxable = $tickets->reject(fn (Ticket $t) => $t->type === TicketType::InvoiceExchange || $t->status === TicketStatus::Annulled);
 
         $zip->addFromString('tickets.csv', $this->csv($this->ticketRows($simplified)));
         $zip->addFromString('facturas.csv', $this->csv($this->ticketRows($invoices, invoice: true)));

@@ -181,9 +181,20 @@ class Ticket extends Model
     }
 
     /** Factura completa (canje) que sustituye a este ticket, si la hay. */
+    /**
+     * Factura de canje (F3) vigente de este documento: la última emitida, no
+     * corregida y no negativa (FAQ 27: al corregir, F3 negativa + F3 nueva).
+     */
     public function exchangedBy(): HasOne
     {
-        return $this->hasOne(Ticket::class, 'replaces_ticket_id');
+        return $this->hasOne(Ticket::class, 'replaces_ticket_id')->ofMany(['id' => 'max'], fn ($q) => $q
+            ->where('type', TicketType::InvoiceExchange)->where('status', TicketStatus::Issued)->where('total', '>=', 0));
+    }
+
+    /** Todas las facturas de canje que sustituyen a este documento (vigente, negativas y corregidas). */
+    public function exchanges(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'replaces_ticket_id');
     }
 
     /** Ticket que sustituye esta factura de canje (art. 15.6). */

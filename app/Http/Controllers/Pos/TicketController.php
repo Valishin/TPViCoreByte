@@ -16,6 +16,7 @@ use App\Services\Pos\AuthorizationService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\PrintJobDispatcher;
 use App\Services\Pos\ReceiptFormatter;
+use App\Services\Tickets\AnnulmentService;
 use App\Services\Tickets\RectificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -80,6 +81,21 @@ class TicketController extends Controller
         return response()->json(['data' => self::summary($rectifying->load(['order.table', 'issuedBy', 'payments', 'rectifiedTicket']))], 201);
     }
 
+    /**
+     * Anular por error (no hubo venta): registro de anulación, el documento queda
+     * anulado y se devuelven los cobros (RRSIF 11.1). Con autorización de encargado.
+     */
+    public function annul(Request $request, Ticket $ticket, AnnulmentService $annulments): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:200'],
+            'authorization_token' => ['nullable', 'string'],
+        ]);
+        $annulments->annul($ticket, $request->user(), $data['reason'], $data['authorization_token'] ?? null);
+
+        return response()->json(['data' => self::summary($ticket->refresh()->load(['order.table', 'issuedBy', 'payments', 'rectifiedTicket']))]);
+    }
+
     /** Canjear el ticket por una factura completa con los datos de un cliente (art. 15.6). */
     public function exchange(Request $request, Ticket $ticket, InvoiceExchanger $exchanger): JsonResponse
     {
@@ -138,6 +154,8 @@ class TicketController extends Controller
             'can_exchange' => $ticket->type->value === 'simplificada' && $ticket->status->value === 'emitido'
                 && $ticket->payment_status->value === 'pagado',
             'other_year' => $ticket->issued_at->year !== now()->year,
+            // Anular por error: tickets y facturas emitidos sin rectificativos ni canje (RRSIF 11.1).
+            'can_annul' => in_array($ticket->type->value, ['simplificada', 'completa'], true) && $ticket->status->value === 'emitido',
             'email' => ($e = $ticket->type->isFullInvoice() ? $ticket->emails()->latest('id')->first() : null)
                 ? ['to' => $e->to, 'status' => $e->status, 'sent_at' => $e->sent_at?->toIso8601String(), 'error' => $e->last_error]
                 : null,

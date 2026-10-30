@@ -14,6 +14,7 @@ use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\Order;
 use App\Models\OrderLine;
+use App\Models\Precheck;
 use App\Models\Printer;
 use App\Models\Setting;
 use App\Models\Table;
@@ -250,7 +251,21 @@ class OrderService
 
         return DB::transaction(function () use ($order, $printer, $by) {
             $this->totals->apply($order);
-            $this->printing->dispatch($order, $printer, PrintJobKind::Precheck, $this->formatter->precheck($order->refresh()), by: $by);
+            $printable = $this->formatter->precheck($order->refresh());
+            $this->printing->dispatch($order, $printer, PrintJobKind::Precheck, $printable, by: $by);
+            // Precuenta conservada de forma inalterable (LGT 29.2.j; FAQ 11 AEAT): no es factura ni genera registro.
+            Precheck::create([
+                'order_id' => $order->id,
+                'printed_by' => $by->id,
+                'total' => (int) $order->total,
+                'content' => [
+                    'printed' => $printable->operations(),
+                    'lines' => $order->lines()->whereNull('voided_at')->get(['id', 'parent_line_id', 'name', 'variant_name', 'quantity', 'line_total', 'discount_amount', 'vat_rate'])->toArray(),
+                    'subtotal' => (int) $order->subtotal, 'discount_amount' => (int) $order->discount_amount, 'total' => (int) $order->total,
+                    'vat_breakdown' => $order->vat_breakdown,
+                ],
+                'printed_at' => now(),
+            ]);
 
             if ($order->table_id) {
                 Table::query()->whereKey($order->table_id)->lockForUpdate()->first()?->update(['status' => TableStatus::BillRequested]);

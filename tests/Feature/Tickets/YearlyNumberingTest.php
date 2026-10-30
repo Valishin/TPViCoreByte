@@ -81,13 +81,16 @@ class YearlyNumberingTest extends InvoiceTestCase
 
         $this->travelTo($this->madrid('2027-01-02 10:00:00'));
         $invoice = app(InvoiceExchanger::class)->exchange($ticket, $this->company, $this->waiter, confirmOtherYear: true);
-        $rect = $this->rectify($invoice);
+        // FAQ 27: el ticket canjeado se rectifica (R5) y el cliente recibe la F3 del rectificativo.
+        $rect = $this->rectify($ticket->refresh());
+        $exchangeOfRect = Ticket::query()->where('replaces_ticket_id', $rect->id)->sole();
 
         $this->assertSame('T-26-000001', $ticket->fullNumber());
         $this->assertSame('F-27-000001', $invoice->fullNumber());
         $this->assertStringContainsString('Sustituye a la factura simplificada T-26-000001', InvoiceDocument::make($invoice)['replaces']);
-        $this->assertSame('FR-27-000001', $rect->fullNumber());
-        $this->assertSame('F-27-000001', InvoiceDocument::make($rect)['rectifies']['number']);
+        $this->assertSame('R-27-000001', $rect->fullNumber());
+        $this->assertSame('F-27-000002', $exchangeOfRect->fullNumber());
+        $this->assertSame('T-26-000001', $rect->rectifiedTicket->fullNumber());
     }
 
     public function test_year_is_the_madrid_calendar_year_of_the_instant(): void

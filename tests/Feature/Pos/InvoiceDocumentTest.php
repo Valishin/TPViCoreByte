@@ -64,10 +64,11 @@ class InvoiceDocumentTest extends InvoiceTestCase
         $this->assertStringContainsString('Fecha de la operación: '.$ticket->issued_at->format('d/m/Y'), $text); // art. 6.1.i
         $this->assertSame(1, PrintJob::query()->where('ticket_id', $exchange->id)->count()); // impresa
 
-        $rect = app(RectificationService::class)->byDifferences($exchange, $this->waiter, 'Devolución');
+        $direct = $this->invoice();   // F-…-000002
+        $rect = app(RectificationService::class)->byDifferences($direct, $this->waiter, 'Devolución');
         $text = $this->pdfText($rect);
         $this->assertStringContainsString('FACTURA RECTIFICATIVA', $text);
-        $this->assertStringContainsString('Rectifica a la factura '.$this->docNumber('F', 1), $text);
+        $this->assertStringContainsString('Rectifica a la factura '.$direct->fullNumber(), $text);
         $this->assertStringContainsString('Motivo: Devolución', $text);
     }
 

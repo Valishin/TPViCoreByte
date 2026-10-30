@@ -366,6 +366,10 @@ class ReceiptFormatter
             $p->columns('Canjes por factura ('.$report['exchanges']['count'].')', Format::money($report['exchanges']['total']))
                 ->line('  (no suman: el ticket ya se contó)');
         }
+        if ($report['annulled']['count'] ?? 0) {
+            $p->columns('Anulados por error ('.$report['annulled']['count'].')', Format::money($report['annulled']['total']))
+                ->line('  (no suman: no hubo venta)');
+        }
         $p->separator();
 
         $p->line('FORMAS DE PAGO', bold: true);

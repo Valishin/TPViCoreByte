@@ -53,6 +53,7 @@ const pos = {
     ticket: (id) => api.get(`/tickets/${id}`).then((r) => r.data.data),
     reprint: (id, payload) => api.post(`/tickets/${id}/reprint`, payload).then((r) => r.data),
     rectify: (id, payload) => api.post(`/tickets/${id}/rectify`, payload).then((r) => r.data.data),
+    annul: (id, payload) => api.post(`/tickets/${id}/annul`, payload).then((r) => r.data.data),
     exchange: (id, payload) => api.post(`/tickets/${id}/exchange`, payload).then((r) => r.data.data),
     emailInvoice: (id) => api.post(`/tickets/${id}/email`).then((r) => r.data.data),
     searchTickets: (q) => api.get('/tickets', { params: { q } }).then((r) => r.data.data),

@@ -92,7 +92,7 @@ class InvoiceRectificationTest extends InvoiceTestCase
         $this->assertSame(0, $rect->payments()->count()); // mismos importes: nada que devolver
     }
 
-    public function test_exchange_invoice_can_be_rectified_with_refund_from_ticket_payment(): void
+    public function test_exchange_invoice_is_not_rectified_but_its_ticket_is_with_refund_from_ticket_payment(): void
     {
         $this->openCash();
         $order = $this->orderWith([[$this->pizza, 1]]);
@@ -103,10 +103,17 @@ class InvoiceRectificationTest extends InvoiceTestCase
 
         $this->asWaiter()->postJson("/api/tickets/{$exchange->id}/rectify", ['reason' => 'Devolución', 'reason_code' => 'error_descuento'])
             ->assertStatus(403); // camarero: autorización de encargado, como con los tickets
-        $rect = $this->service()->byDifferences($exchange, $this->waiter, 'Devolución');
+        try {
+            $this->service()->byDifferences($exchange, $this->waiter, 'Devolución');
+            $this->fail('Una F3 no se rectifica (FAQ 27).');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('Las facturas de canje no se rectifican', $e->getMessage());
+        }
+        $rect = $this->service()->byDifferences($ticket->refresh(), $this->waiter, 'Devolución');
 
-        $this->assertSame('FR', $rect->series_code);
+        $this->assertSame('rectificativa', $rect->type->value);   // R5, serie de rectificativos de tickets
         $this->assertSame('bizum', $rect->payments()->first()->method->value);
+        $this->assertSame(1, Ticket::query()->where('replaces_ticket_id', $rect->id)->count());   // F3 del R5
     }
 
     public function test_a_rectifying_invoice_cannot_be_rectified(): void

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Pos;
 
+use App\Models\Customer;
 use App\Models\Ticket;
 use App\Services\Tickets\RectificationService;
 use Illuminate\Support\Carbon;
@@ -57,14 +58,47 @@ class InvoiceExchangeTest extends InvoiceTestCase
         $this->assertSame(1, Ticket::where('type', 'completa_canje')->count());
     }
 
-    public function test_exchanged_ticket_cannot_be_rectified(): void
+    /** FAQ 27 (casos 2 y 3): devolución de un ticket canjeado = R5 del ticket + F3 del R5 para el cliente. */
+    public function test_rectifying_an_exchanged_ticket_issues_r5_and_its_exchange_invoice(): void
     {
         $this->openCash();
         $ticket = $this->paidTicket();
         $this->exchange($ticket)->assertCreated();
+        $exchange = $ticket->refresh()->exchangedBy;
 
-        $this->expectExceptionMessage('Este ticket se canjeó por la factura '.$this->docNumber('F', 1).': rectifica la factura.');
-        app(RectificationService::class)->byDifferences($ticket->refresh(), $this->waiter, 'Error');
+        $r5 = app(RectificationService::class)->byDifferences($ticket, $this->waiter, 'Devolución');
+        $f3 = Ticket::query()->where('replaces_ticket_id', $r5->id)->sole();
+
+        $this->assertSame('rectificativa', $r5->type->value);
+        $this->assertSame('completa_canje', $f3->type->value);
+        $this->assertSame(-$ticket->total, $f3->total);
+        $this->assertSame($exchange->recipient, $f3->recipient);
+        $this->assertSame('canjeado', $ticket->refresh()->status->value);           // sigue canjeado
+        $this->assertTrue($ticket->exchangedBy->is($exchange));                      // la F3 original sigue vigente
+
+        $this->expectExceptionMessage('Un ticket canjeado solo se rectifica por diferencias');
+        app(RectificationService::class)->bySubstitution($ticket, $this->waiter, 'Error', []);
+    }
+
+    /** FAQ 27 (caso 1): datos del cliente mal en la F3 = F3 negativa + F3 nueva sobre el mismo ticket. */
+    public function test_exchange_recipient_correction_issues_negative_and_new_exchange_invoices(): void
+    {
+        $this->openCash();
+        $ticket = $this->paidTicket();
+        $this->exchange($ticket)->assertCreated();
+        $wrong = $ticket->refresh()->exchangedBy;
+        $right = Customer::create(['legal_name' => 'Restaurants del Port SLU', 'tax_id' => 'A58818501', 'fiscal_address' => 'Moll 1', 'fiscal_postal_code' => '17220', 'fiscal_city' => 'Sant Feliu']);
+
+        $new = app(RectificationService::class)->correctRecipient($wrong, $right, $this->waiter, 'Datos del cliente');
+        $exchanges = $ticket->exchanges()->orderBy('id')->get();
+
+        $this->assertCount(3, $exchanges);
+        $this->assertSame([$ticket->total, -$ticket->total, $ticket->total], $exchanges->pluck('total')->all());
+        $this->assertSame(['completa_canje', 'completa_canje', 'completa_canje'], $exchanges->map(fn ($t) => $t->type->value)->all());
+        $this->assertSame('rectificado', $wrong->refresh()->status->value);
+        $this->assertSame('A58818501', $new->recipient['tax_id']);
+        $this->assertTrue($ticket->refresh()->exchangedBy->is($new));
+        $this->assertSame(0, Ticket::query()->where('type', 'rectificativa_completa')->count());   // sin R1-R4
     }
 
     public function test_rectified_or_pending_tickets_cannot_be_exchanged(): void

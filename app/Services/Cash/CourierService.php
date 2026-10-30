@@ -24,6 +24,8 @@ use App\Services\Pos\AuthorizationService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\PrintJobDispatcher;
 use App\Services\Pos\ReceiptFormatter;
+use App\Services\Tickets\AnnulmentService;
+use App\Services\Tickets\NotDeliveredPolicy;
 use App\Services\Tickets\PaymentService;
 use App\Services\Tickets\RectificationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,7 +80,7 @@ class CourierService
     /** Lo que falta por cobrar del ticket (0 si ya pagado o rectificado). */
     public static function pendingAmount(?Ticket $ticket): int
     {
-        if (! $ticket || $ticket->status === TicketStatus::Rectified || $ticket->payment_status === PaymentStatus::Paid) {
+        if (! $ticket || in_array($ticket->status, [TicketStatus::Rectified, TicketStatus::Annulled], true) || $ticket->payment_status === PaymentStatus::Paid) {
             return 0;
         }
 
@@ -263,7 +265,13 @@ class CourierService
      * rectificativo total por diferencias SIN devolución (no se cobró). El
      * pedido queda como no entregado y fuera de lo pendiente de liquidar.
      */
-    public function failDelivery(Order $order, User $by, string $reason, ?string $authorizationToken = null): Ticket
+    /**
+     * Domicilio no entregado. Qué documento se emite lo decide NotDeliveredPolicy
+     * (sin cobrar: anulación; prepagado: rectificativo R5 con devolución).
+     *
+     * @return array{outcome: string, ticket: Ticket, rectifying: ?Ticket}
+     */
+    public function failDelivery(Order $order, User $by, string $reason, ?string $authorizationToken = null): array
     {
         if ($order->type !== OrderType::Delivery || $order->delivery_status !== DeliveryStatus::OutForDelivery) {
             throw new LogicException('Solo un domicilio en reparto puede quedar como no entregado.');
@@ -271,18 +279,21 @@ class CourierService
         if (blank($reason)) {
             throw new InvalidArgumentException('Indica el motivo.');
         }
-        $ticket = self::ticketOf($order->load('tickets'));
-        if (! $ticket || $ticket->payment_status === PaymentStatus::Paid) {
-            throw new LogicException('Este pedido ya estaba pagado: anúlalo con un rectificativo con devolución.');
-        }
+        $ticket = self::ticketOf($order->load('tickets')) ?? throw new LogicException('Este pedido no tiene ticket.');
 
         return DB::transaction(function () use ($order, $by, $reason, $authorizationToken, $ticket) {
             $this->authorization->require(AuthorizationAction::FailedDelivery, $by, $authorizationToken, $order, $reason);
-            $rectifying = $this->rectifications->byDifferences($ticket, $by, "No entregado: {$reason}", refund: false);
+            $outcome = NotDeliveredPolicy::decide($ticket);
+            $rectifying = null;
+            if ($outcome === NotDeliveredPolicy::ANNUL) {
+                app(AnnulmentService::class)->annul($ticket, $by, "No entregado: {$reason}", authorized: true);
+            } else {
+                $rectifying = $this->rectifications->byDifferences($ticket, $by, "No entregado: {$reason}");
+            }
             $order->update(['delivery_status' => DeliveryStatus::Failed, 'delivery_failed_reason' => $reason, 'delivered_by' => $by->id]);
             $this->takeaway->changed($order);
 
-            return $rectifying;
+            return ['outcome' => $outcome, 'ticket' => $ticket->refresh(), 'rectifying' => $rectifying];
         });
     }
 

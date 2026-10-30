@@ -46,7 +46,7 @@
                         <strong>{{ t.number }}</strong><template v-if="t.type !== 'simplificada'"> · {{ t.type_label }}</template> · {{ time(t.issued_at) }} · {{ t.table ? `Mesa ${t.table}` : typeLabel(t.order_type) }}
                         <small>
                             <template v-if="t.recipient">{{ t.recipient.name }} ({{ t.recipient.tax_id }}) · </template>{{ [t.issued_by, t.payment_methods.join(', ')].filter(Boolean).join(' · ') }}<template v-if="t.rectifies"> · rectifica {{ t.rectifies }}</template><template v-if="t.replaces"> · sustituye a {{ t.replaces }}</template>
-                            <template v-if="t.status === 'rectificado'"> · RECTIFICADO</template><template v-if="t.exchanged_by"> · CANJEADO por {{ t.exchanged_by }}</template>
+                            <template v-if="t.status === 'rectificado'"> · RECTIFICADO</template><template v-if="t.status === 'anulado'"> · ANULADO (no hubo venta)</template><template v-if="t.exchanged_by"> · CANJEADO por {{ t.exchanged_by }}</template>
                             <template v-if="t.email"> · email {{ emailStatus(t.email) }}</template>
                         </small>
                     </span>
@@ -58,7 +58,8 @@
                             <TpvButton variant="secondary" size="sm" @click="openPdf(t)">PDF</TpvButton>
                             <TpvButton variant="secondary" size="sm" :loading="busy === `mail-${t.id}`" @click="sendEmail(t)">Email</TpvButton>
                         </template>
-                        <TpvButton v-if="t.status !== 'canjeado' && (t.type === 'simplificada' || isInvoice(t))" variant="danger" size="sm" @click="voiding = t">Anular</TpvButton>
+                        <TpvButton v-if="canRectify(t)" variant="danger" size="sm" @click="voiding = t">Anular</TpvButton>
+                        <TpvButton v-if="t.can_annul" variant="ghost" size="sm" @click="annulling = t">Anular por error</TpvButton>
                     </span>
                 </div>
             </section>
@@ -66,6 +67,7 @@
 
         <OpenCashDialog :open="openOpen" @close="openOpen = false" @opened="openOpen = false; load()" />
         <VoidTicketSheet :ticket="voiding" @close="voiding = null" @done="voiding = null; load()" />
+        <AnnulSheet :ticket="annulling" @close="annulling = null" @done="annulling = null; load()" />
         <InvoiceRecipientSheet :open="!!exchanging" :title="exchanging ? `Factura del ticket ${exchanging.number}` : ''" @close="exchanging = null" @select="(c) => exchange(c, false)" />
 
         <!-- Canje de un ticket de otro año (aviso, sin límite de plazo) -->
@@ -115,6 +117,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AmountKeypad from '@/components/AmountKeypad.vue';
 import DenominationCounter from '@/components/DenominationCounter.vue';
+import AnnulSheet from '@/components/AnnulSheet.vue';
 import InvoiceRecipientSheet from '@/components/InvoiceRecipientSheet.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import OpenCashDialog from '@/components/OpenCashDialog.vue';
@@ -150,6 +153,9 @@ const searched = ref('');
 const exchanging = ref(null);
 const otherYear = ref(null);
 const isInvoice = (t) => t.type === 'completa' || t.type === 'completa_canje';
+const annulling = ref(null);
+// Rectificar (R5 / R1-R4): tickets (también canjeados: FAQ 27) y facturas directas; no las de canje ni lo anulado.
+const canRectify = (t) => (t.type === 'simplificada' || t.type === 'completa') && t.status !== 'anulado';
 
 const report = computed(() => cash.value?.report);
 const difference = computed(() => counted.value - (report.value?.cash.expected ?? 0));
