@@ -4,6 +4,7 @@ namespace Tests\Feature\Pos;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Testing\TestResponse;
 
 class PosAuthTest extends PosTestCase
@@ -37,6 +38,30 @@ class PosAuthTest extends PosTestCase
             ->assertJsonPath('settings.auto_lock_minutes_mobile', 0);
 
         $this->withHeader('Origin', 'http://localhost')->getJson('/api/me')->assertOk()->assertJsonPath('user.id', $this->waiter->id);
+    }
+
+    /** Mismo navegador con /admin abierto por otro usuario: el TPV no se cierra solo. */
+    public function test_pos_session_survives_admin_session_of_another_user(): void
+    {
+        // Sesión de /admin (guard web) de otro usuario en la misma cookie.
+        $admin = User::factory()->role(UserRole::Admin)->create(['password' => 'otra-contraseña']);
+        $this->withSession(['login_web_'.sha1(SessionGuard::class) => $admin->id]);
+
+        $this->login($this->waiter->id, '1234')->assertOk();
+        foreach (range(1, 2) as $_) {
+            $this->withHeader('Origin', 'http://localhost')->getJson('/api/me')->assertOk()->assertJsonPath('user.id', $this->waiter->id);
+        }
+    }
+
+    /** La protección sigue: si cambia la contraseña del usuario del TPV, su sesión se cierra. */
+    public function test_pos_session_ends_when_its_user_password_changes(): void
+    {
+        $this->login($this->waiter->id, '1234')->assertOk();
+        $this->withHeader('Origin', 'http://localhost')->getJson('/api/me')->assertOk();
+
+        $this->waiter->update(['password' => 'nueva-contraseña']);
+        $this->app['auth']->forgetGuards(); // otra petición: el usuario se vuelve a leer
+        $this->withHeader('Origin', 'http://localhost')->getJson('/api/me')->assertUnauthorized();
     }
 
     public function test_wrong_pin_is_rejected_and_rate_limited_per_user(): void
