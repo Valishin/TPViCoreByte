@@ -5,6 +5,7 @@ namespace Tests\Feature\Pos;
 use App\Models\PrintJob;
 use App\Models\Setting;
 use App\Models\Ticket;
+use App\Services\Billing\InvoiceDocument;
 use App\Services\Billing\InvoicePdf;
 use App\Services\Pos\ReceiptFormatter;
 use App\Services\Tickets\RectificationService;
@@ -96,5 +97,37 @@ class InvoiceDocumentTest extends InvoiceTestCase
         $this->asWaiter()->get("/api/tickets/{$invoice->id}/pdf")->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('Content-Disposition', 'inline; filename="Factura-F-000001.pdf"');
+    }
+
+    /** Art. 6.1.f: el envío es una línea más, con precio sin IVA y tipo, y cuadra con el desglose. */
+    public function test_delivery_fee_is_an_invoice_line_with_net_price_and_rate(): void
+    {
+        $this->openCash();
+        $id = $this->deliveryWith();   // 2 pizzas (20,00) + envío Ensanche 1,50 al 10 %
+        $this->send($id);
+        $this->asWaiter()->postJson("/api/takeaway-orders/{$id}/dispatch", ['courier_id' => $this->javi->id, 'invoice_customer_id' => $this->company->id])->assertOk();
+        $invoice = Ticket::query()->where('order_id', $id)->sole();
+        $this->assertSame(1000, $invoice->delivery_fee_vat_rate);
+
+        // Cambiar el ajuste después no altera la factura (snapshot).
+        Setting::current()->update(['delivery_fee_vat_rate' => 2100]);
+        $doc = InvoiceDocument::make($invoice->refresh());
+
+        $fee = collect($doc['rows'])->firstWhere('description', 'Gastos de envío');
+        $this->assertSame(['quantity' => 1, 'unit_net' => 13636, 'vat_rate' => 1000, 'amount' => 150],
+            array_intersect_key($fee, array_flip(['quantity', 'unit_net', 'vat_rate', 'amount'])));
+        // Las filas suman el total y la base del envío está dentro del desglose del 10 %.
+        $this->assertSame($invoice->total, collect($doc['rows'])->sum('amount'));
+        $this->assertSame([1000], array_column($invoice->vat_breakdown, 'rate'));
+        // Σ uds × precio sin IVA (2 × 9,0909 + 1,3636 = 19,5454) → 19,55, la base del desglose.
+        $net = collect($doc['rows'])->sum(fn ($r) => $r['quantity'] * $r['unit_net']);
+        $this->assertSame($invoice->vat_breakdown[0]['base'], (int) round($net / 100));
+
+        $text = $this->pdfText($invoice);
+        $this->assertMatchesRegularExpression('/Gastos de envío 1 1,3636 € 10 % 1,50 €/u', $text);
+
+        $thermal = $this->printedText(app(ReceiptFormatter::class)->ticket($invoice, 48)->operations());
+        $this->assertStringContainsString('1 x Gastos de envío', $thermal);
+        $this->assertStringContainsString('P.u. sin IVA 1,3636 € · IVA 10 %', $thermal);
     }
 }

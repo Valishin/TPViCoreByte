@@ -285,13 +285,11 @@ class ReceiptFormatter
             }
         }
         $p->separator();
-        if ($doc['lines_discount'] || $doc['discount_amount'] || $doc['delivery_fee']) {
-            $p->columns('Suma', Format::money($doc['subtotal'] - $doc['lines_discount']));
+        // El envío ya va como una línea más (con su precio sin IVA y su tipo).
+        if ($doc['lines_discount'] || $doc['discount_amount']) {
+            $p->columns('Suma', Format::money($doc['subtotal'] - $doc['lines_discount'] + $doc['delivery_fee']));
             if ($doc['discount_amount']) {
                 $p->columns('Descuento'.($doc['discount_reason'] ? " ({$doc['discount_reason']})" : ''), '-'.Format::money($doc['discount_amount']));
-            }
-            if ($doc['delivery_fee']) {
-                $p->columns('Gastos de envío', Format::money($doc['delivery_fee']));
             }
         }
 

@@ -72,6 +72,7 @@ class Ticket extends Model
             'discount_value' => 'integer',
             'discount_amount' => 'integer',
             'delivery_fee' => 'integer',
+            'delivery_fee_vat_rate' => 'integer',
             'tax_base' => 'integer',
             'tax_amount' => 'integer',
             'total' => 'integer',

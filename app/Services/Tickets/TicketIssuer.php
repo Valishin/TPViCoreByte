@@ -77,6 +77,7 @@ class TicketIssuer
                 'discount_amount' => $totals->orderDiscount,
                 'discount_reason' => $order->discount_reason,
                 'delivery_fee' => $totals->deliveryFee,
+                'delivery_fee_vat_rate' => $totals->deliveryFee ? $settings->delivery_fee_vat_rate : null,
                 'tax_base' => $totals->taxBase(),
                 'tax_amount' => $totals->taxAmount(),
                 'total' => $totals->total,

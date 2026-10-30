@@ -49,7 +49,7 @@ class InvoiceDocument
             ] : null,
             'issuer' => self::party($ticket->issuer ?? [], issuer: true),
             'recipient' => self::party($ticket->recipient ?? []),
-            'rows' => self::rows($ticket),
+            'rows' => [...self::rows($ticket), ...self::deliveryRow($ticket)],
             'delivery_fee' => $ticket->delivery_fee,
             'subtotal' => $ticket->subtotal,
             'lines_discount' => $ticket->lines_discount,
@@ -118,6 +118,32 @@ class InvoiceDocument
         }
 
         return $rows;
+    }
+
+    /**
+     * Gastos de envío como una línea más (art. 6.1.f y g): precio sin IVA con
+     * 4 decimales (como las demás líneas, para que la suma cuadre con la base
+     * del desglose) y su tipo.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function deliveryRow(Ticket $ticket): array
+    {
+        if (! $ticket->delivery_fee) {
+            return [];
+        }
+        $rate = $ticket->delivery_fee_vat_rate ?? (int) Setting::query()->value('delivery_fee_vat_rate');
+
+        return [[
+            'description' => 'Gastos de envío',
+            'quantity' => 1,
+            'unit_net' => InvoiceRules::netUnitE4($ticket->delivery_fee, $rate),
+            'vat_rate' => $rate,
+            'amount' => $ticket->delivery_fee,
+            'child' => false,
+            'discount' => 0,
+            'invitation' => false,
+        ]];
     }
 
     private static function describe(TicketLine $line): string

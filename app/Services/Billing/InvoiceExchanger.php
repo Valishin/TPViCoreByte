@@ -68,6 +68,7 @@ class InvoiceExchanger
                 'discount_amount' => $ticket->discount_amount,
                 'discount_reason' => $ticket->discount_reason,
                 'delivery_fee' => $ticket->delivery_fee,
+                'delivery_fee_vat_rate' => $ticket->delivery_fee_vat_rate,
                 'tax_base' => $ticket->tax_base,
                 'tax_amount' => $ticket->tax_amount,
                 'total' => $ticket->total,

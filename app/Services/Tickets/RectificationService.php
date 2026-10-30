@@ -185,8 +185,10 @@ class RectificationService
                 $method === RectificationMethod::Substitution => $original->delivery_fee,
                 default => 0,
             };
+            // Con el tipo que se aplicó en el original (si cambió el ajuste, no se recalcula).
+            $deliveryRate = $deliveryFee ? ($original->delivery_fee_vat_rate ?? $settings->delivery_fee_vat_rate) : null;
             if ($deliveryFee) {
-                $rate = $settings->delivery_fee_vat_rate;
+                $rate = $deliveryRate;
                 $byRate[$rate] = ($byRate[$rate] ?? 0) + $deliveryFee;
             }
             ksort($byRate);
@@ -228,6 +230,7 @@ class RectificationService
                 'discount_amount' => $orderDiscount,
                 'discount_reason' => $original->discount_reason,
                 'delivery_fee' => $deliveryFee,
+                'delivery_fee_vat_rate' => $deliveryRate,
                 'tax_base' => array_sum(array_column($breakdown, 'base')),
                 'tax_amount' => array_sum(array_column($breakdown, 'tax')),
                 'total' => $total,

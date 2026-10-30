@@ -91,9 +91,6 @@
     @if ($doc['discount_amount'])
         <tr class="note"><td colspan="4">Descuento{{ $doc['discount_reason'] ? ' ('.$doc['discount_reason'].')' : '' }}</td><td class="n">-{{ Format::money($doc['discount_amount']) }}</td></tr>
     @endif
-    @if ($doc['delivery_fee'])
-        <tr><td colspan="4">Gastos de envío</td><td class="n">{{ Format::money($doc['delivery_fee']) }}</td></tr>
-    @endif
     </tbody>
 </table>
 
