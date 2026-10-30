@@ -31,9 +31,13 @@ final class Verifactu
     {
         $settings ??= Setting::current();
 
+        $at ??= now();
+
         return $settings->verifactu_enabled
             && $settings->verifactu_started_at !== null
-            && $settings->verifactu_started_at->lessThanOrEqualTo($at ?? now());
+            && $settings->verifactu_started_at->lessThanOrEqualTo($at)
+            // Renuncia (OM 17.3): funciona como VERI*FACTU hasta el final de FechaFinVeriFactu.
+            && ($settings->verifactu_end_date === null || $at->lessThanOrEqualTo($settings->verifactu_end_date->copy()->endOfDay()));
     }
 
     public static function environment(?Setting $settings = null): string
