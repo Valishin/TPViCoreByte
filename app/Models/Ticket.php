@@ -10,7 +10,9 @@ use App\Enums\RectificationReason;
 use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Exceptions\ImmutableTicketException;
+use App\Support\DocumentNumber;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -73,6 +75,7 @@ class Ticket extends Model
             'discount_amount' => 'integer',
             'delivery_fee' => 'integer',
             'delivery_fee_vat_rate' => 'integer',
+            'year' => 'integer',
             'tax_base' => 'integer',
             'tax_amount' => 'integer',
             'total' => 'integer',
@@ -88,9 +91,39 @@ class Ticket extends Model
         ];
     }
 
+    /** Número completo tal como se emitió (snapshot: T-26-000123). Ver App\Support\DocumentNumber. */
     public function fullNumber(): string
     {
-        return sprintf('%s-%06d', $this->series_code, $this->number);
+        return $this->full_number ?? DocumentNumber::format($this->series_code, $this->year ?? DocumentNumber::yearOf($this->issued_at), $this->number);
+    }
+
+    /** Búsqueda por número (ver whereNumber), primero los del año actual. */
+    public function scopeSearchNumber(Builder $query, string $search): Builder
+    {
+        return $query->whereNumber($search)
+            ->orderByRaw('(year = ?) desc', [DocumentNumber::yearOf(now())])
+            ->orderByDesc('year');
+    }
+
+    /**
+     * Filtro por número: completo (T-26-000123), serie y cifras (T-123), año
+     * y cifras (26-123) o solo las cifras (123, de cualquier serie y año).
+     */
+    public function scopeWhereNumber(Builder $query, string $search): Builder
+    {
+        $s = strtoupper(preg_replace('/\s+/', '', $search));
+        $match = match (true) {
+            (bool) preg_match('/^([A-Z]+)-(\d{2})-(\d+)$/', $s, $m) => ['series_code' => $m[1], 'year' => 2000 + (int) $m[2], 'number' => (int) $m[3]],
+            (bool) preg_match('/^(\d{2})-(\d+)$/', $s, $m) => ['year' => 2000 + (int) $m[1], 'number' => (int) $m[2]],
+            (bool) preg_match('/^([A-Z]+)-?(\d+)$/', $s, $m) => ['series_code' => $m[1], 'number' => (int) $m[2]],
+            (bool) preg_match('/^\d+$/', $s) => ['number' => (int) $s],
+            default => null,
+        };
+        if ($match === null) {
+            return $query->whereRaw('false');
+        }
+
+        return $query->where($match);
     }
 
     public function paidAmount(): int

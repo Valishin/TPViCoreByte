@@ -11,7 +11,7 @@ class ViewCashSession extends ViewRecord
 
     public function getTitle(): string
     {
-        return $this->record->z_number ? "Cierre Z nº {$this->record->z_number}" : 'Caja abierta';
+        return $this->record->z_number ? "Cierre Z nº {$this->record->z_full_number}" : 'Caja abierta';
     }
 
     protected function getHeaderActions(): array

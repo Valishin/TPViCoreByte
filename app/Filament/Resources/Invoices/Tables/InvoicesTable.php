@@ -26,9 +26,10 @@ class InvoicesTable
             ->defaultSort('issued_at', 'desc')
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['replacedTicket', 'rectifiedTicket', 'emails' => fn ($e) => $e->latest('id')]))
             ->columns([
-                TextColumn::make('number')->label('Número')->sortable()
+                TextColumn::make('number')->label('Número')
                     ->formatStateUsing(fn (Ticket $record) => $record->fullNumber())
-                    ->searchable(query: fn ($query, string $search) => $query->where('number', (int) preg_replace('/\D+/', '', $search) ?: -1)),
+                    ->sortable(query: fn ($query, string $direction) => $query->orderBy('year', $direction)->orderBy('number', $direction))
+                    ->searchable(query: fn ($query, string $search) => $query->whereNumber($search)),
                 TextColumn::make('issued_at')->label('Emitida')->dateTime('d/m/Y H:i')->sortable(),
                 TextColumn::make('type')->label('Tipo')->badge()
                     ->color(fn (TicketType $state) => $state === TicketType::InvoiceRectifying ? 'danger' : 'info'),
@@ -62,6 +63,8 @@ class InvoicesTable
                     TicketType::InvoiceRectifying->value => TicketType::InvoiceRectifying->label(),
                 ]),
                 SelectFilter::make('ticket_series_id')->label('Serie')->relationship('series', 'name'),
+                SelectFilter::make('year')->label('Año')
+                    ->options(fn () => Ticket::query()->distinct()->orderByDesc('year')->pluck('year', 'year')->all()),
                 SelectFilter::make('customer_id')->label('Cliente')->searchable()
                     ->options(fn () => Customer::query()->whereNotNull('tax_id')->orderBy('legal_name')->limit(500)
                         ->get()->mapWithKeys(fn (Customer $c) => [$c->id => "{$c->legal_name} ({$c->tax_id})"])),

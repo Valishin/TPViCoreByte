@@ -4,6 +4,7 @@ namespace App\Filament\Resources\TicketSeries\Tables;
 
 use App\Models\Setting;
 use App\Models\TicketSeries;
+use App\Support\DocumentNumber;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -28,7 +29,10 @@ class TicketSeriesTable
                         };
                     }),
                 IconColumn::make('is_rectifying')->label('Rectificativos')->boolean(),
-                TextColumn::make('last_number')->label('Último número')->numeric()->alignEnd(),
+                TextColumn::make('digits')->label('Formato')
+                    ->state(fn (TicketSeries $record) => DocumentNumber::format($record->code, DocumentNumber::yearOf(now()), 1, $record->digits)),
+                TextColumn::make('last_number')->label('Último nº '.DocumentNumber::yearOf(now()))
+                    ->state(fn (TicketSeries $record) => $record->lastNumber())->numeric()->alignEnd(),
                 IconColumn::make('is_active')->label('Activa')->boolean(),
             ])
             ->recordActions([

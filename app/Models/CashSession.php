@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** Apertura y cierre de caja. z_number es correlativo y se asigna al cerrar. */
+/** Apertura y cierre de caja. El Z (Z-26-0001) es correlativo por año y se asigna al cerrar (z_full_number: snapshot). */
 #[Unguarded]
 class CashSession extends Model
 {
@@ -26,6 +26,7 @@ class CashSession extends Model
             'counted_cash' => 'integer',
             'difference' => 'integer',
             'z_number' => 'integer',
+            'z_year' => 'integer',
             'opening_breakdown' => 'array',
             'counted_breakdown' => 'array',
             'z_report' => 'array',

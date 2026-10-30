@@ -35,7 +35,7 @@
                 <div class="v-cash__tickets-head">
                     <h2 class="v-cash__subtitle">{{ searched ? `Resultado de «${searched}»` : 'Tickets de esta caja' }}</h2>
                     <form class="v-cash__search" @submit.prevent="search">
-                        <TextField v-model="q" placeholder="Nº de ticket (T-000123)" autocomplete="off" />
+                        <TextField v-model="q" placeholder="Nº (T-26-000123 o 123)" autocomplete="off" />
                         <TpvButton type="submit" variant="secondary" :disabled="!q.trim()">Buscar</TpvButton>
                         <TpvButton v-if="searched" variant="ghost" @click="q = ''; searched = ''; load()">✕</TpvButton>
                     </form>
@@ -94,7 +94,7 @@
                 </div>
             </template>
             <template v-else>
-                <p class="v-cash__title">Z nº {{ closed.z_number }}</p>
+                <p class="v-cash__title">Z nº {{ closed.z_full_number ?? closed.z_number }}</p>
                 <p class="c-modal__text">Ventas {{ money(closed.report.sales_total) }} · diferencia {{ money(closed.report.cash.difference) }}. El informe se ha enviado a la impresora.</p>
             </template>
             <template #actions>

@@ -30,7 +30,6 @@ class Setting extends Model
             'half_and_half_pricing' => HalfAndHalfPricing::class,
             'half_and_half_modifier_pricing' => HalfAndHalfModifierPricing::class,
             'delivery_fee_vat_rate' => 'integer',
-            'last_z_number' => 'integer',
             'auto_lock_minutes_pos' => 'integer',
             'auto_lock_minutes_mobile' => 'integer',
             'lock_pos_after_send' => 'boolean',

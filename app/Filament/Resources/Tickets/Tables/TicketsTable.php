@@ -23,9 +23,10 @@ class TicketsTable
         return $table
             ->defaultSort('issued_at', 'desc')
             ->columns([
-                TextColumn::make('number')->label('Número')->sortable()
+                TextColumn::make('number')->label('Número')
                     ->formatStateUsing(fn (Ticket $record) => $record->fullNumber())
-                    ->searchable(query: fn ($query, string $search) => $query->where('number', (int) preg_replace('/\D+/', '', $search) ?: -1)),
+                    ->sortable(query: fn ($query, string $direction) => $query->orderBy('year', $direction)->orderBy('number', $direction))
+                    ->searchable(query: fn ($query, string $search) => $query->whereNumber($search)),
                 TextColumn::make('issued_at')->label('Emitido')->dateTime('d/m/Y H:i')->sortable(),
                 TextColumn::make('type')->label('Tipo')->badge()
                     ->color(fn (TicketType $state) => match (true) {
@@ -46,6 +47,8 @@ class TicketsTable
             ->filters([
                 DateRangeFilter::make('issued_at', 'Fecha'),
                 SelectFilter::make('ticket_series_id')->label('Serie')->relationship('series', 'name'),
+                SelectFilter::make('year')->label('Año')
+                    ->options(fn () => Ticket::query()->distinct()->orderByDesc('year')->pluck('year', 'year')->all()),
                 SelectFilter::make('type')->label('Tipo')->options(TicketType::class),
                 SelectFilter::make('order_type')->label('Tipo de pedido')->options(OrderType::class),
                 SelectFilter::make('payment_status')->label('Cobro')->options(PaymentStatus::class),

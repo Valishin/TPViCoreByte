@@ -72,8 +72,10 @@ erDiagram
 
 | Tabla | Campos | Notas |
 |---|---|---|
-| `settings` | `trade_name`, `legal_name`, `tax_id`, `address`, `postal_code`, `city`, `province`, `phone`, `email`, `ticket_footer`, `logo_path`, `enabled_order_types` (json `OrderType[]`), `default_ticket_series_id`, `rectifying_ticket_series_id`, `half_and_half_pricing` (`mas_cara`\|`media`), `half_and_half_modifier_pricing` (`entero`\|`mitad`), `delivery_fee_vat_rate`, `last_z_number` | Una sola fila: `Setting::current()`. |
-| `ticket_series` | `code` (único), `name`, `is_rectifying`, `last_number`, `is_active` | Su fila se bloquea para numerar. |
+| `settings` | `trade_name`, `legal_name`, `tax_id`, `address`, `postal_code`, `city`, `province`, `phone`, `email`, `ticket_footer`, `logo_path`, `enabled_order_types` (json `OrderType[]`), `default_ticket_series_id`, `rectifying_ticket_series_id`, `half_and_half_pricing` (`mas_cara`\|`media`), `half_and_half_modifier_pricing` (`entero`\|`mitad`), `delivery_fee_vat_rate` | Una sola fila: `Setting::current()`. |
+| `ticket_series` | `code` (único), `name`, `digits` (cifras del número, 6 por defecto, mínimo 5), `is_rectifying`, `is_active` | |
+| `ticket_series_counters` | `ticket_series_id`, `year`, `last_number` (único por serie y año) | Contador por serie y año natural; su fila se bloquea para numerar. |
+| `z_counters` | `year` (clave), `last_number` | Contador de cierres Z por año. |
 | `users` | + `role` (`admin`\|`encargado`\|`camarero`\|`repartidor`), `pin` (hash), `is_active`; `email` pasa a nullable | Filament: solo admin/encargado activos. PIN de 4 dígitos validado en el mutador. |
 
 ### Sala
@@ -128,10 +130,10 @@ sésamo, sulfitos, altramuces, moluscos.
 
 | Tabla | Campos |
 |---|---|
-| `tickets` | `ticket_series_id`, `series_code`, `number` (único por serie), `type` (`simplificada`\|`rectificativa`), `status` (`emitido`\|`rectificado`), `order_id`, `order_type` (copia), `cash_session_id`, `issued_by`, `issued_at`, `rectified_ticket_id`, `rectification_method` (`sustitucion`\|`diferencias`), `rectification_reason`, `subtotal`, `lines_discount`, descuento global (`discount_type`, `discount_value`, `discount_amount`, `discount_reason`), `delivery_fee`, `tax_base`, `tax_amount`, `total`, `vat_breakdown` (json `[{rate, base, tax, total}]`), `issuer` (json), `customer_id`, `customer` (json), `delivery_address` (json), `payment_status` (`pagado`\|`pendiente`), `paid_at` |
+| `tickets` | `ticket_series_id`, `series_code`, `year` (año natural de emisión, hora de Madrid), `number`, `full_number` (snapshot `T-26-000123`; único (serie, año, número)), `type` (`simplificada`\|`rectificativa`), `status` (`emitido`\|`rectificado`), `order_id`, `order_type` (copia), `cash_session_id`, `issued_by`, `issued_at`, `rectified_ticket_id`, `rectification_method` (`sustitucion`\|`diferencias`), `rectification_reason`, `subtotal`, `lines_discount`, descuento global (`discount_type`, `discount_value`, `discount_amount`, `discount_reason`), `delivery_fee`, `tax_base`, `tax_amount`, `total`, `vat_breakdown` (json `[{rate, base, tax, total}]`), `issuer` (json), `customer_id`, `customer` (json), `delivery_address` (json), `payment_status` (`pagado`\|`pendiente`), `paid_at` |
 | `ticket_lines` | Copia de `order_lines` (incluida la jerarquía): `ticket_id`, `parent_line_id`, `order_line_id`, `kind`, `name`, `variant_name`, `quantity`, `unit_price`, `vat_rate`, `reference_price`, `allocated_amount`, `modifiers` (json), descuentos, `order_discount_amount`, `line_total`, `taxable_amount`, `sort_order` |
 | `payments` | `ticket_id`, `method` (`efectivo`\|`tarjeta`\|`bizum`\|`otro`), `amount`, `tendered`, `change`, `user_id`, `cash_session_id`, `paid_at` |
-| `cash_sessions` | `z_number` (único, correlativo), `status`, `opened_by`, `opened_at`, `opening_float`, `closed_by`, `closed_at`, `expected_cash`, `counted_cash`, `difference`, `notes` |
+| `cash_sessions` | `z_number`, `z_year`, `z_full_number` (`Z-26-0001`, correlativo por año; único (año, número)), `status`, `opened_by`, `opened_at`, `opening_float`, `closed_by`, `closed_at`, `expected_cash`, `counted_cash`, `difference`, `notes` |
 | `fiscal_records` | `ticket_id`, `record_type` (`alta`\|`anulacion`), `hash`, `previous_hash`, `previous_record_id`, `generated_at`, `payload`, `submission_status` (`pendiente`\|`enviado`\|`aceptado`\|`aceptado_con_errores`\|`rechazado`), `aeat_response`, `aeat_csv`, `submitted_at`, `attempts` |
 
 ## Cómo se modelan las piezas delicadas
@@ -208,7 +210,7 @@ realmente aplicado. Los gastos de envío tributan a `settings.delivery_fee_vat_r
 
 | Regla | Dónde |
 |---|---|
-| Numeración correlativa sin huecos ni duplicados por serie | `TicketNumberService`: `SELECT … FOR UPDATE` de la serie dentro de la transacción de emisión; si falla, el rollback deshace el contador. Clave única (`ticket_series_id`, `number`). |
+| Numeración correlativa sin huecos ni duplicados por serie y año (art. 6.1.a RD 1619/2012) | `TicketNumberService`: `SELECT … FOR UPDATE` del contador (serie, año) dentro de la transacción de emisión; si falla, el rollback deshace el contador. Clave única (`ticket_series_id`, `year`, `number`). Formato `{SERIE}-{AA}-{NNNNNN}` (`App\Support\DocumentNumber`), guardado en `full_number`. |
 | Tickets inmutables | Modelo `Ticket`/`TicketLine` (eventos `updating`/`deleting`) **y** trigger PostgreSQL `tpv_ticket_guard`. Solo pueden cambiar `payment_status`, `paid_at` y `status` de `emitido` a `rectificado`. |
 | Pedido editable solo abierto | `OrderLineBuilder` y `OrderService`. |
 | `table_id` solo en pedidos de mesa | Modelo `Order` (evento `saving`) y `OrderService::open`. |
@@ -220,7 +222,7 @@ realmente aplicado. Los gastos de envío tributan a `settings.delivery_fee_vat_r
 
 ## Preparación para VeriFactu (sin implementar)
 
-- Numeración correlativa por serie y serie separada para rectificativos.
+- Numeración correlativa por serie y año natural (vuelve a 1 el 1 de enero, hora de Madrid) y serie separada para rectificativos. En VERI*FACTU, NumSerieFactura = `full_number`.
 - Desglose de IVA (`vat_breakdown`), datos del emisor (`issuer`) y del cliente
   congelados en el ticket.
 - `fiscal_records` reservada para el encadenamiento (hash, hash anterior,

@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Support\DocumentNumber;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,8 @@ class FullInvoiceModelTest extends TestCase
         $series = $settings->defaultTicketSeries;
 
         return Ticket::create($attributes + [
-            'ticket_series_id' => $series->id, 'series_code' => $series->code, 'number' => Ticket::count() + 1,
+            'ticket_series_id' => $series->id, 'series_code' => $series->code,
+            ...DocumentNumber::make($series->code, DocumentNumber::yearOf(now()), Ticket::count() + 1)->attributes(),
             'type' => TicketType::Simplified, 'status' => TicketStatus::Issued, 'issued_by' => User::factory()->create()->id,
             'issued_at' => now(), 'subtotal' => 1000, 'tax_base' => 909, 'tax_amount' => 91, 'total' => 1000,
             'vat_breakdown' => [['rate' => 1000, 'base' => 909, 'tax' => 91, 'total' => 1000]],

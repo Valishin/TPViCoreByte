@@ -18,7 +18,8 @@ class CashSessionsTable
         return $table
             ->defaultSort('opened_at', 'desc')
             ->columns([
-                TextColumn::make('z_number')->label('Z nº')->placeholder('Abierta')->sortable(),
+                TextColumn::make('z_full_number')->label('Z nº')->placeholder('Abierta')
+                    ->sortable(query: fn ($query, string $direction) => $query->orderBy('z_year', $direction)->orderBy('z_number', $direction)),
                 TextColumn::make('opened_at')->label('Apertura')->dateTime('d/m/Y H:i')->sortable(),
                 TextColumn::make('closed_at')->label('Cierre')->dateTime('d/m/Y H:i')->placeholder('—'),
                 TextColumn::make('openedBy.name')->label('Abrió'),

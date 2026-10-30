@@ -53,7 +53,7 @@ class InvoiceExchangeTest extends InvoiceTestCase
         $ticket = $this->paidTicket();
         $this->exchange($ticket)->assertCreated();
 
-        $this->exchange($ticket)->assertStatus(422)->assertJsonPath('message', 'Este ticket ya se canjeó por la factura F-000001.');
+        $this->exchange($ticket)->assertStatus(422)->assertJsonPath('message', 'Este ticket ya se canjeó por la factura '.$this->docNumber('F', 1).'.');
         $this->assertSame(1, Ticket::where('type', 'completa_canje')->count());
     }
 
@@ -63,7 +63,7 @@ class InvoiceExchangeTest extends InvoiceTestCase
         $ticket = $this->paidTicket();
         $this->exchange($ticket)->assertCreated();
 
-        $this->expectExceptionMessage('Este ticket se canjeó por la factura F-000001: rectifica la factura.');
+        $this->expectExceptionMessage('Este ticket se canjeó por la factura '.$this->docNumber('F', 1).': rectifica la factura.');
         app(RectificationService::class)->byDifferences($ticket->refresh(), $this->waiter, 'Error');
     }
 

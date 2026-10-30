@@ -349,7 +349,7 @@ class ReceiptFormatter
             ->title(Setting::current()->trade_name)
             ->line($final ? 'INFORME Z · CIERRE DE CAJA' : 'INFORME X · PARCIAL', Printable::ALIGN_CENTER, bold: true, reverse: true);
         if ($final && $report['z_number']) {
-            $p->line('Z nº '.$report['z_number'], Printable::ALIGN_CENTER, bold: true, large: true);
+            $p->line('Z nº '.($report['z_full_number'] ?? $report['z_number']), Printable::ALIGN_CENTER, bold: true, large: true);
         }
         $p->columns('Apertura', $report['opened_at'])
             ->columns($final ? 'Cierre' : 'Hora', $report['generated_at'])

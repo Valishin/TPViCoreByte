@@ -12,9 +12,10 @@ use App\Exceptions\OpenOrdersException;
 use App\Jobs\RunBackup;
 use App\Models\CashSession;
 use App\Models\Order;
-use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Tickets\TicketNumberService;
+use App\Support\DocumentNumber;
 use App\Support\Format;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -26,6 +27,9 @@ use LogicException;
  */
 class CashSessionService
 {
+    /** Cifras del número de cierre Z (Z-26-0001). */
+    public const Z_DIGITS = 4;
+
     public function __construct(private CashReportService $reports) {}
 
     /** @param  array<string, int>|null  $breakdown  céntimos de la moneda/billete => unidades */
@@ -72,17 +76,21 @@ class CashSessionService
                 throw new LogicException('La caja ya está cerrada.');
             }
 
-            $settings = Setting::query()->lockForUpdate()->firstOrFail();
-            $settings->increment('last_z_number');
-            $session->z_number = $settings->last_z_number;
+            // Z-26-0001: correlativo por año natural del cierre (hora de Madrid), contador bloqueado.
+            $closedAt = now();
+            $year = DocumentNumber::yearOf($closedAt);
+            $z = DocumentNumber::make('Z', $year, TicketNumberService::increment('z_counters', ['year' => $year]), self::Z_DIGITS);
+            $session->forceFill(['z_number' => $z->number, 'z_year' => $z->year, 'z_full_number' => $z->full]);
 
             $report = $this->reports->build($session, $countedCash, $notes);
 
             $session->update([
                 'status' => CashSessionStatus::Closed,
-                'z_number' => $settings->last_z_number,
+                'z_number' => $z->number,
+                'z_year' => $z->year,
+                'z_full_number' => $z->full,
                 'closed_by' => $by->id,
-                'closed_at' => now(),
+                'closed_at' => $closedAt,
                 'expected_cash' => $report['cash']['expected'],
                 'counted_cash' => $countedCash,
                 'difference' => $report['cash']['difference'],

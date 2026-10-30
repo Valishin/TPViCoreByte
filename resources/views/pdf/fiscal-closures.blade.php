@@ -7,7 +7,7 @@
     <tbody>
     @foreach ($closures as $c)
         <tr>
-            <td>{{ $c->z_number }}</td><td>{{ $c->opened_at->format('d/m/Y H:i') }}</td><td>{{ $c->closed_at?->format('d/m/Y H:i') }}</td>
+            <td>{{ $c->z_full_number }}</td><td>{{ $c->opened_at->format('d/m/Y H:i') }}</td><td>{{ $c->closed_at?->format('d/m/Y H:i') }}</td>
             <td>{{ $c->closedBy?->name }}</td><td class="n">{{ $c->z_report['tickets']['count'] ?? '' }}</td>
             <td class="n">{{ $m($c->z_report['sales_total'] ?? 0) }}</td><td class="n">{{ $m($c->opening_float) }}</td>
             <td class="n">{{ $m($c->expected_cash) }}</td><td class="n">{{ $m($c->counted_cash) }}</td><td class="n">{{ $m($c->difference) }}</td>
@@ -18,7 +18,7 @@
 </table>
 @foreach ($closures as $c)
     @if ($c->z_report)
-        <h2>Z nº {{ $c->z_number }} · formas de pago e IVA</h2>
+        <h2>Z nº {{ $c->z_full_number }} · formas de pago e IVA</h2>
         <table>
             <thead><tr><th>Forma de pago</th><th>Cobros</th><th>Importe</th></tr></thead>
             <tbody>@foreach ($c->z_report['by_method'] as $r)<tr><td>{{ $r['label'] }}</td><td class="n">{{ $r['count'] }}</td><td class="n">{{ $m($r['amount']) }}</td></tr>@endforeach</tbody>

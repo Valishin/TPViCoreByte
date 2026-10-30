@@ -14,7 +14,7 @@ class TicketSeriesFactory extends Factory
             'code' => strtoupper(fake()->unique()->lexify('???')), // 3 letras: no choca con T, R, F, FR
             'name' => 'Serie '.fake()->word(),
             'is_rectifying' => false,
-            'last_number' => 0,
+            'digits' => 6,
             'is_active' => true,
         ];
     }

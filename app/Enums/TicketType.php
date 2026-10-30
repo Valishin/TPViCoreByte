@@ -19,6 +19,9 @@ use Filament\Support\Contracts\HasLabel;
  *                           R2 art. 80.Tres LIVA (concurso)
  *                           R3 art. 80.Cuatro LIVA (créditos incobrables)
  *                           R4 resto
+ *
+ * NumSerieFactura de VERI*FACTU: el número completo formateado del documento
+ * (tickets.full_number, p. ej. T-26-000123; ver App\Support\DocumentNumber).
  */
 enum TicketType: string implements HasLabel
 {

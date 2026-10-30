@@ -63,10 +63,10 @@ class InvoiceReportsTest extends InvoiceTestCase
         $this->assertStringContainsString(';F1;', $facturas);
         $this->assertStringContainsString(';F3;', $facturas);
         $this->assertStringContainsString($ticket->fullNumber(), $facturas);  // sustituye a
-        $this->assertStringContainsString('FR;1;', $rect);
+        $this->assertStringContainsString($this->docNumber('FR', 1).';FR;', $rect);
         $this->assertStringContainsString('error_descuento', $rect);
         $this->assertStringContainsString('Canjeado por factura', $tickets);
-        $this->assertStringContainsString('F-000002', $tickets);               // canjeado por
+        $this->assertStringContainsString($this->docNumber('F', 2), $tickets);               // canjeado por
         $this->assertStringContainsString('facturas.csv', $readme);
     }
 }

@@ -34,7 +34,7 @@ class FiscalExportService
             ->with(['lines', 'payments', 'issuedBy', 'rectifiedTicket', 'replacedTicket', 'exchangedBy'])
             ->orderBy('issued_at')->orderBy('id')->get();
         $closures = CashSession::query()->where('status', CashSessionStatus::Closed)->whereBetween('closed_at', [$from, $to])
-            ->with(['openedBy', 'closedBy'])->orderBy('z_number')->get();
+            ->with(['openedBy', 'closedBy'])->orderBy('z_year')->orderBy('z_number')->get();
 
         $dir = storage_path('app/private/exports');
         if (! is_dir($dir)) {
@@ -81,14 +81,14 @@ class FiscalExportService
     {
         $full = $invoice || $rectifying;
         $rows = [array_merge(
-            ['Serie', 'Número', 'Fecha', 'Hora', 'Estado', 'Tipo de pedido', 'Atendió', 'Base imponible', 'Cuota IVA', 'Total', 'Formas de pago', 'NIF emisor'],
+            ['Número completo', 'Serie', 'Año', 'Número', 'Fecha', 'Hora', 'Estado', 'Tipo de pedido', 'Atendió', 'Base imponible', 'Cuota IVA', 'Total', 'Formas de pago', 'NIF emisor'],
             $full ? ['Tipo de documento', 'Tipo VERI*FACTU', 'Fecha de la operación', 'NIF destinatario', 'Destinatario', 'Domicilio destinatario', 'País'] : ['Canjeado por'],
             $invoice ? ['Sustituye a (canje)'] : [],
             $rectifying ? ['Rectifica a', 'Método', 'Motivo', 'Código de motivo'] : [],
         )];
         foreach ($tickets as $t) {
             $rows[] = array_merge([
-                $t->series_code, $t->number, $t->issued_at->format('d/m/Y'), $t->issued_at->format('H:i:s'),
+                $t->fullNumber(), $t->series_code, $t->year, $t->number, $t->issued_at->format('d/m/Y'), $t->issued_at->format('H:i:s'),
                 $t->status->label(), $t->order_type?->label() ?? '', $t->issuedBy?->name ?? '',
                 $this->amount($t->tax_base), $this->amount($t->tax_amount), $this->amount($t->total),
                 $t->payments->map(fn ($p) => $p->method->label().' '.$this->amount($p->amount))->implode(' + '),
@@ -110,11 +110,11 @@ class FiscalExportService
 
     private function lineRows(Collection $tickets): array
     {
-        $rows = [['Serie', 'Número', 'Línea', 'Línea padre', 'Cantidad', 'Producto', 'Variante', 'Tipo IVA', 'Importe', 'Descuento', 'Invitación', 'Importe tributable']];
+        $rows = [['Número completo', 'Serie', 'Año', 'Número', 'Línea', 'Línea padre', 'Cantidad', 'Producto', 'Variante', 'Tipo IVA', 'Importe', 'Descuento', 'Invitación', 'Importe tributable']];
         foreach ($tickets as $t) {
             foreach ($t->lines as $l) {
                 $rows[] = [
-                    $t->series_code, $t->number, $l->id, $l->parent_line_id ?? '', $l->quantity, $l->name, $l->variant_name ?? '',
+                    $t->fullNumber(), $t->series_code, $t->year, $t->number, $l->id, $l->parent_line_id ?? '', $l->quantity, $l->name, $l->variant_name ?? '',
                     Format::percentInput($l->vat_rate), $this->amount($l->line_total), $this->amount($l->discount_amount + $l->order_discount_amount),
                     $l->is_invitation ? 'Sí' : 'No', $this->amount($l->taxable_amount),
                 ];
@@ -126,10 +126,10 @@ class FiscalExportService
 
     private function vatRows(Collection $tickets): array
     {
-        $rows = [['Serie', 'Número', 'Fecha', 'Tipo IVA (%)', 'Base imponible', 'Cuota', 'Total']];
+        $rows = [['Número completo', 'Serie', 'Año', 'Número', 'Fecha', 'Tipo IVA (%)', 'Base imponible', 'Cuota', 'Total']];
         foreach ($tickets as $t) {
             foreach ($t->vat_breakdown as $v) {
-                $rows[] = [$t->series_code, $t->number, $t->issued_at->format('d/m/Y'), Format::percentInput($v['rate']), $this->amount($v['base']), $this->amount($v['tax']), $this->amount($v['total'])];
+                $rows[] = [$t->fullNumber(), $t->series_code, $t->year, $t->number, $t->issued_at->format('d/m/Y'), Format::percentInput($v['rate']), $this->amount($v['base']), $this->amount($v['tax']), $this->amount($v['total'])];
             }
         }
 
@@ -142,7 +142,7 @@ class FiscalExportService
         foreach ($closures as $c) {
             $r = $c->z_report ?? [];
             $rows[] = [
-                $c->z_number, $c->opened_at->format('d/m/Y H:i'), $c->closed_at?->format('d/m/Y H:i') ?? '',
+                $c->z_full_number, $c->opened_at->format('d/m/Y H:i'), $c->closed_at?->format('d/m/Y H:i') ?? '',
                 $c->openedBy?->name ?? '', $c->closedBy?->name ?? '',
                 $this->amount($c->opening_float), $this->amount($c->expected_cash), $this->amount($c->counted_cash), $this->amount($c->difference),
                 $r['tickets']['count'] ?? '', $r['invoices']['count'] ?? 0, $r['rectifications']['count'] ?? '', $r['exchanges']['count'] ?? 0,
@@ -203,6 +203,8 @@ class FiscalExportService
             ."cierres_z.csv / .pdf        Cierres de caja Z ({$closures})\n\n"
             ."Importes en euros con coma decimal, IVA incluido salvo base y cuota. CSV separado por punto y coma.\n"
             ."Los canjes (factura que sustituye a un ticket, art. 15.6 RD 1619/2012) no suman en el resumen de IVA:\n"
-            ."su ticket ya está incluido; en tickets.csv figura como canjeado con la factura que lo sustituye.\n";
+            ."su ticket ya está incluido; en tickets.csv figura como canjeado con la factura que lo sustituye.\n"
+            ."Numeración: correlativa dentro de cada serie y año natural, SERIE-AA-NÚMERO (T-26-000001, Z-26-0001);\n"
+            ."vuelve a 1 el 1 de enero (hora peninsular). La clave de cada documento es serie + año + número.\n";
     }
 }

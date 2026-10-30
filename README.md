@@ -214,11 +214,16 @@ La SPA en <http://localhost:8081> (o la IP del ordenador desde el móvil).
   (Ajustes del local, 10 % por defecto), invitaciones, anular tickets, abrir el
   cajón sin venta, reimprimir a partir de la 2.ª copia y abrir/cerrar caja.
   Queda registrado quién la pidió y quién la dio.
+- **Numeración:** `{SERIE}-{AA}-{NNNNNN}` (T-26-000001, R-26-…, F-26-…,
+  FR-26-…); cada serie vuelve a 1 el 1 de enero (hora de Madrid, por la fecha
+  de emisión, no la de la caja). Las cifras se configuran por serie en
+  /admin → Series (6 por defecto, mínimo 5); lo ya emitido no cambia. En Caja
+  se busca por el número completo o solo las cifras (primero el año actual).
 - **Anular un ticket** (Caja → Anular, o en /admin → Tickets): emite un
   rectificativo por diferencias en la serie R (total o parcial) y registra la
   devolución en la caja. En /admin también "por sustitución".
 - **Cierre Z**: arqueo con importe o contando billetes y monedas; avisa si hay
-  pedidos abiertos o domicilios sin cobrar. Imprime el Z (correlativo) con ventas, formas de pago,
+  pedidos abiertos o domicilios sin cobrar. Imprime el Z (Z-26-0001, correlativo por año) con ventas, formas de pago,
   propinas, IVA, camareros y tipos de pedido.
 - **Exportación fiscal** (/admin → Ventas → Exportación fiscal, o
   `sail artisan tpv:export-fiscal --from=AAAA-MM-DD --to=AAAA-MM-DD`): ZIP con

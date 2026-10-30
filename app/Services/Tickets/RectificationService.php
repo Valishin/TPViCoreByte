@@ -203,17 +203,20 @@ class RectificationService
             $total = array_sum(array_column($breakdown, 'total'));
             $subtotal = $total - $deliveryFee + $linesDiscount + $orderDiscount;
 
+            // Año y número de la misma fecha de emisión que se guarda (art. 6.1.a).
+            $issuedAt = now();
+            $number = $this->numbers->next($series, $issuedAt);
             $rectifying = Ticket::create([
                 'ticket_series_id' => $series->id,
                 'series_code' => $series->code,
-                'number' => $this->numbers->next($series),
+                ...$number->attributes(),
                 'type' => $original->type->rectifyingType(),
                 'status' => TicketStatus::Issued,
                 'order_id' => $original->order_id,
                 'order_type' => $original->order_type,
                 'cash_session_id' => $session->id,
                 'issued_by' => $by->id,
-                'issued_at' => now(),
+                'issued_at' => $issuedAt,
                 'rectified_ticket_id' => $original->id,
                 'rectification_method' => $method,
                 'rectification_reason' => $reason,

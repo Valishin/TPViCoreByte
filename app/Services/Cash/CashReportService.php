@@ -64,6 +64,7 @@ class CashReportService
         return [
             'session_id' => $session->id,
             'z_number' => $session->z_number,
+            'z_full_number' => $session->z_full_number,
             'opened_at' => $session->opened_at->format('d/m/Y H:i'),
             'generated_at' => now()->format('d/m/Y H:i'),
             'tickets' => ['count' => $simplified->count(), 'total' => (int) $simplified->sum('total')],

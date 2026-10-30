@@ -46,10 +46,13 @@ class InvoiceExchanger
             $settings = Setting::current();
             $series = $settings->invoiceSeries ?? throw new LogicException('No hay serie de facturas (F) en los ajustes.');
 
+            // Año y número de la misma fecha de emisión que se guarda (art. 6.1.a).
+            $issuedAt = now();
+            $number = $this->numbers->next($series, $issuedAt);
             $invoice = Ticket::create([
                 'ticket_series_id' => $series->id,
                 'series_code' => $series->code,
-                'number' => $this->numbers->next($series),
+                ...$number->attributes(),
                 'type' => TicketType::InvoiceExchange,
                 'status' => TicketStatus::Issued,
                 'order_id' => $ticket->order_id,
@@ -58,7 +61,7 @@ class InvoiceExchanger
                 // se asocia a la caja abierta para listarlo en ella.
                 'cash_session_id' => CheckoutService::openSession()?->id,
                 'issued_by' => $by->id,
-                'issued_at' => now(),
+                'issued_at' => $issuedAt,
                 'operation_date' => $ticket->issued_at->toDateString(),
                 'replaces_ticket_id' => $ticket->id,
                 'subtotal' => $ticket->subtotal,

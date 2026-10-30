@@ -90,6 +90,6 @@ class MyDeliveriesTest extends TakeawayTestCase
         $this->assertSame(1000, $javi['expected_cash']);
         $this->assertSame(1150, $javi['expected_other']);
         $this->assertSame([['method' => 'efectivo', 'amount' => 1000], ['method' => 'tarjeta', 'amount' => 1150]], $javi['orders'][0]['expected_rows']);
-        $this->assertMatchesRegularExpression('/^[A-Z]+-\d{6}$/', $javi['orders'][0]['ticket']['number']); // con su formato (T-000001)
+        $this->assertMatchesRegularExpression('/^[A-Z]+-\d{2}-\d{6}$/', $javi['orders'][0]['ticket']['number']); // con su formato (T-26-000001)
     }
 }

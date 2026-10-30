@@ -19,7 +19,7 @@ class CashSessionInfolist
         return $schema->components([
             Grid::make(3)->columnSpanFull()->schema([
                 Section::make('Caja')->columns(2)->schema([
-                    TextEntry::make('z_number')->label('Z nº')->placeholder('Abierta'),
+                    TextEntry::make('z_full_number')->label('Z nº')->placeholder('Abierta'),
                     TextEntry::make('status')->label('Estado')->badge(),
                     TextEntry::make('openedBy.name')->label('Abrió'),
                     TextEntry::make('opened_at')->label('Apertura')->dateTime('d/m/Y H:i'),

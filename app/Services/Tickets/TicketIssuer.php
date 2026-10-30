@@ -59,17 +59,20 @@ class TicketIssuer
                 throw new LogicException('El pedido no tiene líneas.');
             }
 
+            // Año y número de la misma fecha de emisión que se guarda (art. 6.1.a).
+            $issuedAt = now();
+            $number = $this->numbers->next($series, $issuedAt);
             $ticket = Ticket::create([
                 'ticket_series_id' => $series->id,
                 'series_code' => $series->code,
-                'number' => $this->numbers->next($series),
+                ...$number->attributes(),
                 'type' => $recipient ? TicketType::Invoice : TicketType::Simplified,
                 'status' => TicketStatus::Issued,
                 'order_id' => $order->id,
                 'order_type' => $order->type,
                 'cash_session_id' => $session?->id,
                 'issued_by' => $by->id,
-                'issued_at' => now(),
+                'issued_at' => $issuedAt,
                 'subtotal' => $totals->linesGross,
                 'lines_discount' => $totals->linesDiscount,
                 'discount_type' => $order->discount_type,

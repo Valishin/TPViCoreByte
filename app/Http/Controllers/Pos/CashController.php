@@ -67,7 +67,7 @@ class CashController extends Controller
             $this->printReport($session->z_report, true, $session, $request);
         }
 
-        return response()->json(['data' => ['id' => $session->id, 'z_number' => $session->z_number, 'report' => $session->z_report]]);
+        return response()->json(['data' => ['id' => $session->id, 'z_number' => $session->z_number, 'z_full_number' => $session->z_full_number, 'report' => $session->z_report]]);
     }
 
     public function printX(Request $request): JsonResponse
@@ -87,20 +87,14 @@ class CashController extends Controller
         return response()->json(['status' => 'queued']);
     }
 
-    /** Tickets de la caja abierta (o de hoy si no hay), los más recientes primero. */
-    /** Tickets de la caja abierta (o de hoy); con ?q=T-000123 o 123, búsqueda por número en todos. */
+    /** Tickets de la caja abierta (o de hoy); con ?q=T-26-000123 o 123, búsqueda por número en todos. */
     public function tickets(Request $request): JsonResponse
     {
         $session = CheckoutService::openSession();
         $search = trim((string) $request->query('q', ''));
         $tickets = Ticket::query()
-            ->when($search !== '', function ($q) use ($search) {
-                preg_match('/^(?:([A-Za-z]+)-?)?0*(\d+)$/', str_replace(' ', '', $search), $m);
-                if (! $m) {
-                    return $q->whereRaw('false');
-                }
-                $q->where('number', (int) $m[2])->when($m[1] ?? '', fn ($q) => $q->where('series_code', strtoupper($m[1])));
-            }, fn ($q) => $q->when($session, fn ($q) => $q->where('cash_session_id', $session->id), fn ($q) => $q->whereDate('issued_at', today())))
+            // Por número completo (T-26-000123) o solo las cifras, primero en el año actual.
+            ->when($search !== '', fn ($q) => $q->searchNumber($search), fn ($q) => $q->when($session, fn ($q) => $q->where('cash_session_id', $session->id), fn ($q) => $q->whereDate('issued_at', today())))
             ->with(['order.table', 'issuedBy', 'payments', 'rectifiedTicket'])
             ->latest('id')->limit(100)->get();
 

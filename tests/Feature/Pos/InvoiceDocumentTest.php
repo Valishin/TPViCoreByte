@@ -39,7 +39,7 @@ class InvoiceDocumentTest extends InvoiceTestCase
         $text = $this->pdfText($this->invoice());
 
         foreach ([
-            'FACTURA', 'F-000001', 'Fecha de expedición: '.now()->format('d/m/Y'),                       // a, b
+            'FACTURA', $this->docNumber('F', 1), 'Fecha de expedición: '.now()->format('d/m/Y'),                       // a, b
             'Pizzeria Bella Napoli SL', 'NIF B12345674', 'Rambla del Portalet, 12', '17220 Sant Feliu de Guíxols (Girona)', // emisor
             'Restaurants del Port SL', 'Passeig dels Guíxols, 5',                                            // destinatario
             'Margarita', 'Precio unitario sin IVA', '9,0909 €', 'Cerveza', '2,2727 €',                         // f
@@ -67,7 +67,7 @@ class InvoiceDocumentTest extends InvoiceTestCase
         $rect = app(RectificationService::class)->byDifferences($exchange, $this->waiter, 'Devolución');
         $text = $this->pdfText($rect);
         $this->assertStringContainsString('FACTURA RECTIFICATIVA', $text);
-        $this->assertStringContainsString('Rectifica a la factura F-000001', $text);
+        $this->assertStringContainsString('Rectifica a la factura '.$this->docNumber('F', 1), $text);
         $this->assertStringContainsString('Motivo: Devolución', $text);
     }
 
@@ -79,7 +79,7 @@ class InvoiceDocumentTest extends InvoiceTestCase
 
         foreach ([48, 32] as $columns) {
             $text = $this->printedText($formatter->ticket($invoice, $columns)->operations());
-            foreach (['FACTURA', 'Nº F-000001', 'DESTINATARIO', 'Restaurants del Port SL', 'NIF B12345674',
+            foreach (['FACTURA', 'Nº '.$this->docNumber('F', 1), 'DESTINATARIO', 'Restaurants del Port SL', 'NIF B12345674',
                 'P.u. sin IVA 9,0909 €', 'IVA 10 %', 'Base imponible', 'Cuota IVA', 'TOTAL  22,50 €'] as $expected) {
                 $this->assertStringContainsString($expected, $text, "{$columns} columnas: falta «{$expected}»");
             }
@@ -97,7 +97,7 @@ class InvoiceDocumentTest extends InvoiceTestCase
 
         $this->asWaiter()->get("/api/tickets/{$invoice->id}/pdf")->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
-            ->assertHeader('Content-Disposition', 'inline; filename="Factura-F-000001.pdf"');
+            ->assertHeader('Content-Disposition', 'inline; filename="Factura-'.$this->docNumber('F', 1).'.pdf"');
     }
 
     /** Art. 6.1.f: el envío es una línea más, con precio sin IVA y tipo, y cuadra con el desglose. */

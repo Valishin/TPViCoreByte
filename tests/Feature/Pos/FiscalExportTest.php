@@ -55,8 +55,9 @@ class FiscalExportTest extends PosTestCase
 
         $tickets = array_map(fn ($r) => str_getcsv($r, ';', '"', ''), array_filter(explode("\n", ltrim($files['tickets.csv'], "\u{FEFF}"))));
         $this->assertCount(3, $tickets); // cabecera + 2 tickets
-        $this->assertSame('Número', $tickets[0][1]);
-        $this->assertSame('18,10', $tickets[2][9]);
+        $this->assertSame(['Número completo', 'Serie', 'Año', 'Número'], array_slice($tickets[0], 0, 4));
+        $this->assertSame($this->docNumber($tickets[2][1], 2), $tickets[2][0]); // número completo = serie-AA-número
+        $this->assertSame('18,10', $tickets[2][11]);
 
         $this->assertStringContainsString('-5,00', $files['rectificativos.csv']);
         $this->assertStringContainsString('Error', $files['rectificativos.csv']);
