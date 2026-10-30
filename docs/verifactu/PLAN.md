@@ -1,6 +1,6 @@
 # VERI*FACTU — plan, decisiones y dudas (borrador para revisión)
 
-Estado: **pendiente de OK**. No se ha escrito código de esta fase.
+Estado: **aprobado** (con las respuestas de la sección 6). Dudas para el asesor: `dudas-asesor.md`.
 
 Abreviaturas de las citas (todas las fuentes están en `docs/verifactu/oficial/`, ver `LEEME.md`):
 
@@ -153,3 +153,23 @@ y 11, facturas de prueba).
 8. Filament: página VERI*FACTU (estado, pendientes, errores, detalle con XML y respuesta, reintento, conciliación); avisos en caja y /admin; «Acerca de» con la declaración responsable.
 9. Exportación fiscal, copias, documentación (instalación, checklist, APP_KEY y certificado); borrador de declaración responsable.
 10. Pruebas de extremo a extremo y resumen.
+
+## 6. Respuestas del cliente (aprobación del plan)
+
+- C1–C6: aprobados, siguiendo la FAQ 27 y la especificación.
+- Q1: ajuste por local con la clave de régimen (01 por defecto, 20 simplificado); el instalador de
+  producción lo pregunta y la checklist incluye «confirmar el régimen con el cliente o su gestor». → asesor.
+- Q2: lista L2 como se propone. → asesor.
+- Q3: anulación si no se cobró; R5 si estaba prepagado. Regla en una sola función, configurable en código. → asesor.
+- Q4: Representante desactivado por defecto (no aplica de momento).
+- Q5: demos y desarrollo, desactivado por defecto. En producción, `tpv:setup` y el instalador lo activan desde la
+  primera emisión, en el entorno de producción de la AEAT y con certificado obligatorio. Fecha de obligación por
+  cliente en el .conf (2027-01-01 si declara IS; 2027-07-01 resto). En producción sin VERI*FACTU activo: aviso desde
+  30 días antes de esa fecha y bloqueo de la emisión desde ella.
+- Q6: restaurar en otro equipo = reinstalación (número nuevo) manteniendo el encadenamiento con el último
+  registro; en el mismo equipo se mantiene el número. → asesor.
+- Q7: se comprobará en la prueba real en el entorno de pruebas.
+- Q8: criterio según la especificación y la OM 16.4 (se explica en el resumen final).
+- Q9: precuentas guardadas de forma inalterable (contenido completo, fecha y pedido), mismo trigger; sin registro de facturación.
+- Q10: productor Alex Valishin Abubekirov, NIF 49298273G, Carretera de Palamós 57, bajos; sistema «iCOREBYTE TPV»,
+  código IC; firma en Sant Feliu de Guíxols. Editables solo en la configuración del productor (`config/verifactu.php` / entorno del instalador).

@@ -48,7 +48,7 @@ class Ticket extends Model
 
             if ($ticket->isDirty('status')) {
                 $from = TicketStatus::from($ticket->getRawOriginal('status'));
-                if (! ($from === TicketStatus::Issued && in_array($ticket->status, [TicketStatus::Rectified, TicketStatus::Exchanged], true))) {
+                if (! ($from === TicketStatus::Issued && in_array($ticket->status, [TicketStatus::Rectified, TicketStatus::Exchanged, TicketStatus::Annulled], true))) {
                     throw new ImmutableTicketException("Transición de estado no permitida: {$from->value} → {$ticket->status->value}");
                 }
             }

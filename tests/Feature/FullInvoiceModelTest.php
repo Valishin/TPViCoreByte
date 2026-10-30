@@ -69,7 +69,8 @@ class FullInvoiceModelTest extends TestCase
         DB::table('tickets')->where('id', $ticket->id)->update(['status' => 'emitido']);
     }
 
-    public function test_a_ticket_can_be_replaced_by_one_invoice_only(): void
+    /** FAQ 27.2 (caso 1): para corregir una F3 se emite una F3 en negativo y otra nueva sobre el mismo ticket. */
+    public function test_a_ticket_can_be_referenced_by_several_exchange_invoices(): void
     {
         $this->createSettings();
         $ticket = $this->ticket();
@@ -81,8 +82,8 @@ class FullInvoiceModelTest extends TestCase
         $this->assertTrue($first->replacedTicket->is($ticket));
         $this->assertTrue($ticket->exchangedBy->is($first));
 
-        $this->expectException(QueryException::class); // índice único
-        $invoice();
+        $second = $invoice();
+        $this->assertTrue($second->replacedTicket->is($ticket));
     }
 
     public function test_verifactu_types(): void
