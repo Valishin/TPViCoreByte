@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tickets\Schemas;
 
+use App\Enums\PaymentStatus;
 use App\Enums\TicketType;
 use App\Filament\Components\LinesTree;
 use App\Filament\Components\MoneyEntry;
@@ -92,7 +93,12 @@ class TicketInfolist
                 ]),
                 Section::make('Pagos')->schema([
                     RepeatableEntry::make('payments')->label('Pagos')->hiddenLabel()
-                        ->placeholder('Pendiente de cobro')
+                        // Canje o sustitución con los mismos importes: cobrado, pero sin pagos propios.
+                        ->placeholder(fn (Ticket $record) => match (true) {
+                            $record->payment_status !== PaymentStatus::Paid => 'Pendiente de cobro',
+                            $record->replacedTicket !== null => 'Cobrado con el ticket '.$record->replacedTicket->fullNumber(),
+                            default => 'Sin cobros ni devoluciones en este documento',
+                        })
                         ->table([
                             TableColumn::make('Fecha'),
                             TableColumn::make('Forma de pago'),
@@ -120,7 +126,7 @@ class TicketInfolist
                             $record->recipient['address'] ?? null,
                             trim(($record->recipient['postal_code'] ?? '').' '.($record->recipient['city'] ?? '')),
                             $record->recipient['province'] ?? null,
-                            $record->recipient['country'] ?? null,
+                            ($record->recipient['country'] ?? 'ES') !== 'ES' ? $record->recipient['country'] : null,
                         ])))),
                     TextEntry::make('email_status')->label('Email')->placeholder('Sin enviar')
                         ->state(fn (Ticket $record) => ($e = $record->emails()->latest('id')->first())

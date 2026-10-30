@@ -56,10 +56,12 @@ class ViewTicket extends ViewRecord
 
         return [
             Action::make('voidTicket')
-                ->label('Anular ticket')->icon('heroicon-o-receipt-refund')->color('danger')
+                ->label($isInvoice ? 'Anular factura' : 'Anular ticket')->icon('heroicon-o-receipt-refund')->color('danger')
                 ->visible($canRectify)
-                ->modalHeading('Anular ticket (rectificativo por diferencias)')
-                ->modalDescription('Se emite un ticket rectificativo con los importes en negativo de lo que indiques. El original no se modifica. La devolución se registra en la caja abierta.')
+                ->modalHeading($isInvoice ? 'Anular factura (rectificativa por diferencias)' : 'Anular ticket (rectificativo por diferencias)')
+                ->modalDescription($isInvoice
+                    ? 'Se emite una factura rectificativa (serie FR) con los importes en negativo de lo que indiques. La original no se modifica. La devolución se registra en la caja abierta.'
+                    : 'Se emite un ticket rectificativo con los importes en negativo de lo que indiques. El original no se modifica. La devolución se registra en la caja abierta.')
                 ->schema(fn () => [
                     TextInput::make('reason')->label('Motivo')->required()->maxLength(200),
                     $reasonCode(),
