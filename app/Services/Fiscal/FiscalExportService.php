@@ -68,8 +68,9 @@ class FiscalExportService
             'simplified' => $simplified, 'invoices' => $invoices, 'rectifying' => $rectifying, 'closures' => $closures,
             'vatTotals' => $this->vatTotals($taxable),
         ];
-        $zip->addFromString('tickets.pdf', Pdf::loadView('pdf.fiscal-tickets', $data)->setPaper('a4', 'landscape')->output());
-        $zip->addFromString('cierres_z.pdf', Pdf::loadView('pdf.fiscal-closures', $data)->setPaper('a4')->output());
+        // Subconjunto de fuentes: solo los caracteres usados (como en la factura).
+        $zip->addFromString('tickets.pdf', Pdf::loadView('pdf.fiscal-tickets', $data)->setPaper('a4', 'landscape')->setOption('isFontSubsettingEnabled', true)->output());
+        $zip->addFromString('cierres_z.pdf', Pdf::loadView('pdf.fiscal-closures', $data)->setPaper('a4')->setOption('isFontSubsettingEnabled', true)->output());
         $zip->addFromString('LEEME.txt', $this->readme($from, $to, $simplified->count(), $rectifying->count(), $closures->count(), $invoices->count()));
         $zip->close();
 

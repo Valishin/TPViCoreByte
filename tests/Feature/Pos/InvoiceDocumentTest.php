@@ -27,6 +27,7 @@ class InvoiceDocumentTest extends InvoiceTestCase
     {
         $pdf = app(InvoicePdf::class)->render($ticket);
         $this->assertStringStartsWith('%PDF', $pdf);
+        $this->assertLessThan(100_000, strlen($pdf)); // fuentes en subconjunto: va por email
 
         return preg_replace('/\s+/u', ' ', (new Parser)->parseContent($pdf)->getText());
     }

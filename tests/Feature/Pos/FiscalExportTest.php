@@ -63,6 +63,9 @@ class FiscalExportTest extends PosTestCase
         $this->assertStringContainsString(';1;', $files['cierres_z.csv']);
         $this->assertStringStartsWith('%PDF', $files['tickets.pdf']);
         $this->assertStringStartsWith('%PDF', $files['cierres_z.pdf']);
+        // Subconjunto de fuentes: sin él cada PDF lleva ~900 KB de DejaVu.
+        $this->assertLessThan(150_000, strlen($files['tickets.pdf']));
+        $this->assertLessThan(150_000, strlen($files['cierres_z.pdf']));
     }
 
     public function test_artisan_command_and_filament_page(): void
