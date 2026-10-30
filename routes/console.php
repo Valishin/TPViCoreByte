@@ -20,3 +20,5 @@ Schedule::command('tpv:backup --upload-only')->hourly()->withoutOverlapping();
 Schedule::command('tpv:invoices-retry-email')->hourly()->withoutOverlapping();
 // VERI*FACTU: envío de pendientes (control de flujo dentro) y reintento tras incidencias (OM 16.2 y 16.4).
 Schedule::command('tpv:verifactu:send')->everyMinute()->withoutOverlapping();
+Schedule::command('tpv:verifactu:verify')->dailyAt('04:30')->withoutOverlapping();
+Schedule::command('tpv:verifactu:reconcile')->dailyAt('04:45')->withoutOverlapping();

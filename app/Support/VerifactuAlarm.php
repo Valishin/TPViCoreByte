@@ -6,27 +6,48 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Alarma de integridad o trazabilidad de la cadena de registros (OM 6.f y 7.j):
- * se muestra en caja y en /admin y no se quita hasta que se resuelve
- * (`tpv:verifactu:verify` sin problemas la apaga).
+ * Alarmas de VERI*FACTU que se muestran en caja y en /admin hasta que se
+ * resuelven (OM 6.f y 7.j para la cadena). Por tipo:
+ *  - chain: integridad o trazabilidad de la cadena (la apaga tpv:verifactu:verify sin problemas);
+ *  - send: envío rechazado por la AEAT o registro duplicado anulado;
+ *  - reconcile: discrepancias con la consulta a la AEAT.
  */
 final class VerifactuAlarm
 {
-    private const KEY = 'verifactu.alarm';
+    public const CHAIN = 'chain';
 
-    public static function raise(string $message): void
+    public const SEND = 'send';
+
+    public const RECONCILE = 'reconcile';
+
+    private const KEY = 'verifactu.alarm.';
+
+    public static function raise(string $message, string $kind = self::SEND): void
     {
-        Log::error('VERI*FACTU: '.$message);
-        Cache::forever(self::KEY, ['message' => $message, 'at' => now()->toIso8601String()]);
+        Log::error("VERI*FACTU ({$kind}): {$message}");
+        Cache::forever(self::KEY.$kind, ['kind' => $kind, 'message' => $message, 'at' => now()->toIso8601String()]);
     }
 
-    public static function current(): ?array
+    /** La alarma más reciente (o la de un tipo). */
+    public static function current(?string $kind = null): ?array
     {
-        return Cache::get(self::KEY);
+        if ($kind) {
+            return Cache::get(self::KEY.$kind);
+        }
+
+        return collect(self::all())->sortByDesc('at')->first();
     }
 
-    public static function clear(): void
+    /** @return list<array{kind: string, message: string, at: string}> */
+    public static function all(): array
     {
-        Cache::forget(self::KEY);
+        return array_values(array_filter(array_map(fn ($k) => Cache::get(self::KEY.$k), [self::CHAIN, self::SEND, self::RECONCILE])));
+    }
+
+    public static function clear(?string $kind = null): void
+    {
+        foreach ($kind ? [$kind] : [self::CHAIN, self::SEND, self::RECONCILE] as $k) {
+            Cache::forget(self::KEY.$k);
+        }
     }
 }

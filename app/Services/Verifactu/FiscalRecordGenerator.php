@@ -93,7 +93,7 @@ class FiscalRecordGenerator
             $problems[] = "El registro anterior ({$previous->invoice_number}) tiene fecha {$previous->generated_at}, posterior a la hora actual: revisa la hora del equipo.";
         }
         if ($problems) {
-            VerifactuAlarm::raise(implode(' ', $problems));
+            VerifactuAlarm::raise(implode(' ', $problems), VerifactuAlarm::CHAIN);
         }
     }
 }
