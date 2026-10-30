@@ -31,7 +31,7 @@ class FiscalExportService
         $to = $to->copy()->endOfDay();
 
         $tickets = Ticket::query()->whereBetween('issued_at', [$from, $to])
-            ->with(['lines', 'payments', 'issuedBy', 'rectifiedTicket'])
+            ->with(['lines', 'payments', 'issuedBy', 'rectifiedTicket', 'replacedTicket', 'exchangedBy'])
             ->orderBy('issued_at')->orderBy('id')->get();
         $closures = CashSession::query()->where('status', CashSessionStatus::Closed)->whereBetween('closed_at', [$from, $to])
             ->with(['openedBy', 'closedBy'])->orderBy('z_number')->get();
@@ -49,9 +49,14 @@ class FiscalExportService
         }
 
         $simplified = $tickets->where('type', TicketType::Simplified);
-        $rectifying = $tickets->where('type', TicketType::Rectifying);
+        // Facturas completas: directas (F1) y canjes de tickets (F3, art. 15.6).
+        $invoices = $tickets->whereIn('type', [TicketType::Invoice, TicketType::InvoiceExchange]);
+        $rectifying = $tickets->whereIn('type', [TicketType::Rectifying, TicketType::InvoiceRectifying]);
+        // Totales de IVA sin los canjes: su ticket ya está en el periodo en que se emitió.
+        $taxable = $tickets->reject(fn (Ticket $t) => $t->type === TicketType::InvoiceExchange);
 
         $zip->addFromString('tickets.csv', $this->csv($this->ticketRows($simplified)));
+        $zip->addFromString('facturas.csv', $this->csv($this->ticketRows($invoices, invoice: true)));
         $zip->addFromString('rectificativos.csv', $this->csv($this->ticketRows($rectifying, rectifying: true)));
         $zip->addFromString('lineas.csv', $this->csv($this->lineRows($tickets)));
         $zip->addFromString('desglose_iva.csv', $this->csv($this->vatRows($tickets)));
@@ -60,22 +65,25 @@ class FiscalExportService
         $data = [
             'settings' => Setting::current(),
             'from' => $from, 'to' => $to,
-            'simplified' => $simplified, 'rectifying' => $rectifying, 'closures' => $closures,
-            'vatTotals' => $this->vatTotals($tickets),
+            'simplified' => $simplified, 'invoices' => $invoices, 'rectifying' => $rectifying, 'closures' => $closures,
+            'vatTotals' => $this->vatTotals($taxable),
         ];
         $zip->addFromString('tickets.pdf', Pdf::loadView('pdf.fiscal-tickets', $data)->setPaper('a4', 'landscape')->output());
         $zip->addFromString('cierres_z.pdf', Pdf::loadView('pdf.fiscal-closures', $data)->setPaper('a4')->output());
-        $zip->addFromString('LEEME.txt', $this->readme($from, $to, $simplified->count(), $rectifying->count(), $closures->count()));
+        $zip->addFromString('LEEME.txt', $this->readme($from, $to, $simplified->count(), $rectifying->count(), $closures->count(), $invoices->count()));
         $zip->close();
 
         return $path;
     }
 
-    private function ticketRows(Collection $tickets, bool $rectifying = false): array
+    private function ticketRows(Collection $tickets, bool $rectifying = false, bool $invoice = false): array
     {
+        $full = $invoice || $rectifying;
         $rows = [array_merge(
             ['Serie', 'Número', 'Fecha', 'Hora', 'Estado', 'Tipo de pedido', 'Atendió', 'Base imponible', 'Cuota IVA', 'Total', 'Formas de pago', 'NIF emisor'],
-            $rectifying ? ['Rectifica a', 'Método', 'Motivo'] : [],
+            $full ? ['Tipo de documento', 'Tipo VERI*FACTU', 'Fecha de la operación', 'NIF destinatario', 'Destinatario', 'Domicilio destinatario', 'País'] : ['Canjeado por'],
+            $invoice ? ['Sustituye a (canje)'] : [],
+            $rectifying ? ['Rectifica a', 'Método', 'Motivo', 'Código de motivo'] : [],
         )];
         foreach ($tickets as $t) {
             $rows[] = array_merge([
@@ -84,7 +92,16 @@ class FiscalExportService
                 $this->amount($t->tax_base), $this->amount($t->tax_amount), $this->amount($t->total),
                 $t->payments->map(fn ($p) => $p->method->label().' '.$this->amount($p->amount))->implode(' + '),
                 $t->issuer['tax_id'] ?? '',
-            ], $rectifying ? [$t->rectifiedTicket?->fullNumber() ?? '', $t->rectification_method?->label() ?? '', $t->rectification_reason ?? ''] : []);
+            ],
+                $full ? [
+                    $t->type->label(), $t->verifactuType(), $t->operation_date?->format('d/m/Y') ?? '',
+                    $t->recipient['tax_id'] ?? '', $t->recipient['name'] ?? '',
+                    trim(($t->recipient['address'] ?? '').' · '.($t->recipient['postal_code'] ?? '').' '.($t->recipient['city'] ?? ''), ' ·'),
+                    $t->recipient['country'] ?? '',
+                ] : [$t->exchangedBy?->fullNumber() ?? ''],
+                $invoice ? [$t->replacedTicket?->fullNumber() ?? ''] : [],
+                $rectifying ? [$t->rectifiedTicket?->fullNumber() ?? '', $t->rectification_method?->label() ?? '', $t->rectification_reason ?? '', $t->rectification_reason_code ?? ''] : [],
+            );
         }
 
         return $rows;
@@ -120,14 +137,15 @@ class FiscalExportService
 
     private function closureRows(Collection $closures): array
     {
-        $rows = [['Z nº', 'Apertura', 'Cierre', 'Abrió', 'Cerró', 'Fondo inicial', 'Efectivo esperado', 'Contado', 'Diferencia', 'Tickets', 'Rectificativos', 'Total ventas', 'Propinas']];
+        $rows = [['Z nº', 'Apertura', 'Cierre', 'Abrió', 'Cerró', 'Fondo inicial', 'Efectivo esperado', 'Contado', 'Diferencia', 'Tickets', 'Facturas', 'Rectificativos', 'Canjes (no suman)', 'Total ventas', 'Propinas']];
         foreach ($closures as $c) {
             $r = $c->z_report ?? [];
             $rows[] = [
                 $c->z_number, $c->opened_at->format('d/m/Y H:i'), $c->closed_at?->format('d/m/Y H:i') ?? '',
                 $c->openedBy?->name ?? '', $c->closedBy?->name ?? '',
                 $this->amount($c->opening_float), $this->amount($c->expected_cash), $this->amount($c->counted_cash), $this->amount($c->difference),
-                $r['tickets']['count'] ?? '', $r['rectifications']['count'] ?? '', $this->amount($r['sales_total'] ?? null), $this->amount($r['tips']['total'] ?? null),
+                $r['tickets']['count'] ?? '', $r['invoices']['count'] ?? 0, $r['rectifications']['count'] ?? '', $r['exchanges']['count'] ?? 0,
+                $this->amount($r['sales_total'] ?? null), $this->amount($r['tips']['total'] ?? null),
             ];
         }
 
@@ -170,17 +188,20 @@ class FiscalExportService
         return $cents === null ? '' : Format::moneyInput($cents);
     }
 
-    private function readme(Carbon $from, Carbon $to, int $tickets, int $rectifying, int $closures): string
+    private function readme(Carbon $from, Carbon $to, int $tickets, int $rectifying, int $closures, int $invoices = 0): string
     {
         $s = Setting::current();
 
         return "Exportación de datos fiscales\n{$s->legal_name} · NIF {$s->tax_id}\n"
             .'Periodo: '.$from->format('d/m/Y').' – '.$to->format('d/m/Y')."\nGenerado: ".now()->format('d/m/Y H:i')."\n\n"
             ."tickets.csv / tickets.pdf   Facturas simplificadas ({$tickets})\n"
-            ."rectificativos.csv          Facturas rectificativas ({$rectifying})\n"
+            ."facturas.csv                Facturas completas: directas (F1) y canjes de tickets (F3) ({$invoices})\n"
+            ."rectificativos.csv          Rectificativas de tickets (R) y de facturas (FR) ({$rectifying})\n"
             ."lineas.csv                  Líneas de todos los tickets\n"
             ."desglose_iva.csv            Desglose de IVA por ticket y tipo\n"
             ."cierres_z.csv / .pdf        Cierres de caja Z ({$closures})\n\n"
-            ."Importes en euros con coma decimal, IVA incluido salvo base y cuota. CSV separado por punto y coma.\n";
+            ."Importes en euros con coma decimal, IVA incluido salvo base y cuota. CSV separado por punto y coma.\n"
+            ."Los canjes (factura que sustituye a un ticket, art. 15.6 RD 1619/2012) no suman en el resumen de IVA:\n"
+            ."su ticket ya está incluido; en tickets.csv figura como canjeado con la factura que lo sustituye.\n";
     }
 }

@@ -27,10 +27,11 @@ class CashSessionInfolist
                     TextEntry::make('closed_at')->label('Cierre')->dateTime('d/m/Y H:i')->placeholder('—'),
                 ]),
                 Section::make('Ventas')->schema([
-                    TextEntry::make('tickets_count')->label('Tickets emitidos')
-                        ->state(fn (CashSession $record) => $record->tickets()->count()),
+                    // Los canjes de ticket por factura no son ventas nuevas (art. 15.6).
+                    TextEntry::make('tickets_count')->label('Tickets y facturas emitidos')
+                        ->state(fn (CashSession $record) => $record->tickets()->where('type', '!=', 'completa_canje')->count()),
                     TextEntry::make('sales_total')->label('Total vendido')
-                        ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->sum('total'))),
+                        ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->where('type', '!=', 'completa_canje')->sum('total'))),
                     TextEntry::make('pending_total')->label('Pendiente de cobro')
                         ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->where('payment_status', 'pendiente')->sum('total'))),
                 ]),
@@ -52,8 +53,11 @@ class CashSessionInfolist
             Section::make('Informe Z')->columns(3)->columnSpanFull()
                 ->visible(fn (CashSession $record) => filled($record->z_report))
                 ->schema([
-                    TextEntry::make('z_tickets')->label('Tickets / rectificativos')
-                        ->state(fn (CashSession $record) => ($record->z_report['tickets']['count'] ?? 0).' / '.($record->z_report['rectifications']['count'] ?? 0)),
+                    TextEntry::make('z_tickets')->label('Tickets / facturas / rectificativos')
+                        ->state(fn (CashSession $record) => ($record->z_report['tickets']['count'] ?? 0).' / '.($record->z_report['invoices']['count'] ?? 0)
+                            .' / '.($record->z_report['rectifications']['count'] ?? 0))
+                        ->helperText(fn (CashSession $record) => ($record->z_report['exchanges']['count'] ?? 0)
+                            ? 'Canjes por factura (no suman): '.$record->z_report['exchanges']['count'] : null),
                     TextEntry::make('z_discounts')->label('Descuentos · invitaciones')
                         ->state(fn (CashSession $record) => Format::money($record->z_report['discounts']['amount'] ?? 0).' · '.Format::money($record->z_report['invitations']['amount'] ?? 0)),
                     TextEntry::make('z_tips')->label('Propinas (fuera de ventas)')

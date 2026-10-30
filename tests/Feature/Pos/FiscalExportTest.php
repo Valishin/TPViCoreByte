@@ -49,7 +49,7 @@ class FiscalExportTest extends PosTestCase
         $files = $this->unzip(app(FiscalExportService::class)->export(today()->subDay(), today()));
 
         $this->assertEqualsCanonicalizing(
-            ['tickets.csv', 'rectificativos.csv', 'lineas.csv', 'desglose_iva.csv', 'cierres_z.csv', 'tickets.pdf', 'cierres_z.pdf', 'LEEME.txt'],
+            ['tickets.csv', 'rectificativos.csv', 'facturas.csv', 'lineas.csv', 'desglose_iva.csv', 'cierres_z.csv', 'tickets.pdf', 'cierres_z.pdf', 'LEEME.txt'],
             array_keys($files),
         );
 

@@ -359,11 +359,16 @@ class ReceiptFormatter
 
         $p->line('VENTAS', bold: true)
             ->columns('Tickets ('.$report['tickets']['count'].')', Format::money($report['tickets']['total']))
+            ->columns('Facturas ('.($report['invoices']['count'] ?? 0).')', Format::money($report['invoices']['total'] ?? 0))
             ->columns('Rectificativos ('.$report['rectifications']['count'].')', Format::money($report['rectifications']['total']))
             ->columns('TOTAL VENTAS', Format::money($report['sales_total']), bold: true)
             ->columns('Descuentos', Format::money($report['discounts']['amount']))
-            ->columns('Invitaciones ('.$report['invitations']['count'].')', Format::money($report['invitations']['amount']))
-            ->separator();
+            ->columns('Invitaciones ('.$report['invitations']['count'].')', Format::money($report['invitations']['amount']));
+        if ($report['exchanges']['count'] ?? 0) {
+            $p->columns('Canjes por factura ('.$report['exchanges']['count'].')', Format::money($report['exchanges']['total']))
+                ->line('  (no suman: el ticket ya se contó)');
+        }
+        $p->separator();
 
         $p->line('FORMAS DE PAGO', bold: true);
         foreach ($report['by_method'] as $row) {

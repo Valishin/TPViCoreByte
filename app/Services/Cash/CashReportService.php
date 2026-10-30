@@ -23,10 +23,15 @@ class CashReportService
 {
     public function build(CashSession $session, ?int $countedCash = null, ?string $notes = null): array
     {
-        $tickets = Ticket::query()->where('cash_session_id', $session->id)->with('issuedBy')->get();
+        $documents = Ticket::query()->where('cash_session_id', $session->id)->with(['issuedBy', 'replacedTicket'])->get();
+        // Canjes de tickets por factura (art. 15.6): NO son ventas nuevas (el
+        // ticket ya contó en su Z). Se listan aparte y no suman.
+        $exchanges = $documents->where('type', TicketType::InvoiceExchange);
+        $tickets = $documents->reject(fn (Ticket $t) => $t->type === TicketType::InvoiceExchange)->values();
         $payments = Payment::query()->where('cash_session_id', $session->id)->with('user')->get();
         $simplified = $tickets->where('type', TicketType::Simplified);
-        $rectifying = $tickets->where('type', TicketType::Rectifying);
+        $invoices = $tickets->where('type', TicketType::Invoice);
+        $rectifying = $tickets->whereIn('type', [TicketType::Rectifying, TicketType::InvoiceRectifying]);
 
         $invitationLines = TicketLine::query()->whereIn('ticket_id', $tickets->pluck('id'))->whereNull('parent_line_id')->where('is_invitation', true)->get();
         $invitations = (int) $invitationLines->sum('discount_amount');
@@ -62,7 +67,15 @@ class CashReportService
             'opened_at' => $session->opened_at->format('d/m/Y H:i'),
             'generated_at' => now()->format('d/m/Y H:i'),
             'tickets' => ['count' => $simplified->count(), 'total' => (int) $simplified->sum('total')],
+            'invoices' => ['count' => $invoices->count(), 'total' => (int) $invoices->sum('total')],
             'rectifications' => ['count' => $rectifying->count(), 'total' => (int) $rectifying->sum('total')],
+            'exchanges' => [
+                'count' => $exchanges->count(),
+                'total' => (int) $exchanges->sum('total'),
+                'items' => $exchanges->map(fn (Ticket $t) => [
+                    'number' => $t->fullNumber(), 'replaces' => $t->replacedTicket?->fullNumber(), 'total' => $t->total,
+                ])->values()->all(),
+            ],
             'sales_total' => (int) $tickets->sum('total'),
             'discounts' => ['amount' => $lineDiscounts + (int) $tickets->sum('discount_amount')],
             'invitations' => ['count' => $invitationLines->count(), 'amount' => $invitations],

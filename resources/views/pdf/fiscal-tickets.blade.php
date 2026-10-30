@@ -13,22 +13,23 @@
     </tbody>
 </table>
 
-@foreach (['Facturas simplificadas' => $simplified, 'Facturas rectificativas' => $rectifying] as $title => $list)
+@foreach (['Facturas simplificadas' => $simplified, 'Facturas completas (directas y canjes)' => $invoices ?? collect(), 'Facturas rectificativas' => $rectifying] as $title => $list)
     <h2>{{ $title }} ({{ $list->count() }})</h2>
     <table>
-        <thead><tr><th>Número</th><th>Fecha</th><th>Pedido</th><th>Atendió</th><th>Rectifica a</th><th>Formas de pago</th><th>Base</th><th>Cuota</th><th>Total</th></tr></thead>
+        <thead><tr><th>Número</th><th>Fecha</th><th>Pedido</th><th>Atendió</th><th>Referencia</th><th>Destinatario</th><th>Formas de pago</th><th>Base</th><th>Cuota</th><th>Total</th></tr></thead>
         <tbody>
         @foreach ($list as $t)
             <tr>
                 <td>{{ $t->fullNumber() }}</td><td>{{ $t->issued_at->format('d/m/Y H:i') }}</td>
                 <td>{{ $t->order_type?->label() }}</td><td>{{ $t->issuedBy?->name }}</td>
-                <td>{{ $t->rectifiedTicket?->fullNumber() }}</td>
+                <td>{{ $t->rectifiedTicket ? 'Rectifica '.$t->rectifiedTicket->fullNumber() : ($t->replacedTicket ? 'Sustituye '.$t->replacedTicket->fullNumber() : ($t->exchangedBy ? 'Canjeado: '.$t->exchangedBy->fullNumber() : '')) }}</td>
+                <td>{{ $t->recipient ? ($t->recipient['tax_id'] ?? '').' '.($t->recipient['name'] ?? '') : '' }}</td>
                 <td>{{ $t->payments->map(fn ($p) => $p->method->label())->unique()->implode(', ') }}</td>
                 <td class="n">{{ $m($t->tax_base) }}</td><td class="n">{{ $m($t->tax_amount) }}</td><td class="n">{{ $m($t->total) }}</td>
             </tr>
         @endforeach
         </tbody>
-        <tfoot><tr><td colspan="6">Total</td><td class="n">{{ $m($list->sum('tax_base')) }}</td><td class="n">{{ $m($list->sum('tax_amount')) }}</td><td class="n">{{ $m($list->sum('total')) }}</td></tr></tfoot>
+        <tfoot><tr><td colspan="7">Total</td><td class="n">{{ $m($list->sum('tax_base')) }}</td><td class="n">{{ $m($list->sum('tax_amount')) }}</td><td class="n">{{ $m($list->sum('total')) }}</td></tr></tfoot>
     </table>
 @endforeach
 </body></html>
