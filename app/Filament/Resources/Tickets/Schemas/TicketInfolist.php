@@ -35,11 +35,26 @@ class TicketInfolist
                         ->formatStateUsing(fn ($state) => "#{$state}")
                         ->url(fn (Ticket $record) => $record->order_id ? OrderResource::getUrl('view', ['record' => $record->order_id]) : null),
                     TextEntry::make('rectifiedTicket')->label('Rectifica a')
-                        ->visible(fn (Ticket $record) => $record->type === TicketType::Rectifying)
+                        ->visible(fn (Ticket $record) => $record->type->isRectifying())
                         ->state(fn (Ticket $record) => $record->rectifiedTicket?->fullNumber())
                         ->url(fn (Ticket $record) => $record->rectified_ticket_id ? TicketResource::getUrl('view', ['record' => $record->rectified_ticket_id]) : null),
                     TextEntry::make('rectification_method')->label('Método')->placeholder('—')
-                        ->visible(fn (Ticket $record) => $record->type === TicketType::Rectifying),
+                        ->visible(fn (Ticket $record) => $record->type->isRectifying()),
+                    TextEntry::make('rectification_reason_code')->label('Tipo de rectificación')->placeholder('—')
+                        ->visible(fn (Ticket $record) => $record->type === TicketType::InvoiceRectifying)
+                        ->state(fn (Ticket $record) => $record->rectificationReason()?->label()),
+                    TextEntry::make('replacedTicket')->label('Sustituye al ticket')
+                        ->visible(fn (Ticket $record) => $record->replaces_ticket_id !== null)
+                        ->state(fn (Ticket $record) => $record->replacedTicket?->fullNumber())
+                        ->url(fn (Ticket $record) => $record->replaces_ticket_id ? TicketResource::getUrl('view', ['record' => $record->replaces_ticket_id]) : null),
+                    TextEntry::make('exchangedBy')->label('Canjeado por la factura')
+                        ->visible(fn (Ticket $record) => $record->exchangedBy !== null)
+                        ->state(fn (Ticket $record) => $record->exchangedBy?->fullNumber())
+                        ->url(fn (Ticket $record) => $record->exchangedBy ? TicketResource::getUrl('view', ['record' => $record->exchangedBy]) : null),
+                    TextEntry::make('operation_date')->label('Fecha de operación')->date('d/m/Y')
+                        ->visible(fn (Ticket $record) => $record->operation_date !== null && ! $record->operation_date->isSameDay($record->issued_at)),
+                    TextEntry::make('verifactu')->label('Tipo VERI*FACTU')
+                        ->state(fn (Ticket $record) => $record->verifactuType()),
                 ]),
                 Section::make('Totales')->columnSpan(1)->schema([
                     MoneyEntry::make('subtotal')->label('Suma de líneas'),
@@ -95,6 +110,23 @@ class TicketInfolist
                         ]),
                 ]),
             ]),
+            Section::make('Destinatario de la factura')->columns(3)->columnSpanFull()
+                ->visible(fn (Ticket $record) => $record->recipient !== null)
+                ->schema([
+                    TextEntry::make('recipient.name')->label('Nombre o razón social'),
+                    TextEntry::make('recipient.tax_id')->label('NIF'),
+                    TextEntry::make('recipient_address')->label('Domicilio')->placeholder('—')
+                        ->state(fn (Ticket $record) => trim(implode(', ', array_filter([
+                            $record->recipient['address'] ?? null,
+                            trim(($record->recipient['postal_code'] ?? '').' '.($record->recipient['city'] ?? '')),
+                            $record->recipient['province'] ?? null,
+                            $record->recipient['country'] ?? null,
+                        ])))),
+                    TextEntry::make('email_status')->label('Email')->placeholder('Sin enviar')
+                        ->state(fn (Ticket $record) => ($e = $record->emails()->latest('id')->first())
+                            ? "{$e->status} · {$e->to}".($e->sent_at ? ' · '.$e->sent_at->format('d/m/Y H:i') : '').($e->last_error ? " · {$e->last_error}" : '')
+                            : null),
+                ]),
             Section::make('Emisor y cliente')->columns(3)->columnSpanFull()->collapsed()->schema([
                 TextEntry::make('issuer')->label('Emisor')->html()
                     ->state(fn (Ticket $record) => e($record->issuer['legal_name'] ?? '').'<br>NIF '.e($record->issuer['tax_id'] ?? '').'<br>'.e($record->issuer['address'] ?? '')),

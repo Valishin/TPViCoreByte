@@ -58,7 +58,7 @@
                             <TpvButton variant="secondary" size="sm" @click="openPdf(t)">PDF</TpvButton>
                             <TpvButton variant="secondary" size="sm" :loading="busy === `mail-${t.id}`" @click="sendEmail(t)">Email</TpvButton>
                         </template>
-                        <TpvButton v-if="t.status === 'emitido' && (t.type === 'simplificada' || isInvoice(t))" variant="danger" size="sm" @click="voiding = t">Anular</TpvButton>
+                        <TpvButton v-if="t.status !== 'canjeado' && (t.type === 'simplificada' || isInvoice(t))" variant="danger" size="sm" @click="voiding = t">Anular</TpvButton>
                     </span>
                 </div>
             </section>

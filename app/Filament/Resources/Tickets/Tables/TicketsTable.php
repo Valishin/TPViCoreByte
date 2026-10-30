@@ -28,10 +28,15 @@ class TicketsTable
                     ->searchable(query: fn ($query, string $search) => $query->where('number', (int) preg_replace('/\D+/', '', $search) ?: -1)),
                 TextColumn::make('issued_at')->label('Emitido')->dateTime('d/m/Y H:i')->sortable(),
                 TextColumn::make('type')->label('Tipo')->badge()
-                    ->color(fn (TicketType $state) => $state === TicketType::Rectifying ? 'danger' : 'gray'),
+                    ->color(fn (TicketType $state) => match (true) {
+                        $state->isRectifying() => 'danger',
+                        $state->isFullInvoice() => 'info',
+                        default => 'gray',
+                    }),
                 TextColumn::make('order_type')->label('Pedido')->badge()->placeholder('—'),
                 TextColumn::make('customer_name')->label('Cliente')->placeholder('—')->toggleable()
-                    ->state(fn (Ticket $record) => $record->customer['name'] ?? null),
+                    ->state(fn (Ticket $record) => $record->recipient['name'] ?? $record->customer['name'] ?? null)
+                    ->description(fn (Ticket $record) => $record->recipient['tax_id'] ?? null),
                 MoneyColumn::make('total')->label('Total')->sortable()
                     ->summarize(Sum::make()->label('Suma')->formatStateUsing(fn ($state) => Format::money((int) $state))),
                 TextColumn::make('payment_status')->label('Cobro')->badge()
@@ -41,6 +46,7 @@ class TicketsTable
             ->filters([
                 DateRangeFilter::make('issued_at', 'Fecha'),
                 SelectFilter::make('ticket_series_id')->label('Serie')->relationship('series', 'name'),
+                SelectFilter::make('type')->label('Tipo')->options(TicketType::class),
                 SelectFilter::make('order_type')->label('Tipo de pedido')->options(OrderType::class),
                 SelectFilter::make('payment_status')->label('Cobro')->options(PaymentStatus::class),
             ])
