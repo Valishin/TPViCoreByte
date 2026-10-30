@@ -9,3 +9,5 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+# Documentación oficial de la AEAT/BOE: se guarda byte a byte (su SHA-256 está en LEEME.md).
+docs/verifactu/oficial/** -text
