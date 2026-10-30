@@ -20,6 +20,26 @@ final class Format
         return $cents === null ? null : self::decimal($cents, thousands: false);
     }
 
+    /**
+     * Precio unitario sin IVA guardado en diezmilésimas de euro (art. 6.1.f):
+     * con 2 decimales si no pierde precisión y con hasta 4 (sin ceros
+     * sobrantes) si los necesita. 90000 → "9,00 €", 90909 → "9,0909 €",
+     * 90950 → "9,095 €".
+     */
+    public static function unitNet(?int $e4): string
+    {
+        if ($e4 === null) {
+            return '—';
+        }
+        $sign = $e4 < 0 ? '-' : '';
+        $abs = abs($e4);
+        $euros = intdiv($abs, 10000);
+        $dec = str_pad((string) ($abs % 10000), 4, '0', STR_PAD_LEFT);
+        $dec = substr($dec, 2) === '00' ? substr($dec, 0, 2) : rtrim($dec, '0');
+
+        return $sign.number_format($euros, 0, ',', '.').','.$dec.' €';
+    }
+
     /** 1000 → "10 %", 1250 → "12,5 %" */
     public static function percent(?int $basisPoints): string
     {

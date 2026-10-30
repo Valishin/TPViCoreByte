@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Pos;
 
 use App\Enums\AuthorizationAction;
 use App\Enums\PaymentMethod;
+use App\Enums\PrintJobKind;
 use App\Enums\RectificationReason;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Ticket;
 use App\Services\Billing\InvoiceExchanger;
+use App\Services\Billing\InvoicePdf;
 use App\Services\Pos\AuthorizationService;
 use App\Services\Pos\CheckoutService;
+use App\Services\Pos\PrintJobDispatcher;
+use App\Services\Pos\ReceiptFormatter;
 use App\Services\Tickets\RectificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
 /** Tickets desde la caja: detalle, reimprimir (COPIA) y anular (rectificativo por diferencias). */
@@ -82,8 +87,22 @@ class TicketController extends Controller
             'confirm_other_year' => ['boolean'],
         ]);
         $invoice = $exchanger->exchange($ticket, Customer::query()->findOrFail($data['customer_id']), $request->user(), $data['confirm_other_year'] ?? false);
+        // La factura sale por la impresora de tickets (si la hay), como un cobro.
+        if ($printer = PrintJobDispatcher::ticketPrinter()) {
+            app(PrintJobDispatcher::class)->dispatch(null, $printer, PrintJobKind::Receipt, app(ReceiptFormatter::class)->ticket($invoice, $printer->columns),
+                by: $request->user(), forTicket: $invoice, session: CheckoutService::openSession());
+        }
 
         return response()->json(['data' => self::summary($invoice->load(['order.table', 'issuedBy', 'payments', 'rectifiedTicket', 'replacedTicket']))], 201);
+    }
+
+    /** PDF A4 de una factura completa. */
+    public function pdf(Ticket $ticket, InvoicePdf $pdf): Response
+    {
+        return response($pdf->render($ticket), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.InvoicePdf::filename($ticket).'"',
+        ]);
     }
 
     public static function summary(Ticket $ticket): array

@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketLine;
+use App\Services\Billing\InvoiceDocument;
 use App\Services\Printing\Ticket as Printable;
 use App\Support\Format;
 use App\Support\MapsLink;
@@ -23,9 +24,12 @@ use App\Support\MapsLink;
  */
 class ReceiptFormatter
 {
-    /** Ticket. Con $copy, marca "COPIA" arriba y abajo. */
+    /** Ticket (o factura completa, ver invoice()). Con $copy, marca "COPIA" arriba y abajo. */
     public function ticket(Ticket $ticket, int $columns = 48, bool $copy = false): Printable
     {
+        if ($ticket->type->isFullInvoice()) {
+            return $this->invoice($ticket, $columns, $copy);
+        }
         $ticket->loadMissing(['lines', 'payments', 'issuedBy', 'order.table.room', 'rectifiedTicket']);
         $issuer = $ticket->issuer ?? [];
         $p = new Printable;
@@ -217,6 +221,107 @@ class ReceiptFormatter
             ->columns('Entregado', Format::money($settlement->handed_cash), bold: true)
             ->columns('Diferencia', Format::money($settlement->difference), bold: true)
             ->feed(3)->cut();
+    }
+
+    /**
+     * Factura completa en la impresora de tickets (80 mm = 48 columnas, 58 mm
+     * = 32): todo el contenido del art. 6.1 (ver InvoiceDocument).
+     */
+    public function invoice(Ticket $ticket, int $columns = 48, bool $copy = false): Printable
+    {
+        $doc = InvoiceDocument::make($ticket);
+        $p = new Printable;
+        if ($copy) {
+            $p->line('*** COPIA ***', Printable::ALIGN_CENTER, bold: true, reverse: true);
+        }
+
+        // Emisor (c, d, e)
+        $issuer = $doc['issuer'];
+        if ($issuer['trade_name']) {
+            $p->title($issuer['trade_name']);
+        }
+        $p->line($issuer['name'], Printable::ALIGN_CENTER, bold: true)->line('NIF '.$issuer['tax_id'], Printable::ALIGN_CENTER);
+        foreach (array_filter([$issuer['address'], $issuer['place'], $issuer['phone'] ? 'Tel. '.$issuer['phone'] : null]) as $text) {
+            $p->line($text, Printable::ALIGN_CENTER);
+        }
+        $p->separator('=');
+
+        // a, b, i
+        $p->line($doc['title'], Printable::ALIGN_CENTER, bold: true, large: true)
+            ->columns('Nº '.$doc['number'], $doc['issued_at'], bold: true);
+        if ($doc['operation_date']) {
+            $p->columns('Fecha de la operación', $doc['operation_date']);
+        }
+        if ($doc['replaces']) {
+            $p->line($doc['replaces']);
+        }
+        if ($r = $doc['rectifies']) {
+            $p->line("Rectifica a la factura {$r['number']} de {$r['date']}", bold: true)
+                ->line(ucfirst($r['method']));
+            $p->line('Motivo: '.($r['reason'] ?: $r['reason_label']));
+        }
+        $p->separator();
+
+        // Destinatario (c, d, e)
+        $to = $doc['recipient'];
+        $p->line('DESTINATARIO', bold: true)->line($to['name'], bold: true)->line('NIF '.$to['tax_id']);
+        foreach (array_filter([$to['address'], $to['place'], $to['country'] ? 'País: '.$to['country'] : null]) as $text) {
+            $p->line($text);
+        }
+        $p->separator();
+
+        // Descripción con precio unitario sin IVA (f) y tipo (g)
+        foreach ($doc['rows'] as $row) {
+            $indent = $row['child'] ? '   · ' : '';
+            $desc = $row['child'] ? $indent.$row['description'] : $row['quantity'].' x '.$row['description'];
+            $row['amount'] !== null ? $p->columns($desc, Format::money($row['amount'])) : $p->line($desc);
+            if ($row['unit_net'] !== null) {
+                $p->line(($row['child'] ? '     ' : '   ').'P.u. sin IVA '.Format::unitNet($row['unit_net']).' · IVA '.Format::percent($row['vat_rate']));
+            }
+            if ($row['invitation']) {
+                $p->columns('   Invitación', '-'.Format::money($row['discount']));
+            } elseif ($row['discount']) {
+                $p->columns('   Descuento', '-'.Format::money($row['discount']));
+            }
+        }
+        $p->separator();
+        if ($doc['lines_discount'] || $doc['discount_amount'] || $doc['delivery_fee']) {
+            $p->columns('Suma', Format::money($doc['subtotal'] - $doc['lines_discount']));
+            if ($doc['discount_amount']) {
+                $p->columns('Descuento'.($doc['discount_reason'] ? " ({$doc['discount_reason']})" : ''), '-'.Format::money($doc['discount_amount']));
+            }
+            if ($doc['delivery_fee']) {
+                $p->columns('Gastos de envío', Format::money($doc['delivery_fee']));
+            }
+        }
+
+        // Base por tipo (6.2.c), cuota por separado (h) y total
+        $p->line($this->vatRow('IVA', 'Base', 'Cuota', 'Total', $columns), bold: true);
+        foreach ($doc['vat_breakdown'] as $row) {
+            $p->line($this->vatRow(Format::percent($row['rate']), Format::money($row['base']), Format::money($row['tax']), Format::money($row['total']), $columns));
+        }
+        $p->columns('Base imponible', Format::money($doc['tax_base']))
+            ->columns('Cuota IVA', Format::money($doc['tax_amount']))
+            ->line('TOTAL  '.Format::money($doc['total']), Printable::ALIGN_RIGHT, bold: true, large: true);
+
+        if ($ticket->payments->isNotEmpty()) {
+            $p->separator();
+            foreach ($ticket->payments as $payment) {
+                $this->payment($p, $payment);
+            }
+        }
+        $this->verifactuBlock($p, $ticket);
+        $p->feed();
+        foreach (preg_split('/\R/', $doc['footer']) as $footer) {
+            if ($footer !== '') {
+                $p->line($footer, Printable::ALIGN_CENTER);
+            }
+        }
+        if ($copy) {
+            $p->line('*** COPIA ***', Printable::ALIGN_CENTER, bold: true, reverse: true);
+        }
+
+        return $p->feed(3)->cut();
     }
 
     /** Justificante de una parte del pago: NO es una factura. */
