@@ -45,7 +45,7 @@
                     <span class="v-cash__ticket-main">
                         <strong>{{ t.number }}</strong><template v-if="t.type !== 'simplificada'"> · {{ t.type_label }}</template> · {{ time(t.issued_at) }} · {{ t.table ? `Mesa ${t.table}` : typeLabel(t.order_type) }}
                         <small>
-                            <template v-if="t.recipient">{{ t.recipient.name }} ({{ t.recipient.tax_id }}) · </template>{{ t.issued_by }} · {{ t.payment_methods.join(', ') }}<template v-if="t.rectifies"> · rectifica {{ t.rectifies }}</template><template v-if="t.replaces"> · sustituye a {{ t.replaces }}</template>
+                            <template v-if="t.recipient">{{ t.recipient.name }} ({{ t.recipient.tax_id }}) · </template>{{ [t.issued_by, t.payment_methods.join(', ')].filter(Boolean).join(' · ') }}<template v-if="t.rectifies"> · rectifica {{ t.rectifies }}</template><template v-if="t.replaces"> · sustituye a {{ t.replaces }}</template>
                             <template v-if="t.status === 'rectificado'"> · RECTIFICADO</template><template v-if="t.exchanged_by"> · CANJEADO por {{ t.exchanged_by }}</template>
                             <template v-if="t.email"> · email {{ emailStatus(t.email) }}</template>
                         </small>

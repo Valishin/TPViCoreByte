@@ -19,6 +19,8 @@ class InvoicePdf
 
         return Pdf::loadView('pdf.invoice', ['doc' => InvoiceDocument::make($ticket), 'logo' => self::logo()])
             ->setPaper('a4')
+            // Solo los caracteres usados de la fuente: ~30 KB en vez de ~900 KB (va por email).
+            ->setOption('isFontSubsettingEnabled', true)
             ->output();
     }
 
