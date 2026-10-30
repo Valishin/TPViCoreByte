@@ -18,7 +18,7 @@ class TakeawayOrderResource extends JsonResource
     public function toArray(Request $request): array
     {
         $this->resource->loadMissing(['courier', 'deliveryZone', 'tickets']);
-        $ticket = $this->tickets->where('type', TicketType::Simplified)->sortByDesc('id')->first();
+        $ticket = $this->tickets->whereIn('type', TicketType::orderDocuments())->sortByDesc('id')->first();
         $address = $this->delivery_address;
         $zone = $this->deliveryZone;
 

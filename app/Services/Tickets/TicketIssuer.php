@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Models\CashSession;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Setting;
@@ -13,13 +14,19 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Orders\OrderService;
 use App\Services\Orders\OrderTotalsCalculator;
+use App\Support\InvoiceRules;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
 /**
- * Emite el ticket de un pedido: recalcula totales, numera en la serie por
- * defecto, congela una copia de las líneas y cierra el pedido. Todo en una
- * transacción: si algo falla no se consume número.
+ * Emite el documento de un pedido: recalcula totales, numera, congela una copia
+ * de las líneas y cierra el pedido. Todo en una transacción: si algo falla no
+ * se consume número (numeración correlativa sin huecos, art. 6.1.a).
+ *
+ *  - Sin destinatario: ticket (factura simplificada, serie T), hasta 3.000 €
+ *    (art. 4.2.e RD 1619/2012).
+ *  - Con destinatario: factura completa (art. 6), serie F, con la copia de
+ *    sus datos fiscales.
  */
 class TicketIssuer
 {
@@ -29,17 +36,25 @@ class TicketIssuer
         private OrderService $orders,
     ) {}
 
-    public function issue(Order $order, User $by, ?CashSession $session = null, ?string $idempotencyKey = null): Ticket
+    public function issue(Order $order, User $by, ?CashSession $session = null, ?string $idempotencyKey = null, ?Customer $recipient = null): Ticket
     {
         if (! $order->isOpen()) {
             throw new LogicException('Solo se puede emitir ticket de un pedido abierto.');
         }
 
-        return DB::transaction(function () use ($order, $by, $session, $idempotencyKey) {
+        return DB::transaction(function () use ($order, $by, $session, $idempotencyKey, $recipient) {
             $settings = Setting::current();
-            $series = $settings->defaultTicketSeries ?? throw new LogicException('No hay serie de tickets por defecto.');
+            if ($recipient) {
+                InvoiceRules::assertRecipient($recipient);
+                $series = $settings->invoiceSeries ?? throw new LogicException('No hay serie de facturas (F) en los ajustes.');
+            } else {
+                $series = $settings->defaultTicketSeries ?? throw new LogicException('No hay serie de tickets por defecto.');
+            }
 
             $totals = $this->totals->apply($order);
+            if (! $recipient) {
+                InvoiceRules::assertSimplifiedAllowed($totals->total);
+            }
             if ($totals->linesGross === 0 && $order->lines()->whereNull('voided_at')->doesntExist()) {
                 throw new LogicException('El pedido no tiene líneas.');
             }
@@ -48,7 +63,7 @@ class TicketIssuer
                 'ticket_series_id' => $series->id,
                 'series_code' => $series->code,
                 'number' => $this->numbers->next($series),
-                'type' => TicketType::Simplified,
+                'type' => $recipient ? TicketType::Invoice : TicketType::Simplified,
                 'status' => TicketStatus::Issued,
                 'order_id' => $order->id,
                 'order_type' => $order->type,
@@ -67,7 +82,8 @@ class TicketIssuer
                 'total' => $totals->total,
                 'vat_breakdown' => $totals->vatBreakdown,
                 'issuer' => $settings->issuerSnapshot(),
-                'customer_id' => $order->customer_id,
+                'customer_id' => $recipient?->id ?? $order->customer_id,
+                'recipient' => $recipient?->recipientSnapshot(),
                 'customer' => $order->customer_id ? [
                     'name' => $order->customer_name,
                     'phone' => $order->customer_phone,
@@ -89,6 +105,27 @@ class TicketIssuer
         });
     }
 
+    /**
+     * Precio unitario sin IVA (art. 6.1.f), con 4 decimales. Líneas simples:
+     * importe bruto de la línea (con modificadores) entre unidades. Componentes
+     * de menú y mitades: su parte del precio del padre + suplemento +
+     * modificadores, por unidad del padre. El padre de un menú/mitad no lleva
+     * precio propio (tributa en sus componentes, que pueden tener otro IVA).
+     */
+    public static function unitPriceNet(OrderLine $line): ?int
+    {
+        if ($line->parent_line_id === null) {
+            if ($line->children()->exists()) {
+                return null;
+            }
+
+            return InvoiceRules::netUnitE4($line->quantity > 0 ? $line->line_total / $line->quantity : 0, $line->vat_rate);
+        }
+        $modifiers = $line->modifiers->sum(fn ($m) => $m->price_delta * $m->quantity);
+
+        return InvoiceRules::netUnitE4((int) $line->allocated_amount + (int) $line->unit_price + $modifiers, $line->vat_rate);
+    }
+
     /** Copia congelada de las líneas no anuladas, manteniendo la jerarquía. */
     private function copyLines(Ticket $ticket, Order $order): void
     {
@@ -104,6 +141,7 @@ class TicketIssuer
                 'variant_name' => $line->variant_name,
                 'quantity' => $line->quantity,
                 'unit_price' => $line->unit_price,
+                'unit_price_net' => self::unitPriceNet($line),
                 'vat_rate' => $line->vat_rate,
                 'reference_price' => $line->reference_price,
                 'allocated_amount' => $line->allocated_amount,

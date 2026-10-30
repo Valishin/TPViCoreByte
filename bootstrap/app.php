@@ -2,6 +2,7 @@
 
 use App\Exceptions\AuthorizationRequiredException;
 use App\Exceptions\CashSessionRequiredException;
+use App\Exceptions\InvoiceRequiredException;
 use App\Exceptions\MinimumOrderException;
 use App\Exceptions\OpenOrdersException;
 use App\Exceptions\TableUnavailableException;
@@ -47,6 +48,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        $exceptions->render(function (InvoiceRequiredException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage(), 'code' => 'invoice_required', 'total' => $e->total], 409);
+            }
+        });
         $exceptions->render(function (MinimumOrderException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json([

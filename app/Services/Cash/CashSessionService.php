@@ -110,7 +110,7 @@ class CashSessionService
         $open = Order::query()->where('status', OrderStatus::Open)->with('table')->get()
             ->map(fn (Order $o) => ($o->table ? "Mesa {$o->table->name}" : $o->type->label()).' · '.Format::money($o->total));
         // Domicilios con ticket aún sin cobrar (en manos del repartidor).
-        $pending = Ticket::query()->where('order_type', OrderType::Delivery)->where('type', TicketType::Simplified)
+        $pending = Ticket::query()->where('order_type', OrderType::Delivery)->whereIn('type', TicketType::orderDocuments())
             ->where('status', TicketStatus::Issued)->where('payment_status', PaymentStatus::Pending)->with('order.courier')->get()
             ->map(fn (Ticket $t) => "Domicilio {$t->fullNumber()} sin cobrar".($t->order?->courier ? " ({$t->order->courier->name})" : '').' · '.Format::money($t->total - $t->paidAmount()));
 

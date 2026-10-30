@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Pos\OrderResource;
 use App\Http\Resources\Pos\StaffResource;
 use App\Http\Resources\Pos\TakeawayOrderResource;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
@@ -61,12 +62,15 @@ class TakeawayOrderController extends Controller
     /** Pasos manuales: Listo y Entregado (para llevar ya cobrado, o ya pagado: se emite su ticket). */
     public function status(Request $request, Order $order, DispatchService $dispatch): JsonResponse
     {
-        $data = $request->validate(['status' => ['required', Rule::in(['listo', 'entregado'])]]);
+        $data = $request->validate([
+            'status' => ['required', Rule::in(['listo', 'entregado'])],
+            'invoice_customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+        ]);
 
         if ($data['status'] === 'listo') {
             $this->takeaway->markReady($order);
         } elseif ($order->isOpen() && $order->prepaid_method) {
-            $dispatch->handOverPrepaid($order, $request->user());
+            $dispatch->handOverPrepaid($order, $request->user(), self::recipient($data));
         } else {
             $this->takeaway->markDelivered($order, $request->user());
         }
@@ -77,8 +81,11 @@ class TakeawayOrderController extends Controller
     /** Domicilio: dar salida con un repartidor (emite el ticket e imprime el de domicilio). */
     public function dispatch(Request $request, Order $order, DispatchService $dispatch): JsonResponse
     {
-        $data = $request->validate(['courier_id' => ['required', 'integer', 'exists:users,id']]);
-        $ticket = $dispatch->dispatch($order, User::query()->findOrFail($data['courier_id']), $request->user());
+        $data = $request->validate([
+            'courier_id' => ['required', 'integer', 'exists:users,id'],
+            'invoice_customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+        ]);
+        $ticket = $dispatch->dispatch($order, User::query()->findOrFail($data['courier_id']), $request->user(), self::recipient($data));
 
         return $this->respond($order, $request, 200, ['ticket' => ['id' => $ticket->id, 'number' => $ticket->fullNumber(), 'payment_status' => $ticket->payment_status->value]]);
     }
@@ -109,6 +116,12 @@ class TakeawayOrderController extends Controller
         $skipped = $repeater->repeat($source, $order, $request->user());
 
         return $this->respond($order, $request, 200, ['skipped' => $skipped]);
+    }
+
+    /** Destinatario de la factura completa, si se pide (en lugar del ticket). */
+    private static function recipient(array $data): ?Customer
+    {
+        return isset($data['invoice_customer_id']) ? Customer::query()->findOrFail($data['invoice_customer_id']) : null;
     }
 
     private function rules(): array

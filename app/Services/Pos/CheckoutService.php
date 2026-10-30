@@ -9,6 +9,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\PrintJobKind;
 use App\Exceptions\CashSessionRequiredException;
 use App\Models\CashSession;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Setting;
 use App\Models\Ticket;
@@ -49,7 +50,10 @@ class CheckoutService
      * @param  list<array{method: string, amount: int, tendered?: int|null, tip?: int|null}>  $payments
      * @return array{ticket: Ticket, change: int, replayed: bool}
      */
-    public function checkout(Order $order, User $by, array $payments, string $idempotencyKey, ?bool $print = null, bool $paymentReceipts = false): array
+    /**
+     * @param  Customer|null  $recipient  con datos fiscales: factura completa (serie F) en lugar del ticket
+     */
+    public function checkout(Order $order, User $by, array $payments, string $idempotencyKey, ?bool $print = null, bool $paymentReceipts = false, ?Customer $recipient = null): array
     {
         if ($existing = Ticket::query()->where('idempotency_key', $idempotencyKey)->first()) {
             return ['ticket' => $existing, 'change' => $this->change($existing), 'replayed' => true];
@@ -58,7 +62,7 @@ class CheckoutService
         $session = self::openSession() ?? throw new CashSessionRequiredException;
         $print ??= Setting::current()->print_ticket_on_checkout;
 
-        return DB::transaction(function () use ($order, $by, $payments, $idempotencyKey, $print, $paymentReceipts, $session) {
+        return DB::transaction(function () use ($order, $by, $payments, $idempotencyKey, $print, $paymentReceipts, $session, $recipient) {
             $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
             // Otra petición con la misma clave ha ganado mientras esperábamos el bloqueo.
@@ -75,7 +79,7 @@ class CheckoutService
             $total = $this->totals->apply($order)->total;
             $payments = $this->validate($payments, $total);
 
-            $ticket = $this->issuer->issue($order, $by, $session, $idempotencyKey);
+            $ticket = $this->issuer->issue($order, $by, $session, $idempotencyKey, $recipient);
 
             foreach ($payments as $payment) {
                 $ticket->payments()->create([

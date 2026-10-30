@@ -40,7 +40,7 @@ class CashReportService
 
         // Domicilios con ticket emitido y aún sin cobrar (los lleva el repartidor).
         $pendingDelivery = Ticket::query()
-            ->where('order_type', OrderType::Delivery)->where('type', TicketType::Simplified)
+            ->where('order_type', OrderType::Delivery)->whereIn('type', TicketType::orderDocuments())
             ->where('status', TicketStatus::Issued)->where('payment_status', PaymentStatus::Pending)
             ->with(['order.courier', 'payments'])->orderBy('issued_at')->get();
         $settlements = CourierSettlement::query()->where('cash_session_id', $session->id)->with('courier')->orderBy('id')->get();

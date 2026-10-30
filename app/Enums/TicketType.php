@@ -45,6 +45,12 @@ enum TicketType: string implements HasLabel
         return in_array($this, [self::Invoice, self::InvoiceExchange, self::InvoiceRectifying], true);
     }
 
+    /** Documentos que emite un pedido al cobrarse o darle salida: ticket o factura directa. */
+    public static function orderDocuments(): array
+    {
+        return [self::Simplified, self::Invoice];
+    }
+
     public function isRectifying(): bool
     {
         return $this === self::Rectifying || $this === self::InvoiceRectifying;

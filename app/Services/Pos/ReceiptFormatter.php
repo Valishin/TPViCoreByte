@@ -200,7 +200,7 @@ class ReceiptFormatter
             ->line($settlement->created_at->format('d/m/Y H:i').' · '.$settlement->settledBy->name, Printable::ALIGN_CENTER)
             ->separator('=');
         foreach ($settlement->orders as $order) {
-            $ticket = $order->tickets->where('type', TicketType::Simplified)->sortByDesc('id')->first();
+            $ticket = $order->tickets->whereIn('type', TicketType::orderDocuments())->sortByDesc('id')->first();
             $p->columns(($ticket?->fullNumber() ?? "#{$order->id}").' '.($order->customer_name ?? ''), Format::money($ticket?->total ?? 0));
         }
         $p->separator()

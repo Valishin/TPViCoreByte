@@ -7,6 +7,7 @@ use App\Enums\OrderType;
 use App\Enums\PrintJobKind;
 use App\Enums\UserRole;
 use App\Exceptions\CashSessionRequiredException;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Setting;
 use App\Models\Ticket;
@@ -38,7 +39,7 @@ class DispatchService
         private TakeawayOrderService $takeaway,
     ) {}
 
-    public function dispatch(Order $order, User $courier, User $by): Ticket
+    public function dispatch(Order $order, User $courier, User $by, ?Customer $recipient = null): Ticket
     {
         if ($order->type !== OrderType::Delivery) {
             throw new InvalidArgumentException('Solo se da salida a pedidos a domicilio.');
@@ -48,7 +49,7 @@ class DispatchService
         }
         $session = CheckoutService::openSession() ?? throw new CashSessionRequiredException;
 
-        $ticket = DB::transaction(function () use ($order, $courier, $by, $session) {
+        $ticket = DB::transaction(function () use ($order, $courier, $by, $session, $recipient) {
             $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
             if (! $order->isOpen()) {
                 throw new LogicException('Este pedido ya ha salido.');
@@ -61,7 +62,7 @@ class DispatchService
             }
 
             $order->update(['courier_id' => $courier->id]);
-            $ticket = $this->issuer->issue($order, $by, $session);
+            $ticket = $this->issuer->issue($order, $by, $session, recipient: $recipient);
             if ($order->prepaid_method && $ticket->total > 0) {
                 $this->payments->register($ticket, $order->prepaid_method, $ticket->total, $by, session: $session);
             }
@@ -78,19 +79,19 @@ class DispatchService
     }
 
     /** Para llevar ya pagado (tarjeta, Bizum, online…): ticket con su pago al entregarlo. */
-    public function handOverPrepaid(Order $order, User $by): Ticket
+    public function handOverPrepaid(Order $order, User $by, ?Customer $recipient = null): Ticket
     {
         if ($order->type !== OrderType::Takeaway || ! $order->prepaid_method) {
             throw new InvalidArgumentException('Solo para pedidos para llevar ya pagados.');
         }
         $session = CheckoutService::openSession() ?? throw new CashSessionRequiredException;
 
-        $ticket = DB::transaction(function () use ($order, $by, $session) {
+        $ticket = DB::transaction(function () use ($order, $by, $session, $recipient) {
             $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
             if ($order->delivery_status !== DeliveryStatus::Ready || ! $order->isOpen()) {
                 throw new LogicException('Solo se entrega un pedido que está listo.');
             }
-            $ticket = $this->issuer->issue($order, $by, $session);
+            $ticket = $this->issuer->issue($order, $by, $session, recipient: $recipient);
             if ($ticket->total > 0) {
                 $this->payments->register($ticket, $order->prepaid_method, $ticket->total, $by, session: $session);
             }

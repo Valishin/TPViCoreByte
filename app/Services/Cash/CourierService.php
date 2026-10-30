@@ -72,7 +72,7 @@ class CourierService
 
     public static function ticketOf(Order $order): ?Ticket
     {
-        return $order->tickets->where('type', TicketType::Simplified)->sortByDesc('id')->first();
+        return $order->tickets->whereIn('type', TicketType::orderDocuments())->sortByDesc('id')->first();
     }
 
     /** Lo que falta por cobrar del ticket (0 si ya pagado o rectificado). */
