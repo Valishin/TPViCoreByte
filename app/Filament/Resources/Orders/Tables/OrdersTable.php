@@ -27,7 +27,7 @@ class OrdersTable
                 TextColumn::make('type')->label('Tipo')->badge(),
                 TextColumn::make('where')->label('Mesa / cliente')
                     ->state(fn (Order $record) => $record->table
-                        ? "{$record->table->room->name} · Mesa {$record->table->name}"
+                        ? "{$record->table->room->name} · {$record->tableLabel()}"
                         : ($record->customer_name ?? '—')),
                 TextColumn::make('openedBy.name')->label('Atendió'),
                 TextColumn::make('status')->label('Estado')->badge()
@@ -35,6 +35,7 @@ class OrdersTable
                         OrderStatus::Open => 'warning',
                         OrderStatus::Closed => 'success',
                         OrderStatus::Cancelled => 'gray',
+                        OrderStatus::Merged => 'info',
                     }),
                 TextColumn::make('delivery_status')->label('Reparto')->badge()->placeholder('—')->toggleable(),
                 TextColumn::make('courier.name')->label('Repartidor')->placeholder('—')->toggleable(),

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -34,7 +35,7 @@ class Table extends Model
     protected static function booted(): void
     {
         static::saving(function (Table $table) {
-            if ($table->exists && $table->isDirty('is_active') && ! $table->is_active && $table->openOrders()->exists()) {
+            if ($table->exists && $table->isDirty('is_active') && ! $table->is_active && $table->isInUse()) {
                 throw ValidationException::withMessages([
                     'is_active' => str_replace(':name', $table->name, self::OPEN_ORDER_MESSAGE),
                 ]);
@@ -64,5 +65,17 @@ class Table extends Model
     public function openOrders(): HasMany
     {
         return $this->orders()->where('status', OrderStatus::Open);
+    }
+
+    /** Fila activa de esta mesa unida al pedido de otra (no principal). */
+    public function groupLink(): HasOne
+    {
+        return $this->hasOne(OrderTable::class)->whereNull('left_at')->where('is_main', false);
+    }
+
+    /** ¿Tiene algún pedido abierto, propio o de un grupo al que está unida? */
+    public function isInUse(): bool
+    {
+        return $this->openOrders()->exists() || $this->groupLink()->exists();
     }
 }

@@ -10,6 +10,8 @@ enum OrderStatus: string implements HasLabel
     case Open = 'abierto';
     case Closed = 'cerrado';
     case Cancelled = 'cancelado';
+    // Mesa unida a otra: sus líneas pasaron al pedido merged_into_order_id (sin ticket).
+    case Merged = 'unido';
 
     public function label(): string
     {
@@ -17,6 +19,7 @@ enum OrderStatus: string implements HasLabel
             self::Open => 'Abierto',
             self::Closed => 'Cerrado',
             self::Cancelled => 'Cancelado',
+            self::Merged => 'Unido a otra mesa',
         };
     }
 

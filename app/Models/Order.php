@@ -32,6 +32,23 @@ class Order extends Model
                 throw new LogicException('Solo los pedidos de tipo mesa pueden tener mesa.');
             }
         });
+        // Mesas del pedido (order_tables): la principal sigue a table_id y, al
+        // dejar de estar abierto, todas sus mesas lo dejan (left_at).
+        static::saved(function (Order $order) {
+            if ($order->isOpen() && $order->table_id) {
+                $main = $order->tableLinks()->whereNull('left_at')->where('is_main', true)->first();
+                if ($main?->table_id === $order->table_id) {
+                    return;
+                }
+                $main?->update(['left_at' => now()]);
+                $order->tableLinks()->create([
+                    'table_id' => $order->table_id, 'is_main' => true,
+                    'joined_by' => $order->opened_by, 'joined_at' => now(),
+                ]);
+            } elseif ($order->wasChanged(['status', 'table_id', 'type']) || $order->wasRecentlyCreated) {
+                $order->tableLinks()->whereNull('left_at')->update(['left_at' => now()]);
+            }
+        });
     }
 
     protected function casts(): array
@@ -73,6 +90,45 @@ class Order extends Model
     public function table(): BelongsTo
     {
         return $this->belongsTo(Table::class);
+    }
+
+    /** Todas las filas de mesas del pedido (también las que ya lo dejaron). */
+    public function tableLinks(): HasMany
+    {
+        return $this->hasMany(OrderTable::class);
+    }
+
+    /** Mesas que forman ahora el pedido: la principal primero, después por orden de unión. */
+    public function activeTableLinks(): HasMany
+    {
+        return $this->tableLinks()->whereNull('left_at')->orderByDesc('is_main')->orderBy('joined_at')->orderBy('id');
+    }
+
+    /** ¿Ocupa varias mesas (mesas unidas)? */
+    public function isGroup(): bool
+    {
+        return $this->activeTableLinks()->count() > 1;
+    }
+
+    /**
+     * «Mesa 3 + 4» (o «Mesa 3»); null si no es de mesa. De un pedido ya
+     * cerrado, las mesas que tenía al cerrarse (las separadas antes, no).
+     */
+    public function tableLabel(): ?string
+    {
+        if (! $this->table_id) {
+            return null;
+        }
+        $links = $this->tableLinks()->with('table')->orderByDesc('is_main')->orderBy('joined_at')->orderBy('id')->get()
+            ->filter(fn (OrderTable $l) => $l->left_at === null || ($this->closed_at && ! $this->isOpen() && $l->left_at->gte($this->closed_at)));
+        $names = $links->map(fn (OrderTable $l) => $l->table->name)->unique()->values();
+
+        return 'Mesa '.($names->isEmpty() ? $this->table?->name : $names->implode(' + '));
+    }
+
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'merged_into_order_id');
     }
 
     public function openedBy(): BelongsTo
