@@ -1,6 +1,6 @@
 <template>
     <Teleport to="body">
-        <div v-if="open" class="c-sheet" role="dialog" aria-modal="true" :aria-label="title">
+        <div v-if="open" ref="el" v-bind="layer.attrs.value" class="c-sheet" role="dialog" aria-modal="true" :aria-label="title">
             <div class="c-sheet__backdrop" @click="$emit('close')"></div>
             <div class="c-sheet__panel">
                 <header class="c-sheet__header">
@@ -16,11 +16,16 @@
 </template>
 
 <script setup>
+import { toRef } from 'vue';
 import TpvButton from './TpvButton.vue';
+import { useLayer } from '@/composables/useLayer';
 
-defineProps({
+const props = defineProps({
     open: { type: Boolean, default: false },
     title: { type: String, default: '' },
 });
 defineEmits(['close']);
+
+const layer = useLayer(toRef(props, 'open'));
+const el = layer.el;
 </script>

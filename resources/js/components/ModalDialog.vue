@@ -1,6 +1,6 @@
 <template>
     <Teleport to="body">
-        <div v-if="open" :class="['c-modal', { 'c-modal--danger': danger }]" role="dialog" aria-modal="true" :aria-label="title">
+        <div v-if="open" ref="el" v-bind="layer.attrs.value" :class="['c-modal', { 'c-modal--danger': danger }]" role="dialog" aria-modal="true" :aria-label="title">
             <div class="c-modal__backdrop" @click="$emit('close')"></div>
             <div class="c-modal__panel">
                 <h2 class="c-modal__title">{{ title }}</h2>
@@ -13,11 +13,18 @@
 </template>
 
 <script setup>
-defineProps({
+import { toRef } from 'vue';
+import { useLayer } from '@/composables/useLayer';
+
+const props = defineProps({
     open: { type: Boolean, default: false },
     title: { type: String, default: '' },
     text: { type: String, default: '' },
     danger: { type: Boolean, default: false },
 });
 defineEmits(['close']);
+
+// Pila de ventanas: siempre encima de la que la abrió y la única que recibe toques y teclas.
+const layer = useLayer(toRef(props, 'open'));
+const el = layer.el;
 </script>

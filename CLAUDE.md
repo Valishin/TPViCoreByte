@@ -43,6 +43,7 @@ README.md y docs/.
   canal privado `pos`. La impresión va por la cola `printing` (`print_jobs`);
   un envío fallido nunca se reimprime solo.
 - Autorización de encargado con `AuthorizationService` (token de un solo uso).
-- Tests contra PostgreSQL (`./vendor/bin/sail test`); toda la suite debe pasar.
+- Tests contra PostgreSQL (`./vendor/bin/sail test`) y de componentes de la SPA
+  (`npm run test:js`); toda la suite debe pasar.
   Formato con `./vendor/bin/sail bin pint`.
 - Commits pequeños por bloques, en español.

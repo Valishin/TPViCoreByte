@@ -6,6 +6,7 @@
     </template>
     <RouterView />
     <AuthorizeModal />
+    <AmountConfirmModal />
     <ToastHost />
     <OnScreenKeyboard />
     <LanAddress v-if="ui.isPos" />
@@ -14,6 +15,7 @@
 <script setup>
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import AmountConfirmModal from '@/components/AmountConfirmModal.vue';
 import AuthorizeModal from '@/components/AuthorizeModal.vue';
 import LanAddress from '@/components/LanAddress.vue';
 import OnScreenKeyboard from '@/components/OnScreenKeyboard.vue';
@@ -22,6 +24,7 @@ import VerifactuAlerts from '@/components/VerifactuAlerts.vue';
 import ToastHost from '@/components/ToastHost.vue';
 import TopBar from '@/components/TopBar.vue';
 import { useInactivity } from '@/composables/useInactivity';
+import { layerOpen } from '@/composables/useLayer';
 import { useCatalogStore } from '@/stores/catalog';
 import { useNoticesStore } from '@/stores/notices';
 import { useRealtimeStore } from '@/stores/realtime';
@@ -62,6 +65,9 @@ async function lock() {
     await session.lock(route.fullPath);
     router.replace('/entrar');
 }
+
+// Con una ventana abierta, la pantalla de debajo no recibe toques ni teclas.
+watch(layerOpen, (open) => document.getElementById('app')?.toggleAttribute('inert', open));
 
 useInactivity(() => session.lockMinutes, lock, () => session.isLoggedIn && !route.meta.public);
 </script>

@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Enums\HalfAndHalfModifierPricing;
 use App\Enums\HalfAndHalfPricing;
 use App\Enums\OrderType;
+use App\Filament\Components\MoneyInput;
 use App\Filament\Components\VatRateSelect;
 use App\Filament\Resources\Categories\Schemas\CategoryForm;
 use App\Models\Setting;
@@ -156,6 +157,14 @@ class LocalSettings extends Page
                         Toggle::make('lock_pos_after_send')->label('Bloquear la caja tras enviar una comanda')->inline(false),
                         Toggle::make('show_onscreen_keyboard_pos')->label('Mostrar teclado en pantalla en caja')->inline(false)
                             ->helperText('Desactivado, en caja solo se escribe con el teclado físico. En los móviles se usa siempre el del teléfono.'),
+                        Section::make('Importes máximos')->columnSpanFull()->columns(4)
+                            ->description('Por encima de estos importes el TPV pide confirmación con el importe en grande (evita un cero de más).')
+                            ->schema([
+                                MoneyInput::make('max_opening_float')->label('Fondo de caja inicial')->required(),
+                                MoneyInput::make('max_cash_count')->label('Arqueo (efectivo contado)')->required(),
+                                MoneyInput::make('max_cash_tendered')->label('Efectivo entregado al cobrar')->required(),
+                                MoneyInput::make('max_tip')->label('Propina')->required(),
+                            ]),
                         Toggle::make('print_join_notice')->label('Avisar en cocina y barra al unir mesas')->inline(false)
                             ->helperText('Imprime «MESA 4 UNIDA A MESA 3» en las impresoras de cocina y barra. Lo ya enviado nunca se reimprime.'),
                     ]),

@@ -1,6 +1,6 @@
 <template>
     <Teleport to="body">
-        <div v-if="open" class="c-join" role="dialog" aria-modal="true" aria-label="Unir mesas">
+        <div v-if="open" ref="el" v-bind="layer.attrs.value" class="c-join" role="dialog" aria-modal="true" aria-label="Unir mesas">
             <header class="c-join__header">
                 <h2 class="c-join__title">Unir a {{ order?.table_label }}</h2>
                 <nav v-if="floor.rooms.length > 1" class="c-tabs" aria-label="Salas">
@@ -75,7 +75,8 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, toRef, watch } from 'vue';
+import { useLayer } from '@/composables/useLayer';
 import FloorPlan from './FloorPlan.vue';
 import ModalDialog from './ModalDialog.vue';
 import TpvButton from './TpvButton.vue';
@@ -88,6 +89,9 @@ const props = defineProps({
     busy: { type: Boolean, default: false },
 });
 const emit = defineEmits(['confirm', 'close']);
+
+const layer = useLayer(toRef(props, 'open'));
+const el = layer.el;
 
 const floor = useFloorStore();
 const roomId = ref(null);

@@ -126,6 +126,7 @@ import TpvButton from '@/components/TpvButton.vue';
 import VoidTicketSheet from '@/components/VoidTicketSheet.vue';
 import pos, { errorCode, errorMessage } from '@/services/pos';
 import { useSessionStore } from '@/stores/session';
+import { useAmountGuardStore } from '@/stores/amountGuard';
 import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
 import { emailStatus, money, time } from '@/utils/format';
@@ -134,6 +135,7 @@ const router = useRouter();
 const session = useSessionStore();
 const notices = useNoticesStore();
 const authorize = useAuthorizeStore();
+const guard = useAmountGuardStore();
 
 const cash = ref(null);
 const tickets = ref([]);
@@ -241,15 +243,17 @@ function sendEmail(t) {
     }, () => notices.success(`Factura ${t.number} en cola para ${t.email.to}`));
 }
 async function closeCash(force) {
+    // El arqueo se fija al pulsar: lo que pase después (autorización) no lo cambia.
+    const payload = {
+        counted_cash: counted.value,
+        breakdown: countMode.value === 'count' ? breakdown.value : null,
+        notes: notes.value || null,
+        force,
+    };
+    if (!(await guard.check('cash_count', payload.counted_cash, 'el efectivo contado'))) return;
     busy.value = 'z';
     try {
-        closed.value = await authorize.withAuthorization('cerrar_caja', (token) => pos.closeCash({
-            counted_cash: counted.value,
-            breakdown: countMode.value === 'count' ? breakdown.value : null,
-            notes: notes.value || null,
-            force,
-            authorization_token: token,
-        }));
+        closed.value = await authorize.withAuthorization('cerrar_caja', (token) => pos.closeCash({ ...payload, authorization_token: token }));
         cash.value = null;
     } catch (e) {
         if (errorCode(e) === 'open_orders') openOrders.value = e.response.data.orders;

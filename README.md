@@ -92,6 +92,7 @@ Otros comandos útiles:
 ./vendor/bin/sail down                   # parar todo (los datos de PostgreSQL se conservan)
 ./vendor/bin/sail artisan tpv:print-test # página de prueba de impresora
 ./vendor/bin/sail test                   # tests (usan la BD 'testing' de PostgreSQL)
+npm run test:js                          # tests de componentes de la SPA (Vitest + jsdom)
 ```
 
 ## Usuario admin de desarrollo

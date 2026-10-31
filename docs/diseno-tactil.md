@@ -161,6 +161,17 @@ nueva debe cumplirlos.
 - Componentes BEM en `resources/scss/components/` (`c-…`) y vistas en
   `resources/scss/views/` (`v-…`). Teclados: `NumericKeypad.vue` (PIN y
   números) y `AmountKeypad.vue` (importes en euros).
+- **Ventanas superpuestas** (modales, hojas, «Unir mesas»): pila de
+  `composables/useLayer.js`. La última abierta queda siempre encima (z-index
+  por su posición en la pila, no por el orden del DOM) y es la única que
+  recibe toques y teclas: las de debajo y la app quedan `inert`; el foco pasa
+  a la ventana nueva y vuelve al cerrarla. El teclado en pantalla y los avisos
+  van por encima de toda la pila. Una ventana nueva usa `ModalDialog` o
+  `BottomSheet` (o `useLayer` si es propia).
+- **Importes fuera de lo normal:** fondo de caja, arqueo, efectivo entregado y
+  propina tienen un máximo (Ajustes del local → TPV); por encima se pide
+  confirmación con el importe en grande (`stores/amountGuard.js`). El importe
+  que se envía se fija al pulsar, antes de pedir la autorización.
 - Teclado en pantalla: `components/OnScreenKeyboard.vue` (montado una vez en
   `App.vue`, escucha el foco de **cualquier** `<input>` de texto o
   `<textarea>`) con la lógica en `composables/useOnScreenKeyboard.js`. Para un

@@ -159,6 +159,7 @@ import OpenCashDialog from '@/components/OpenCashDialog.vue';
 import SplitSheet from '@/components/SplitSheet.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import pos, { errorCode, errorMessage } from '@/services/pos';
+import { useAmountGuardStore } from '@/stores/amountGuard';
 import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
 import { useOrderStore } from '@/stores/order';
@@ -174,6 +175,7 @@ const order = useOrderStore();
 const notices = useNoticesStore();
 const session = useSessionStore();
 const authorize = useAuthorizeStore();
+const guard = useAmountGuardStore();
 
 const methods = [
     { value: 'efectivo', label: 'Efectivo' },
@@ -255,10 +257,12 @@ function resetEntry() {
     amount.value = 0;
     tip.value = 0;
 }
-function addPayment() {
+async function addPayment() {
     const p = { method: method.value, amount: paymentAmount.value };
     if (method.value === 'efectivo') p.tendered = Math.max(tendered.value, paymentAmount.value);
     if (method.value === 'tarjeta' && tip.value) p.tip = tip.value;
+    if (p.tendered && !(await guard.check('cash_tendered', p.tendered, 'el efectivo entregado'))) return;
+    if (p.tip && !(await guard.check('tip', p.tip, 'la propina'))) return;
     payments.value.push(p);
     resetEntry();
 }

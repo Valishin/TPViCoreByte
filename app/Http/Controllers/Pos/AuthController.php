@@ -84,6 +84,13 @@ class AuthController extends Controller
                 'print_ticket_on_checkout' => $settings->print_ticket_on_checkout,
                 'show_onscreen_keyboard_pos' => $settings->show_onscreen_keyboard_pos,
                 'invoice_require_address' => $settings->invoice_require_address,
+                // Por encima de estos importes la pantalla pide confirmación.
+                'amount_limits' => [
+                    'opening_float' => $settings->max_opening_float,
+                    'cash_count' => $settings->max_cash_count,
+                    'cash_tendered' => $settings->max_cash_tendered,
+                    'tip' => $settings->max_tip,
+                ],
             ],
             'permissions' => [
                 'authorize' => AuthorizationService::canAuthorize($request->user()),

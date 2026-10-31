@@ -79,7 +79,9 @@ $bp-desktop: 1200px;
 
 // Sin animaciones lentas: todo ≤ 100 ms.
 $transition-fast: 80ms ease-out;
-$z-sheet: 40;
-$z-modal: 50;
-$z-toast: 60;
-$z-keyboard: 70; // por encima de hojas y modales: se escribe en ellos
+// Hojas y modales: z-index de la pila de ventanas (useLayer, desde 100 en
+// pasos de 10, la última encima). Estos son solo el valor de partida.
+$z-sheet: 100;
+$z-modal: 100;
+$z-keyboard: 5000; // por encima de toda la pila: escribe en la ventana superior
+$z-toast: 6000;

@@ -20,6 +20,7 @@ import DenominationCounter from './DenominationCounter.vue';
 import ModalDialog from './ModalDialog.vue';
 import TpvButton from './TpvButton.vue';
 import pos, { errorMessage } from '@/services/pos';
+import { useAmountGuardStore } from '@/stores/amountGuard';
 import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
 import { money } from '@/utils/format';
@@ -28,6 +29,7 @@ defineProps({ open: { type: Boolean, default: false } });
 const emit = defineEmits(['close', 'opened']);
 
 const authorize = useAuthorizeStore();
+const guard = useAmountGuardStore();
 const notices = useNoticesStore();
 const mode = ref('amount');
 const amount = ref(15000);
@@ -40,10 +42,13 @@ function onCount({ breakdown: b, total }) {
 }
 
 async function submit() {
+    // El importe se fija al pulsar: lo que pase después (autorización) no lo cambia.
+    const payload = { opening_float: amount.value, breakdown: mode.value === 'count' ? breakdown.value : null };
+    if (!(await guard.check('opening_float', payload.opening_float, 'el fondo de caja'))) return;
     busy.value = true;
     try {
         const session = await authorize.withAuthorization('abrir_caja', (token) =>
-            pos.openCash({ opening_float: amount.value, breakdown: mode.value === 'count' ? breakdown.value : null, authorization_token: token }),
+            pos.openCash({ ...payload, authorization_token: token }),
         );
         notices.success('Caja abierta');
         emit('opened', session);

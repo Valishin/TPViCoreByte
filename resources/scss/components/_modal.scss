@@ -52,3 +52,18 @@
         border-color: $color-danger;
     }
 }
+
+// Confirmación de un importe fuera de lo normal: el importe muy grande.
+.c-amount-confirm__value {
+    margin-bottom: $space-3;
+    font-size: $font-size-huge;
+    font-weight: $font-weight-bold;
+    text-align: center;
+    color: $color-danger;
+    outline: none;
+}
+
+// Ventanas de la pila (useLayer): el foco va a la ventana sin dibujar contorno.
+[data-layer]:focus {
+    outline: none;
+}
