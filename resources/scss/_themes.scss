@@ -25,6 +25,13 @@ html[data-theme='dark'] {
     --c-table-occupied: #e8590c;
     --c-table-bill: #7c5cff;
     --c-table-out: #4b5563;
+    // Mesas unidas: borde y etiqueta de cada grupo (además de la etiqueta «3+4»).
+    --c-group-0: #facc15;
+    --c-group-1: #22d3ee;
+    --c-group-2: #f472b6;
+    --c-group-3: #a3e635;
+    --c-group-4: #e5e7eb;
+    --c-group-5: #60a5fa;
 }
 
 html[data-theme='light'] {
@@ -50,6 +57,12 @@ html[data-theme='light'] {
     --c-table-occupied: #c2410c;
     --c-table-bill: #5b3fd6;
     --c-table-out: #6b7280;
+    --c-group-0: #a16207;
+    --c-group-1: #0e7490;
+    --c-group-2: #be185d;
+    --c-group-3: #4d7c0f;
+    --c-group-4: #111827;
+    --c-group-5: #1d4ed8;
 }
 
 :root {

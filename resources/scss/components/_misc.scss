@@ -53,6 +53,11 @@
         background: $color-warning;
         color: #000;
     }
+
+    &--info {
+        background: $color-info;
+        color: $color-on-strong;
+    }
 }
 
 // Selector de cantidad − 2 +

@@ -95,4 +95,76 @@
     &--busy {
         opacity: 0.6;
     }
+
+    &__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-1;
+        width: 100%;
+    }
+
+    // Mesas unidas: borde grueso y etiqueta «3+4» del color del grupo.
+    &--grouped {
+        border-color: var(--group-color);
+        box-shadow: 0 0 0 3px var(--group-color);
+    }
+
+    &__group {
+        padding: 2px $space-2;
+        border-radius: $radius-pill;
+        background: var(--group-color);
+        color: #111;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+        white-space: nowrap;
+    }
+
+    &__note {
+        align-self: flex-start;
+        padding: 0 $space-2;
+        border-radius: $radius-pill;
+        background: rgba(0, 0, 0, 0.45);
+        font-size: $font-size-xs;
+        font-weight: $font-weight-bold;
+    }
+
+    &__check {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 3px solid $color-surface;
+        border-radius: 50%;
+        background: $color-primary;
+        color: $color-primary-contrast;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+    }
+
+    // Elegir mesas para unir.
+    &--selectable {
+        outline: 3px dashed rgba(255, 255, 255, 0.55);
+        outline-offset: -6px;
+    }
+
+    &--selected {
+        outline: 5px solid $color-primary;
+        outline-offset: 2px;
+    }
+
+    &--current {
+        outline: 5px solid $color-text;
+        outline-offset: 2px;
+        cursor: default;
+    }
+
+    &--disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
 }

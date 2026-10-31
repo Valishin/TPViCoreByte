@@ -17,8 +17,24 @@
     &__where {
         flex: 1;
         min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: $space-2;
         font-size: $font-size-lg;
         font-weight: $font-weight-bold;
+    }
+
+    // Liberar mesa: al lado del nombre, lejos de Enviar y Cobrar.
+    &__release {
+        margin-left: auto;
+        color: $color-danger;
+        font-size: $font-size-sm;
+
+        &--blocked {
+            opacity: 0.5;
+            color: $color-text-muted;
+        }
     }
 
     &__body {

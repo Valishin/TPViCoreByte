@@ -5,8 +5,22 @@
                 {{ isTakeaway ? '← Pedidos' : '← Mesas' }}
             </TpvButton>
             <div class="v-order__where">
-                {{ where }}
+                <span>{{ where }}</span>
                 <span v-if="o?.table?.status === 'cuenta_pedida'" class="c-badge c-badge--pending">Cuenta pedida</span>
+                <span v-if="o?.other_accounts?.length" class="c-badge c-badge--info">
+                    Mesa {{ o.table.name }}: {{ o.other_accounts.length === 1 ? 'otra cuenta abierta' : `${o.other_accounts.length} cuentas más abiertas` }}
+                </span>
+                <!-- Separado de las acciones frecuentes -->
+                <TpvButton
+                    v-if="o?.type === 'mesa'"
+                    variant="ghost"
+                    :class="['v-order__release', { 'v-order__release--blocked': o.release_blocker }]"
+                    :aria-disabled="o.release_blocker ? 'true' : undefined"
+                    :title="o.release_blocker || ''"
+                    @click="askRelease"
+                >
+                    {{ o.other_accounts?.length ? 'Liberar esta cuenta' : 'Liberar mesa' }}
+                </TpvButton>
             </div>
             <template v-if="isTakeaway">
                 <TpvButton variant="danger" :disabled="!o" @click="cancelOpen = true">Cancelar pedido</TpvButton>
@@ -16,6 +30,8 @@
             <template v-else>
                 <TpvButton variant="secondary" :disabled="!o" @click="guestsOpen = true">{{ o?.guests ?? '–' }} pax</TpvButton>
                 <TpvButton variant="secondary" :disabled="!o || o.type !== 'mesa'" @click="moveOpen = true">Mover</TpvButton>
+                <TpvButton variant="secondary" :disabled="!o || o.type !== 'mesa'" @click="joinOpen = true">Unir mesa</TpvButton>
+                <TpvButton v-if="(o?.tables?.length ?? 0) > 1" variant="secondary" @click="openSeparate">Separar mesas</TpvButton>
                 <TpvButton variant="secondary" :disabled="!o || !o.lines.length" :loading="prechecking" @click="precheck">Cuenta</TpvButton>
                 <TpvButton variant="success" :disabled="!o || !o.lines.length" :loading="sending" @click="goCheckout">Cobrar</TpvButton>
             </template>
@@ -77,6 +93,39 @@
         <LineActions :line-id="selectedLineId" @close="selectedLineId = null" />
         <GuestsDialog :open="guestsOpen" :current="o?.guests" @confirm="setGuests" @close="guestsOpen = false" />
         <MoveDialog :open="moveOpen" @confirm="move" @close="moveOpen = false" />
+        <JoinDialog :open="joinOpen" :order="o" :busy="order.busy" @confirm="join" @close="joinOpen = false" />
+
+        <BottomSheet :open="separateOpen" title="Separar mesas" @close="separateOpen = false">
+            <p class="v-config__rule">
+                Las mesas que separes vuelven a estar libres. Los productos se quedan en {{ o?.table_label }}; para pasar
+                productos a otra mesa, usa «Dividir por productos» al cobrar.
+            </p>
+            <div class="c-options">
+                <button
+                    v-for="t in joinedTables"
+                    :key="t.id"
+                    type="button"
+                    :class="['c-option', { 'c-option--selected': separateIds.includes(t.id) }]"
+                    :aria-pressed="separateIds.includes(t.id) ? 'true' : 'false'"
+                    @click="toggleSeparate(t.id)"
+                >
+                    Mesa {{ t.name }} <span v-if="separateIds.includes(t.id)" aria-hidden="true">✓</span>
+                </button>
+            </div>
+            <template #footer>
+                <TpvButton variant="ghost" @click="separateOpen = false">Cancelar</TpvButton>
+                <TpvButton variant="primary" block :disabled="!separateIds.length" :loading="order.busy" @click="separate">
+                    Separar ({{ separateIds.length }})
+                </TpvButton>
+            </template>
+        </BottomSheet>
+
+        <ModalDialog :open="releaseOpen" :title="releaseTitle" :text="releaseText" danger @close="releaseOpen = false">
+            <template #actions>
+                <TpvButton variant="ghost" @click="releaseOpen = false">Volver</TpvButton>
+                <TpvButton variant="danger" :loading="releasing" @click="release">{{ o?.other_accounts?.length ? 'Liberar esta cuenta' : 'Liberar mesa' }}</TpvButton>
+            </template>
+        </ModalDialog>
 
         <!-- Domicilio por debajo del pedido mínimo de la zona -->
         <ModalDialog :open="!!belowMinimum" title="No llega al pedido mínimo" :text="belowMinimum?.message ?? ''" danger @close="belowMinimum = null">
@@ -120,6 +169,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BottomSheet from '@/components/BottomSheet.vue';
 import GuestsDialog from '@/components/GuestsDialog.vue';
+import JoinDialog from '@/components/JoinDialog.vue';
 import LineActions from '@/components/LineActions.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import MoveDialog from '@/components/MoveDialog.vue';
@@ -157,6 +207,11 @@ const flashId = ref(null);
 const sheetOpen = ref(false);
 const guestsOpen = ref(false);
 const moveOpen = ref(false);
+const joinOpen = ref(false);
+const separateOpen = ref(false);
+const separateIds = ref([]);
+const releaseOpen = ref(false);
+const releasing = ref(false);
 const sending = ref(false);
 const prechecking = ref(false);
 const failedJob = ref(null);
@@ -175,13 +230,29 @@ const category = computed(() => catalog.categories.find((c) => c.id === category
 const products = computed(() => (categoryId.value ? catalog.productsOf(categoryId.value) : []));
 const otherPrinters = computed(() => notices.printers.filter((p) => p.id !== failedJob.value?.printer?.id));
 const types = { barra: 'Barra', para_llevar: 'Para llevar', domicilio: 'Domicilio' };
-const where = computed(() => (o.value?.table ? `Mesa ${o.value.table.name} · ${o.value.table.room}` : types[o.value?.type] ?? 'Pedido'));
+const where = computed(() => (o.value?.table ? `${o.value.table_label} · ${o.value.table.room}` : types[o.value?.type] ?? 'Pedido'));
+const joinedTables = computed(() => (o.value?.tables ?? []).filter((t) => !t.is_main));
+const releaseTitle = computed(() => (o.value?.other_accounts?.length ? '¿Liberar esta cuenta?' : `¿Liberar ${o.value?.table_label ?? 'la mesa'}?`));
+const releaseText = computed(() => {
+    const pending = order.pendingCount;
+    const parts = [pending ? `Se descartarán ${pending} ${pending === 1 ? 'producto' : 'productos'} sin enviar.` : 'No hay productos.'];
+    parts.push(o.value?.other_accounts?.length
+        ? `La mesa ${o.value.table.name} sigue abierta con su otra cuenta.`
+        : `${(o.value?.tables?.length ?? 1) > 1 ? 'Las mesas quedan libres' : 'La mesa queda libre'} (abierta por error).`);
+    return parts.join(' ');
+});
 const isTakeaway = computed(() => route.name === 'takeaway-order' || ['para_llevar', 'domicilio'].includes(o.value?.type));
 const backPath = computed(() => (isTakeaway.value ? '/pedidos' : '/mesas'));
 
 async function loadOrder() {
     try {
         const loaded = await order.load(Number(route.params.orderId));
+        if (loaded.status === 'unido' && loaded.merged_into_order_id) {
+            // Otra pantalla ha unido esta mesa a otra: al pedido del grupo.
+            notices.toast(`Esta mesa se ha unido a otra: se abre el pedido del grupo.`, 'info');
+            router.replace(`/mesas/pedido/${loaded.merged_into_order_id}`);
+            return;
+        }
         if (loaded.status !== 'abierto') {
             notices.toast('Este pedido ya está cerrado.');
             router.replace(backPath.value);
@@ -338,6 +409,56 @@ function move(tableId) {
         floor.refresh();
         notices.success(`Movido a la mesa ${order.order.table?.name}`);
     });
+}
+async function join(payload) {
+    try {
+        const result = await order.join(payload);
+        joinOpen.value = false;
+        floor.refresh();
+        notices.success(`Unidas: ${order.order.table_label}${result.merged?.length ? ' (productos y comensales sumados)' : ''}`);
+    } catch (e) {
+        notices.error(errorMessage(e));
+        floor.refresh();
+    }
+}
+function openSeparate() {
+    separateIds.value = [];
+    separateOpen.value = true;
+}
+function toggleSeparate(id) {
+    const i = separateIds.value.indexOf(id);
+    if (i >= 0) separateIds.value.splice(i, 1);
+    else separateIds.value.push(id);
+}
+async function separate() {
+    await act(() => order.separate(separateIds.value), (result) => {
+        separateOpen.value = false;
+        floor.refresh();
+        notices.success(`Separada${result.separated.length > 1 ? 's' : ''}: mesa ${result.separated.join(', ')}`);
+    });
+}
+function askRelease() {
+    if (o.value?.release_blocker) {
+        notices.toast(o.value.release_blocker, 'warning', 5000);
+        return;
+    }
+    releaseOpen.value = true;
+}
+async function release() {
+    releasing.value = true;
+    try {
+        await pos.releaseTable(o.value.id);
+        releaseOpen.value = false;
+        floor.refresh();
+        notices.success('Mesa liberada');
+        order.clear();
+        router.replace('/mesas');
+    } catch (e) {
+        notices.error(errorMessage(e));
+        order.reload().catch(() => {});
+    } finally {
+        releasing.value = false;
+    }
 }
 function retryJob() {
     const job = failedJob.value;

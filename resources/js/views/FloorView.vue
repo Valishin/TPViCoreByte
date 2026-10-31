@@ -17,27 +17,13 @@
 
         <p v-if="floor.loaded && !floor.rooms.length" class="v-floor__empty">No hay salas. Créalas en el backoffice (/admin → Sala).</p>
 
-        <!-- Caja: plano según pos_x / pos_y -->
-        <section v-if="ui.isPos && floor.currentRoom" class="v-floor__plan" :style="{ '--cols': cols }">
-            <TableCard
-                v-for="t in floor.currentRoom.tables"
-                :key="t.id"
-                :table="t"
-                :now="now"
-                :style="planStyle(t)"
-                @select="select"
-            />
-        </section>
-
-        <!-- Móvil: rejilla compacta -->
-        <section v-else-if="floor.currentRoom" class="v-floor__grid">
-            <TableCard v-for="t in sortedTables" :key="t.id" :table="t" :now="now" @select="select" />
-        </section>
+        <FloorPlan v-if="floor.currentRoom" :tables="floor.currentRoom.tables" :all-tables="floor.tables" :now="now" @select="select" />
 
         <div class="v-floor__legend">
             <span><i class="v-floor__swatch" style="background: var(--c-table-free)"></i>Libre</span>
             <span><i class="v-floor__swatch" style="background: var(--c-table-occupied)"></i>Ocupada</span>
             <span><i class="v-floor__swatch" style="background: var(--c-table-bill)"></i>Cuenta pedida</span>
+            <span><i class="v-floor__swatch v-floor__swatch--group"></i>Unidas: «3+4»</span>
         </div>
 
         <!-- Mesa con varias cuentas: elegir cuál abrir -->
@@ -67,9 +53,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import TableCard from '@/components/TableCard.vue';
+import FloorPlan from '@/components/FloorPlan.vue';
 import GuestsDialog from '@/components/GuestsDialog.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import TpvButton from '@/components/TpvButton.vue';
@@ -77,12 +63,10 @@ import pos, { errorMessage } from '@/services/pos';
 import { money } from '@/utils/format';
 import { useFloorStore } from '@/stores/floor';
 import { useNoticesStore } from '@/stores/notices';
-import { useUiStore } from '@/stores/ui';
 
 const router = useRouter();
 const floor = useFloorStore();
 const notices = useNoticesStore();
-const ui = useUiStore();
 
 const opening = ref(null);
 const choosing = ref(null);
@@ -115,18 +99,6 @@ onMounted(() => {
 onUnmounted(() => clearInterval(ticker));
 
 const busyCount = (room) => room.tables.filter((t) => t.status !== 'libre').length;
-const sortedTables = computed(() =>
-    [...(floor.currentRoom?.tables ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true })),
-);
-
-// Cuadrícula del plano: cada mesa ocupa 2×2 celdas por unidad de tamaño.
-const cols = computed(() => Math.max(6, ...(floor.currentRoom?.tables ?? []).map((t) => t.x + t.w * 2 + 1)));
-function planStyle(t) {
-    return {
-        gridColumn: `${t.x + 1} / span ${t.w * 2}`,
-        gridRow: `${t.y + 1} / span ${t.h * 2}`,
-    };
-}
 
 function select(table) {
     if (table.status === 'fuera_servicio') return;

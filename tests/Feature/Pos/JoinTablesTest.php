@@ -173,6 +173,10 @@ class JoinTablesTest extends PosTestCase
         $this->join($order['id'], [$t4])->assertUnprocessable()
             ->assertJsonPath('message', 'La cuenta de la mesa 4 tiene un descuento global: quítalo antes de unirla (mesa 4 → Cobrar → Descuento al pedido → Quitar descuento).');
         $this->assertSame(OrderStatus::Open, Order::query()->find($discounted['id'])->status);
+
+        // «Quitar descuento» (valor 0) y ya se puede unir.
+        $this->asWaiter()->postJson("/api/orders/{$discounted['id']}/discount", ['type' => 'porcentaje', 'value' => 0])->assertOk();
+        $this->join($order['id'], [$t4])->assertOk();
     }
 
     public function test_separate_frees_the_table_and_keeps_the_lines(): void

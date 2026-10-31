@@ -62,6 +62,12 @@ export const useOrderStore = defineStore('order', {
         move(tableId) {
             return this.run(() => pos.move(this.order.id, tableId));
         },
+        join(payload) {
+            return this.run(() => pos.joinTables(this.order.id, payload));
+        },
+        separate(tableIds) {
+            return this.run(() => pos.separateTables(this.order.id, tableIds));
+        },
         precheck() {
             return this.run(() => pos.precheck(this.order.id));
         },

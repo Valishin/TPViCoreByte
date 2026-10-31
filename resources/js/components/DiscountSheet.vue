@@ -19,6 +19,7 @@
         </div>
         <template #footer>
             <TpvButton v-if="target?.line" variant="secondary" :loading="busy" @click="invite">Invitar</TpvButton>
+            <TpvButton v-if="target?.order && order.order?.discount_amount" variant="secondary" :loading="busy" @click="remove">Quitar descuento</TpvButton>
             <TpvButton variant="primary" block :loading="busy" :disabled="!value" @click="apply">Aplicar descuento</TpvButton>
         </template>
     </BottomSheet>
@@ -77,6 +78,17 @@ function apply() {
     run('descuento', (token) =>
         props.target.line ? pos.discountLine(props.target.line.id, payload(token)) : pos.discountOrder(order.order.id, payload(token)),
     );
+}
+/** Quitar el descuento del pedido (p. ej. para unir la mesa a otra). */
+function remove() {
+    busy.value = true;
+    pos.discountOrder(order.order.id, { type: 'porcentaje', value: 0 })
+        .then((o) => {
+            order.order = o;
+            emit('close');
+        })
+        .catch((e) => notices.error(errorMessage(e)))
+        .finally(() => (busy.value = false));
 }
 function invite() {
     run('invitacion', (token) => pos.inviteLine(props.target.line.id, { reason: reason.value || 'Invitación', authorization_token: token }));

@@ -12,6 +12,10 @@
             <p v-if="done.ticket.recipient" class="v-config__rule">{{ done.ticket.recipient.name }} · {{ done.ticket.recipient.tax_id }}</p>
             <p v-if="done.ticket.email" class="v-config__rule">Email a {{ done.ticket.email.to }}: {{ emailStatus(done.ticket.email) }}</p>
             <p v-if="done.change" class="v-checkout__change">Cambio <strong>{{ money(done.change) }}</strong></p>
+            <p v-if="otherAccounts.length" class="c-badge c-badge--info v-checkout__other">
+                La mesa {{ mainTable }} sigue abierta con {{ otherAccounts.length === 1 ? 'otra cuenta' : `${otherAccounts.length} cuentas` }}
+                ({{ money(otherAccounts.reduce((sum, a) => sum + a.total, 0)) }})
+            </p>
             <div class="v-checkout__done-actions">
                 <TpvButton variant="secondary" size="lg" @click="reprint">Imprimir copia</TpvButton>
                 <template v-if="done.ticket.type === 'completa'">
@@ -202,8 +206,11 @@ let idempotencyKey = uid();
 
 const o = computed(() => (order.order?.id === Number(route.params.orderId) ? order.order : null));
 const activeLines = computed(() => (o.value?.lines ?? []).filter((l) => !l.voided_at));
+// Cuentas que siguen abiertas en la mesa principal (al cobrar un grupo con cuentas separadas).
+const otherAccounts = computed(() => o.value?.other_accounts ?? []);
+const mainTable = computed(() => o.value?.table?.name ?? '');
 const where = computed(() => {
-    if (o.value?.table) return `Mesa ${o.value.table.name}`;
+    if (o.value?.table) return o.value.table_label ?? `Mesa ${o.value.table.name}`;
     if (o.value?.takeaway) return `Para llevar${o.value.takeaway.customer_name ? ` · ${o.value.takeaway.customer_name}` : ''}`;
     return 'Venta rápida';
 });

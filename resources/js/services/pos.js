@@ -30,6 +30,9 @@ const pos = {
     send: (id, options = {}) => api.post(`/orders/${id}/send`, options).then((r) => r.data),
     move: (id, tableId) => api.post(`/orders/${id}/move`, { table_id: tableId }).then((r) => r.data.data),
     precheck: (id) => api.post(`/orders/${id}/precheck`).then((r) => r.data.data),
+    joinTables: (id, payload) => api.post(`/orders/${id}/join`, payload).then((r) => r.data),
+    separateTables: (id, tableIds) => api.post(`/orders/${id}/separate`, { table_ids: tableIds }).then((r) => r.data),
+    releaseTable: (id) => api.post(`/orders/${id}/release`).then((r) => r.data),
 
     // Autorización de encargado
     managers: () => api.get('/managers').then((r) => r.data.data),

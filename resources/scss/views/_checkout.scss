@@ -183,4 +183,11 @@
     html[data-layout='pos'] &__pay {
         overflow-y: auto;
     }
+
+    &__other {
+        align-self: center;
+        padding: $space-2 $space-4;
+        font-size: $font-size-base;
+        white-space: normal;
+    }
 }

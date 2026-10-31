@@ -1,0 +1,45 @@
+@use '../tokens' as *;
+
+// Plano de mesas (caja) o rejilla compacta (móvil). Lo usan el plano y la
+// elección de mesas para unir.
+.c-floor-plan {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--rows), minmax(calc(var(--touch) * 0.8), 1fr));
+    gap: $space-2;
+    padding: $space-3;
+    border-radius: $radius-lg;
+    background: $color-surface;
+    min-height: 60vh;
+
+    // Líneas entre las mesas de un grupo, por debajo de las mesas.
+    &__links {
+        position: absolute;
+        inset: $space-3;
+        width: calc(100% - 2 * #{$space-3});
+        height: calc(100% - 2 * #{$space-3});
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    &__link {
+        stroke-width: 10px;
+        stroke-linecap: round;
+        stroke-dasharray: 2 14;
+        vector-effect: non-scaling-stroke;
+        opacity: 0.9;
+    }
+
+    > .c-table-card {
+        z-index: 1;
+    }
+
+    &--grid {
+        grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+        grid-template-rows: none;
+        min-height: 0;
+        padding: 0;
+        background: none;
+    }
+}
