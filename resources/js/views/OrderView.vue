@@ -235,7 +235,7 @@ const joinedTables = computed(() => (o.value?.tables ?? []).filter((t) => !t.is_
 const releaseTitle = computed(() => (o.value?.other_accounts?.length ? '¿Liberar esta cuenta?' : `¿Liberar ${o.value?.table_label ?? 'la mesa'}?`));
 const releaseText = computed(() => {
     const pending = order.pendingCount;
-    const parts = [pending ? `Se descartarán ${pending} ${pending === 1 ? 'producto' : 'productos'} sin enviar.` : 'No hay productos.'];
+    const parts = [pending === 1 ? 'Se descartará 1 producto sin enviar.' : pending ? `Se descartarán ${pending} productos sin enviar.` : 'No hay productos.'];
     parts.push(o.value?.other_accounts?.length
         ? `La mesa ${o.value.table.name} sigue abierta con su otra cuenta.`
         : `${(o.value?.tables?.length ?? 1) > 1 ? 'Las mesas quedan libres' : 'La mesa queda libre'} (abierta por error).`);
@@ -247,12 +247,7 @@ const backPath = computed(() => (isTakeaway.value ? '/pedidos' : '/mesas'));
 async function loadOrder() {
     try {
         const loaded = await order.load(Number(route.params.orderId));
-        if (loaded.status === 'unido' && loaded.merged_into_order_id) {
-            // Otra pantalla ha unido esta mesa a otra: al pedido del grupo.
-            notices.toast(`Esta mesa se ha unido a otra: se abre el pedido del grupo.`, 'info');
-            router.replace(`/mesas/pedido/${loaded.merged_into_order_id}`);
-            return;
-        }
+        if (loaded.status === 'unido') return;   // lo resuelve el watch de abajo
         if (loaded.status !== 'abierto') {
             notices.toast('Este pedido ya está cerrado.');
             router.replace(backPath.value);
@@ -271,6 +266,17 @@ onMounted(async () => {
     if (order.draft) configuring.value = catalog.productById(order.draft.productId) ?? null;
 });
 watch(() => route.params.orderId, () => route.params.orderId && loadOrder());
+// Cambios desde otra pantalla (tiempo real): unida a otra mesa, liberada o cobrada.
+watch(() => o.value?.status, (status) => {
+    if (!status || status === 'abierto' || releasing.value) return;
+    if (status === 'unido' && o.value.merged_into_order_id) {
+        notices.toast('Esta mesa se ha unido a otra: se abre el pedido del grupo.', 'info', 5000);
+        router.replace(`/mesas/pedido/${o.value.merged_into_order_id}`);
+    } else {
+        notices.toast('Este pedido ya está cerrado.');
+        router.replace(backPath.value);
+    }
+});
 watch(() => catalog.categories, (cats) => {
     if (!cats.some((c) => c.id === categoryId.value)) categoryId.value = cats[0]?.id ?? null;
 });
