@@ -30,9 +30,10 @@ class OrderTable extends Model
         return $this->belongsTo(Order::class);
     }
 
-    public function table(): BelongsTo
+    /** La mesa (no se llama «table»: choca con Model::$table). */
+    public function diningTable(): BelongsTo
     {
-        return $this->belongsTo(Table::class);
+        return $this->belongsTo(Table::class, 'table_id');
     }
 
     public function joinedBy(): BelongsTo

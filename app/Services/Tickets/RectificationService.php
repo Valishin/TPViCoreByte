@@ -231,6 +231,7 @@ class RectificationService
                 'status' => TicketStatus::Issued,
                 'order_id' => $original->order_id,
                 'order_type' => $original->order_type,
+                'table_label' => $original->table_label,
                 'cash_session_id' => $session->id,
                 'issued_by' => $by->id,
                 'issued_at' => $issuedAt,

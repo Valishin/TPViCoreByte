@@ -189,6 +189,22 @@ La SPA en <http://localhost:8081> (o la IP del ordenador desde el móvil).
   ANULACIÓN en su impresora.
 - **Comandas sin imprimir:** aviso rojo persistente en todas las pantallas con
   "Reintentar" y "Enviar a otra". Nada se reimprime solo (evita duplicados).
+- **Unir mesas** (comanda → "Unir mesa"): se eligen en el plano una o varias
+  mesas. Una libre pasa a ser parte del pedido; una ocupada aporta las líneas
+  de su cuenta (enviadas y pendientes, sin reimprimir nada) y sus comensales, y
+  su pedido queda "unido" sin ticket. Si tiene varias cuentas se elige cuál
+  (o "Unir todas las cuentas"); con otras cuentas abiertas, la mesa no entra
+  en el grupo. No se une una cuenta con descuento al pedido (hay que quitarlo
+  antes). En el plano el grupo se ve con la etiqueta "3+4", el mismo color y,
+  en caja, un borde que las relaciona; tocar cualquiera abre el pedido.
+  "Separar mesas" devuelve mesas al plano (no la principal; las líneas se
+  quedan). Al cobrar se liberan todas. **Mover** un grupo mueve solo la mesa
+  principal: las demás siguen unidas. Opcional (Ajustes del local): aviso
+  "MESA 4 UNIDA A MESA 3" en cocina y barra.
+- **Liberar mesa abierta por error:** solo si no se ha enviado nada, ni
+  impreso la cuenta, ni hay ticket. El pedido queda cancelado ("Abierta por
+  error", quién y cuándo) con sus líneas sin enviar, y la mesa (o el grupo)
+  queda libre.
 - **Bloqueo:** botón "Bloquear" y bloqueo automático por inactividad
   (Ajustes del local → TPV: caja 2 min y móvil desactivado por defecto). Si
   vuelve el mismo camarero, sigue donde estaba.

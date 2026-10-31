@@ -119,11 +119,16 @@ class Order extends Model
         if (! $this->table_id) {
             return null;
         }
-        $links = $this->tableLinks()->with('table')->orderByDesc('is_main')->orderBy('joined_at')->orderBy('id')->get()
+        $links = $this->tableLinks()->with('diningTable')->orderByDesc('is_main')->orderBy('joined_at')->orderBy('id')->get()
             ->filter(fn (OrderTable $l) => $l->left_at === null || ($this->closed_at && ! $this->isOpen() && $l->left_at->gte($this->closed_at)));
-        $names = $links->map(fn (OrderTable $l) => $l->table->name)->unique()->values();
+        $names = $links->map(fn (OrderTable $l) => $l->diningTable->name)->unique()->values();
 
         return 'Mesa '.($names->isEmpty() ? $this->table?->name : $names->implode(' + '));
+    }
+
+    public function prechecks(): HasMany
+    {
+        return $this->hasMany(Precheck::class);
     }
 
     public function mergedInto(): BelongsTo

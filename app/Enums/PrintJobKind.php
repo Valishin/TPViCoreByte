@@ -17,6 +17,7 @@ enum PrintJobKind: string implements HasLabel
     case Test = 'prueba';
     case CourierCopy = 'copia_reparto';
     case Settlement = 'liquidacion';
+    case JoinNotice = 'aviso_union';
 
     public function label(): string
     {
@@ -31,6 +32,7 @@ enum PrintJobKind: string implements HasLabel
             self::Test => 'Página de prueba',
             self::CourierCopy => 'Copia para el repartidor',
             self::Settlement => 'Liquidación de repartidor',
+            self::JoinNotice => 'Aviso de mesas unidas',
         };
     }
 

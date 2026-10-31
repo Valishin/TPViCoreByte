@@ -74,6 +74,7 @@ class TicketIssuer
                 'status' => TicketStatus::Issued,
                 'order_id' => $order->id,
                 'order_type' => $order->type,
+                'table_label' => $order->tableLabel(),   // «Mesa 3 + 4» (snapshot)
                 'cash_session_id' => $session?->id,
                 'issued_by' => $by->id,
                 'issued_at' => $issuedAt,

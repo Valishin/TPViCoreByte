@@ -114,6 +114,7 @@ class InvoiceExchanger
             'status' => TicketStatus::Issued,
             'order_id' => $source->order_id,
             'order_type' => $source->order_type,
+            'table_label' => $source->table_label,
             // Canje: no es una venta nueva (el ticket ya contó en su Z), pero
             // se asocia a la caja abierta para listarlo en ella.
             'cash_session_id' => CheckoutService::openSession()?->id,

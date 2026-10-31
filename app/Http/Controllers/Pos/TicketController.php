@@ -141,7 +141,7 @@ class TicketController extends Controller
             'status' => $ticket->status->value,
             'issued_at' => $ticket->issued_at->toIso8601String(),
             'order_type' => $ticket->order_type?->value,
-            'table' => $ticket->order?->table?->name,
+            'table' => $ticket->table_label ? preg_replace('/^Mesa /', '', $ticket->table_label) : $ticket->order?->table?->name,
             'issued_by' => $ticket->issuedBy?->name,
             'total' => $ticket->total,
             'payment_methods' => $ticket->payments->pluck('method')->map->value->unique()->values(),

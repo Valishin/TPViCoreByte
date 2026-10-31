@@ -5,6 +5,7 @@ namespace App\Http\Resources\Pos;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\PrintJob;
+use App\Services\Orders\OrderService;
 use App\Services\Orders\OrderTotalsCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -31,6 +32,17 @@ class OrderResource extends JsonResource
                 'id' => $this->table->id, 'name' => $this->table->name,
                 'room' => $this->table->room?->name, 'status' => $this->table->status->value,
             ] : null,
+            // Mesas unidas: «Mesa 3 + 4», la principal primero.
+            'table_label' => $this->resource->tableLabel(),
+            'tables' => $this->table_id ? $this->resource->activeTableLinks()->with('diningTable')->get()->map(fn ($link) => [
+                'id' => $link->table_id, 'name' => $link->diningTable->name, 'is_main' => $link->is_main,
+            ])->values() : [],
+            // Otras cuentas abiertas en la mesa principal (división por productos).
+            'other_accounts' => $this->table_id ? Order::query()->where('table_id', $this->table_id)->where('status', 'abierto')
+                ->whereKeyNot($this->id)->orderBy('id')->get(['id', 'total'])->map(fn ($o) => ['id' => $o->id, 'total' => $o->total])->values() : [],
+            'merged_into_order_id' => $this->merged_into_order_id,
+            'precheck_printed' => $this->resource->prechecks()->exists(),
+            'release_blocker' => $this->table_id && $this->resource->isOpen() ? app(OrderService::class)->releaseBlocker($this->resource) : null,
             'guests' => $this->guests,
             'notes' => $this->notes,
             'opened_at' => $this->opened_at->toIso8601String(),

@@ -21,6 +21,7 @@ use App\Models\Table;
 use App\Models\User;
 use App\Services\Pos\KitchenFormatter;
 use App\Services\Pos\PrintJobDispatcher;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
@@ -203,7 +204,11 @@ class OrderService
         return $order;
     }
 
-    /** Mueve el pedido a otra mesa libre. */
+    /**
+     * Mueve el pedido a otra mesa libre. Con mesas unidas, se mueve SOLO la
+     * mesa principal: las demás siguen unidas al pedido y la antigua principal
+     * queda libre (si no tiene otras cuentas).
+     */
     public function move(Order $order, Table $target): Order
     {
         $this->assertOpen($order);
@@ -222,7 +227,7 @@ class OrderService
             $from = Table::query()->findOrFail($order->table_id);
 
             $status = $from->status === TableStatus::BillRequested ? TableStatus::BillRequested : TableStatus::Occupied;
-            $order->update(['table_id' => $target->id]);
+            $order->update(['table_id' => $target->id]);   // Order mueve también la fila principal de order_tables
             $target->update(['status' => $status]);
             $this->freeIfEmpty($from);
 
@@ -236,9 +241,10 @@ class OrderService
         if (! $order->table_id) {
             return;
         }
-        $table = Table::query()->whereKey($order->table_id)->lockForUpdate()->first();
-        if ($table?->status === TableStatus::BillRequested) {
-            $table->update(['status' => TableStatus::Occupied]);
+        foreach ($this->lockGroupTables($order) as $table) {
+            if ($table->status === TableStatus::BillRequested) {
+                $table->update(['status' => TableStatus::Occupied]);
+            }
         }
     }
 
@@ -267,8 +273,8 @@ class OrderService
                 'printed_at' => now(),
             ]);
 
-            if ($order->table_id) {
-                Table::query()->whereKey($order->table_id)->lockForUpdate()->first()?->update(['status' => TableStatus::BillRequested]);
+            foreach ($this->lockGroupTables($order) as $table) {
+                $table->update(['status' => TableStatus::BillRequested]);
             }
 
             return $order;
@@ -291,6 +297,7 @@ class OrderService
 
         return DB::transaction(function () use ($order, $type, $table) {
             $previousTable = $order->table_id ? Table::query()->find($order->table_id) : null;
+            $previousGroup = $order->table_id ? $this->lockGroupTables($order) : collect();
 
             if ($type === OrderType::Table) {
                 $tableId = $table?->id ?? $order->table_id;
@@ -309,7 +316,7 @@ class OrderService
             $order->save();
 
             if ($previousTable && $previousTable->id !== $order->table_id) {
-                $this->freeIfEmpty($previousTable);
+                $previousGroup->each(fn (Table $t) => $this->freeIfEmpty($t));
             }
 
             // IVA según el nuevo tipo: cada línea con su producto; el padre de una mitad, como su primera mitad.
@@ -343,14 +350,237 @@ class OrderService
         $this->assertOpen($order);
 
         return DB::transaction(function () use ($order, $status) {
-            $order->update(['status' => $status, 'closed_at' => now()]);
+            $tables = $this->lockGroupTables($order);
+            $order->update(['status' => $status, 'closed_at' => now()]);   // sus mesas dejan el pedido (Order)
 
-            if ($order->table_id) {
-                $this->freeIfEmpty(Table::query()->whereKey($order->table_id)->lockForUpdate()->firstOrFail());
-            }
+            // Todas las mesas del grupo quedan libres (salvo las que tengan otra cuenta abierta).
+            $tables->each(fn (Table $t) => $this->freeIfEmpty($t));
 
             return $order;
         });
+    }
+
+    /**
+     * Une mesas al pedido (mesas unidas).
+     *
+     *  - Mesa libre: pasa a formar parte del pedido.
+     *  - Mesa ocupada: las líneas de la cuenta (o cuentas) elegida(s) —enviadas
+     *    y pendientes, con todo lo que cuelga de ellas— pasan a este pedido, se
+     *    suman los comensales y su pedido queda «unido» (sin ticket). Las líneas
+     *    ya enviadas NO se reimprimen. La mesa entra en el grupo solo si se unen
+     *    todas sus cuentas; si le quedan otras, sigue con ellas.
+     *  - No se pueden unir mesas fuera de servicio, de otro grupo ni con un
+     *    descuento global en la cuenta (está repartido entre sus líneas).
+     *
+     * Bloquea (en orden de id) el pedido, todas las mesas implicadas y los
+     * pedidos que se unen: dos camareros uniendo a la vez no se pisan.
+     *
+     * @param  list<int>  $tableIds
+     * @param  array<int, list<int>|'all'>  $accounts  mesa => cuentas (pedidos) que se unen, si tiene varias
+     * @return array{order: Order, joined: list<Table>, merged: list<Order>}
+     */
+    public function joinTables(Order $order, array $tableIds, User $by, array $accounts = []): array
+    {
+        $tableIds = array_values(array_unique(array_map('intval', $tableIds)));
+        if ($tableIds === []) {
+            throw new InvalidArgumentException('Elige las mesas que quieres unir.');
+        }
+
+        $result = DB::transaction(function () use ($order, $tableIds, $by, $accounts) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $this->assertOpen($order);
+            if ($order->type !== OrderType::Table) {
+                throw new InvalidArgumentException('Solo se pueden unir mesas a un pedido de mesa.');
+            }
+            $groupIds = $order->activeTableLinks()->pluck('table_id')->all();
+            $tables = Table::query()->whereIn('id', array_merge($groupIds, $tableIds))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $main = $tables->get($order->table_id);
+            $candidates = Order::query()->whereIn('table_id', $tableIds)->where('status', OrderStatus::Open)
+                ->orderBy('id')->lockForUpdate()->get()->groupBy('table_id');
+
+            $plan = [];
+            foreach ($tableIds as $id) {
+                $table = $tables->get($id) ?? throw new InvalidArgumentException('Mesa no encontrada.');
+                if (in_array($id, $groupIds, true)) {
+                    throw new InvalidArgumentException("La mesa {$table->name} ya forma parte de esta mesa.");
+                }
+                if (! $table->is_active || $table->status === TableStatus::OutOfService) {
+                    throw new TableUnavailableException("La mesa {$table->name} está fuera de servicio.");
+                }
+                if ($link = $table->groupLink()->with('order.table')->first()) {
+                    throw new TableUnavailableException("La mesa {$table->name} ya está unida a la mesa {$link->order->table->name}.");
+                }
+                $open = $candidates->get($id, collect());
+                $choice = $accounts[$id] ?? $accounts[(string) $id] ?? ($open->count() <= 1 ? 'all' : null);
+                if ($choice === null) {
+                    throw new InvalidArgumentException("La mesa {$table->name} tiene {$open->count()} cuentas: elige cuál unir.");
+                }
+                $chosen = $choice === 'all' ? $open : $open->whereIn('id', array_map('intval', (array) $choice));
+                if ($choice !== 'all' && $chosen->count() !== count((array) $choice)) {
+                    throw new InvalidArgumentException("Esa cuenta ya no está abierta en la mesa {$table->name}.");
+                }
+                foreach ($chosen as $other) {
+                    if ($other->isGroup()) {
+                        throw new TableUnavailableException("La mesa {$table->name} tiene mesas unidas: sepáralas antes de unirla.");
+                    }
+                    if ((int) $other->discount_value > 0 || $other->discount_amount > 0) {
+                        throw new InvalidArgumentException("La cuenta de la mesa {$table->name} tiene un descuento global: quítalo antes de unirla (mesa {$table->name} → Cobrar → Descuento al pedido → Quitar descuento).");
+                    }
+                    if ($other->tickets()->exists()) {
+                        throw new LogicException("La cuenta de la mesa {$table->name} ya tiene ticket.");
+                    }
+                }
+                $plan[] = ['table' => $table, 'orders' => $chosen, 'joins' => $chosen->count() === $open->count()];
+            }
+
+            $joined = [];
+            $merged = [];
+            foreach ($plan as ['table' => $table, 'orders' => $chosen, 'joins' => $joins]) {
+                foreach ($chosen as $other) {
+                    $this->absorb($order, $other, $by);
+                    $merged[] = $other;
+                }
+                if ($joins) {
+                    $order->tableLinks()->create(['table_id' => $table->id, 'is_main' => false, 'joined_by' => $by->id, 'joined_at' => now()]);
+                    $joined[] = $table;
+                }
+            }
+
+            // Con cuentas unidas, la precuenta impresa ya no vale: el grupo vuelve a «ocupada».
+            $status = $merged !== [] ? TableStatus::Occupied : $main->status;
+            foreach ($this->lockGroupTables($order) as $table) {
+                $table->update(['status' => $status]);
+            }
+            $this->totals->apply($order->refresh());
+
+            if (Setting::current()->print_join_notice) {
+                $this->printJoinNotice($order, array_merge($joined, array_map(fn (Order $o) => $tables->get($o->table_id), $merged)), $by);
+            }
+
+            return ['order' => $order->refresh(), 'joined' => $joined, 'merged' => $merged];
+        });
+
+        return $result;
+    }
+
+    /**
+     * Separa mesas del grupo: vuelven a estar libres (si no tienen otra
+     * cuenta). La principal no se puede separar. Las líneas se quedan en el
+     * pedido; para llevar productos a otra mesa está la división por productos.
+     *
+     * @param  list<int>  $tableIds
+     * @return list<Table>
+     */
+    public function separateTables(Order $order, array $tableIds, User $by): array
+    {
+        return DB::transaction(function () use ($order, $tableIds, $by) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $this->assertOpen($order);
+            $links = $order->activeTableLinks()->get()->keyBy('table_id');
+            $tables = Table::query()->whereIn('id', $links->keys())->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+            $separated = [];
+            foreach (array_unique(array_map('intval', $tableIds)) as $id) {
+                $link = $links->get($id) ?? throw new InvalidArgumentException('Esa mesa no está unida a este pedido.');
+                if ($link->is_main) {
+                    throw new InvalidArgumentException("La mesa {$tables[$id]->name} es la principal: no se puede separar.");
+                }
+                $link->update(['left_at' => now(), 'left_by' => $by->id]);
+                $this->freeIfEmpty($tables[$id]);
+                $separated[] = $tables[$id];
+            }
+            if ($separated === []) {
+                throw new InvalidArgumentException('Elige las mesas que quieres separar.');
+            }
+
+            return $separated;
+        });
+    }
+
+    /**
+     * Por qué no se puede liberar el pedido como «abierto por error» (null =
+     * se puede): ya se envió algo, se imprimió la cuenta o tiene ticket.
+     */
+    public function releaseBlocker(Order $order): ?string
+    {
+        return match (true) {
+            ! $order->isOpen() => 'El pedido ya no está abierto.',
+            $order->type !== OrderType::Table => 'Solo se pueden liberar mesas.',
+            $order->lines()->whereNotNull('sent_at')->exists() => 'Ya se envió a cocina: anula las líneas o cobra la mesa.',
+            Precheck::query()->where('order_id', $order->id)->exists() => 'Ya se imprimió la cuenta: cobra la mesa o anula las líneas.',
+            $order->tickets()->exists() => 'La mesa ya tiene ticket.',
+            default => null,
+        };
+    }
+
+    /**
+     * Libera una mesa abierta por error: el pedido queda cancelado («Abierta
+     * por error», quién y cuándo; no se borra, con sus líneas sin enviar) y
+     * todas sus mesas vuelven a estar libres. Sin autorización de encargado.
+     *
+     * @return int productos sin enviar descartados
+     */
+    public function releaseOpenedByMistake(Order $order, User $by): int
+    {
+        return DB::transaction(function () use ($order, $by) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            if ($reason = $this->releaseBlocker($order)) {
+                throw new LogicException($reason);
+            }
+            $discarded = (int) $order->lines()->whereNull('parent_line_id')->whereNull('voided_at')->count();
+            $tables = $this->lockGroupTables($order);
+            $order->update([
+                'status' => OrderStatus::Cancelled, 'closed_at' => now(),
+                'cancelled_at' => now(), 'cancelled_by' => $by->id, 'cancel_reason' => 'Abierta por error',
+            ]);
+            $tables->each(fn (Table $t) => $this->freeIfEmpty($t));
+
+            return $discarded;
+        });
+    }
+
+    /** Las líneas de $other pasan a $order; $other queda «unido» (sin ticket). */
+    private function absorb(Order $order, Order $other, User $by): void
+    {
+        // Los envíos de la otra mesa siguen a los de esta (no se reimprimen).
+        $offset = (int) $order->send_count;
+        OrderLine::query()->where('order_id', $other->id)->update([
+            'order_id' => $order->id,
+            'send_number' => DB::raw('CASE WHEN send_number IS NULL THEN NULL ELSE send_number + '.$offset.' END'),
+        ]);
+        $order->forceFill([
+            'guests' => ($order->guests ?? 0) + ($other->guests ?? 0) ?: null,
+            'send_count' => $offset + (int) $other->send_count,
+        ])->save();
+        $other->forceFill([
+            'status' => OrderStatus::Merged, 'closed_at' => now(),
+            'merged_into_order_id' => $order->id, 'merged_by' => $by->id, 'merged_at' => now(),
+            'subtotal' => 0, 'total' => 0,
+        ])->save();
+    }
+
+    /** «MESA 4 UNIDA A MESA 3» en cocina y barra (opcional; Ajustes). */
+    private function printJoinNotice(Order $order, array $tables, User $by): void
+    {
+        $printers = Printer::query()->whereIn('type', [PrinterType::Kitchen, PrinterType::Bar])->where('is_active', true)->get();
+        foreach ($tables as $table) {
+            $printable = $this->formatter->joinNotice($order, $table, $by);
+            foreach ($printers as $printer) {
+                $this->printing->dispatch($order, $printer, PrintJobKind::JoinNotice, $printable, by: $by);
+            }
+        }
+    }
+
+    /**
+     * Mesas del pedido (la principal y las unidas), bloqueadas en orden de id.
+     *
+     * @return Collection<int, Table>
+     */
+    private function lockGroupTables(Order $order)
+    {
+        $ids = $order->activeTableLinks()->pluck('table_id')->push($order->table_id)->filter()->unique();
+
+        return Table::query()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
     }
 
     /** Bloquea la mesa y comprueba que está libre (si no, otro camarero se ha adelantado). */
@@ -361,6 +591,9 @@ class OrderService
         if (! $table->is_active || $table->status === TableStatus::OutOfService) {
             throw new TableUnavailableException("La mesa {$table->name} está fuera de servicio.");
         }
+        if ($link = $table->groupLink()->with('order.table')->first()) {
+            throw new TableUnavailableException("La mesa {$table->name} está unida a la mesa {$link->order->table->name}.");
+        }
         if ($table->status !== TableStatus::Free || $table->openOrders()->exists()) {
             throw new TableUnavailableException("La mesa {$table->name} ya está abierta.");
         }
@@ -370,7 +603,7 @@ class OrderService
 
     private function freeIfEmpty(Table $table): void
     {
-        if (! $table->openOrders()->exists()) {
+        if (! $table->isInUse()) {
             $table->update(['status' => TableStatus::Free]);
         }
     }

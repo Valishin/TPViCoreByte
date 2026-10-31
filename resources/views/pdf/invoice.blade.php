@@ -56,6 +56,7 @@
         <div class="number">Nº {{ $doc['number'] }}</div>
         <div>Fecha de expedición: {{ $doc['issued_date'] }}</div>
         @if ($doc['operation_date'])<div>Fecha de la operación: {{ $doc['operation_date'] }}</div>@endif
+        @if ($doc['table'] ?? null)<div class="muted">{{ $doc['table'] }}</div>@endif
     </td>
 </tr></table>
 

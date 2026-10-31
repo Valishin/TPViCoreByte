@@ -122,7 +122,8 @@ sésamo, sulfitos, altramuces, moluscos.
 
 | Tabla | Campos |
 |---|---|
-| `orders` | `type` (`mesa`\|`barra`\|`para_llevar`\|`domicilio`), `status` (`abierto`\|`cerrado`\|`cancelado`), `table_id` (solo mesa), `opened_by`, `guests`, `customer_id`, `customer_address_id` (**nullOnDelete**), snapshot `customer_name`, `customer_phone`, `delivery_address` (json), `delivery_zone_id`, `promised_at`, `courier_id`, `delivery_status` (`pendiente`\|`en_cocina`\|`en_reparto`\|`entregado`), `planned_payment_method`, `cash_change_for`, `delivery_fee`, descuento global (`discount_type`, `discount_value`, `discount_amount`, `discount_reason`, `discounted_by`), caché `subtotal` y `total`, `notes`, `opened_at`, `closed_at` |
+| `orders` | `type` (`mesa`\|`barra`\|`para_llevar`\|`domicilio`), `status` (`abierto`\|`cerrado`\|`cancelado`\|`unido`), mesas unidas (`merged_into_order_id`, `merged_by`, `merged_at`), cancelación (`cancelled_at`, `cancelled_by`, `cancel_reason`), `table_id` (solo mesa), `opened_by`, `guests`, `customer_id`, `customer_address_id` (**nullOnDelete**), snapshot `customer_name`, `customer_phone`, `delivery_address` (json), `delivery_zone_id`, `promised_at`, `courier_id`, `delivery_status` (`pendiente`\|`en_cocina`\|`en_reparto`\|`entregado`), `planned_payment_method`, `cash_change_for`, `delivery_fee`, descuento global (`discount_type`, `discount_value`, `discount_amount`, `discount_reason`, `discounted_by`), caché `subtotal` y `total`, `notes`, `opened_at`, `closed_at` |
+| `order_tables` | Mesas del pedido (mesas unidas): `order_id`, `table_id`, `is_main` (= `orders.table_id`), `joined_by`, `joined_at`, `left_by`, `left_at`. No se borran; una mesa solo puede estar unida a un grupo a la vez (índice único parcial). |
 | `order_lines` | `order_id`, `parent_line_id`, `kind` (`normal`\|`menu_componente`\|`mitad`), `product_id`, `product_variant_id`, `printer_id`; snapshot `name`, `variant_name`, `variant_code`, `unit_price`, `vat_rate` (tipo **aplicado**), `reference_price`, `allocated_amount`, `quantity`; descuento (`discount_type`, `discount_value`, `discount_amount`, `is_invitation`, `discount_reason`, `discounted_by`); calculados `line_total`, `order_discount_amount`, `taxable_amount`; `notes`, `course` (1 primeros, 2 segundos, 3 postres), `sort_order`, `created_by`, `sent_at`, `fired_at`, `voided_at`, `void_reason`, `voided_by` |
 | `order_line_modifiers` | `order_line_id`, `modifier_id`, snapshot `name` y `price_delta` (ya según tamaño), `quantity` |
 
@@ -214,7 +215,8 @@ realmente aplicado. Los gastos de envío tributan a `settings.delivery_fee_vat_r
 | Tickets inmutables | Modelo `Ticket`/`TicketLine` (eventos `updating`/`deleting`) **y** trigger PostgreSQL `tpv_ticket_guard`. Solo pueden cambiar `payment_status`, `paid_at` y `status` de `emitido` a `rectificado`. |
 | Pedido editable solo abierto | `OrderLineBuilder` y `OrderService`. |
 | `table_id` solo en pedidos de mesa | Modelo `Order` (evento `saving`) y `OrderService::open`. |
-| Estado de mesas | Solo `OrderService`. |
+| Estado de mesas | Solo `OrderService`. Con mesas unidas, todas las del grupo tienen el mismo estado; al cobrar o cancelar quedan libres las que no tengan otra cuenta. |
+| Mesas unidas | `OrderService::joinTables/separateTables` con `lockForUpdate` del pedido, de todas las mesas (en orden de id) y de los pedidos que se unen. `move` mueve solo la mesa principal. |
 | Cobro posterior y pagos mixtos | `PaymentService`: al cubrir el total marca el ticket `pagado`. |
 | Número de Z correlativo | `CashSessionService::close` con bloqueo de `settings`. |
 | Teléfono normalizado | Mutador de `Customer` + `PhoneNormalizer` (+34, 0034, espacios…). |

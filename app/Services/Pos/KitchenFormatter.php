@@ -7,6 +7,7 @@ use App\Enums\OrderType;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Setting;
+use App\Models\Table;
 use App\Models\User;
 use App\Services\Printing\Ticket;
 use App\Support\Format;
@@ -162,12 +163,25 @@ class KitchenFormatter
         }
     }
 
+    /** «MESA 4 UNIDA A MESA 3» para cocina y barra (opcional, Ajustes). */
+    public function joinNotice(Order $order, Table $joined, ?User $by): Ticket
+    {
+        $order->loadMissing('table');
+
+        return (new Ticket)
+            ->line('*** AVISO ***', Ticket::ALIGN_CENTER, bold: true, reverse: true)
+            ->line(mb_strtoupper("Mesa {$joined->name} unida a mesa {$order->table->name}"), Ticket::ALIGN_CENTER, bold: true, large: true)
+            ->line('Ahora: '.mb_strtoupper((string) $order->tableLabel()), Ticket::ALIGN_CENTER, bold: true)
+            ->line(now()->format('H:i').($by ? " · {$by->name}" : ''), Ticket::ALIGN_CENTER)
+            ->feed(3)->cut();
+    }
+
     private function where(Order $order): string
     {
         $order->loadMissing('table.room');
 
         return $order->table
-            ? "MESA {$order->table->name}".($order->table->room ? " · {$order->table->room->name}" : '')
+            ? mb_strtoupper((string) $order->tableLabel()).($order->table->room ? " · {$order->table->room->name}" : '')
             : mb_strtoupper($order->type->label());
     }
 }

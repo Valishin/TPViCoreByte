@@ -35,6 +35,7 @@ class InvoiceDocument
             'issued_at' => $ticket->issued_at->format('d/m/Y H:i'),
             'issued_date' => $ticket->issued_at->format('d/m/Y'),
             'operation_date' => $showOperation ? $operation->format('d/m/Y') : null,
+            'table' => $ticket->table_label,   // «Mesa 3 + 4» (referencia interna, no obligatoria)
             'replaces' => $ticket->replacedTicket
                 ? 'Sustituye a la factura simplificada '.$ticket->replacedTicket->fullNumber().' de '.$ticket->replacedTicket->issued_at->format('d/m/Y')
                 : null,

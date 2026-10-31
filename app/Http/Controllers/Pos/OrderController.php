@@ -148,6 +148,41 @@ class OrderController extends Controller
         return $this->respond($order, $request);
     }
 
+    /** Unir mesas: libres o con su(s) cuenta(s) (accounts: mesa => ids de pedido o «all»). */
+    public function join(Request $request, Order $order): JsonResponse
+    {
+        $data = $request->validate([
+            'table_ids' => ['required', 'array', 'min:1', 'max:20'],
+            'table_ids.*' => ['integer', 'exists:tables,id'],
+            'accounts' => ['array'],
+        ]);
+        $result = $this->orders->joinTables($order, $data['table_ids'], $request->user(), $data['accounts'] ?? []);
+        foreach ($result['merged'] as $merged) {
+            event(new OrderUpdated($merged->fresh(), $request->user()->id));   // quien la tenga abierta, al grupo
+        }
+
+        return $this->respond($order, $request, 200, [
+            'joined' => array_map(fn (Table $t) => $t->name, $result['joined']),
+            'merged' => array_map(fn (Order $o) => $o->id, $result['merged']),
+        ]);
+    }
+
+    public function separate(Request $request, Order $order): JsonResponse
+    {
+        $data = $request->validate(['table_ids' => ['required', 'array', 'min:1'], 'table_ids.*' => ['integer']]);
+        $tables = $this->orders->separateTables($order, $data['table_ids'], $request->user());
+
+        return $this->respond($order, $request, 200, ['separated' => array_map(fn (Table $t) => $t->name, $tables)]);
+    }
+
+    /** Liberar una mesa abierta por error (sin nada enviado, sin cuenta impresa ni ticket). */
+    public function release(Request $request, Order $order): JsonResponse
+    {
+        $discarded = $this->orders->releaseOpenedByMistake($order, $request->user());
+
+        return $this->respond($order, $request, 200, ['discarded' => $discarded]);
+    }
+
     public function changeType(Request $request, Order $order): JsonResponse
     {
         $data = $request->validate([

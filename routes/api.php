@@ -59,6 +59,9 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::post('/orders/{order}/send', [OrderController::class, 'send'])->name('pos.orders.send');
     Route::post('/orders/{order}/move', [OrderController::class, 'move'])->name('pos.orders.move');
     Route::post('/orders/{order}/precheck', [OrderController::class, 'precheck'])->name('pos.orders.precheck');
+    Route::post('/orders/{order}/join', [OrderController::class, 'join'])->name('pos.orders.join');
+    Route::post('/orders/{order}/separate', [OrderController::class, 'separate'])->name('pos.orders.separate');
+    Route::post('/orders/{order}/release', [OrderController::class, 'release'])->name('pos.orders.release');
     Route::patch('/orders/{order}/type', [OrderController::class, 'changeType'])->name('pos.orders.type');
     Route::patch('/order-lines/{line}', [OrderController::class, 'updateLine'])->name('pos.lines.update');
     Route::post('/order-lines/{line}/void', [OrderController::class, 'voidLine'])->name('pos.lines.void');

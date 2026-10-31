@@ -254,6 +254,9 @@ class ReceiptFormatter
         if ($doc['operation_date']) {
             $p->columns('Fecha de la operación', $doc['operation_date']);
         }
+        if ($doc['table'] ?? null) {
+            $p->line($doc['table']);
+        }
         if ($doc['replaces']) {
             $p->line($doc['replaces']);
         }
@@ -493,6 +496,9 @@ class ReceiptFormatter
 
     private function where(Ticket $ticket): string
     {
+        if ($ticket->table_label) {
+            return $ticket->table_label;   // «Mesa 3 + 4», copiado al emitir
+        }
         $table = $ticket->order?->table;
 
         return $table ? "Mesa {$table->name}" : ($ticket->order_type?->label() ?? OrderType::Bar->label());
