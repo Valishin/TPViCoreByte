@@ -6,6 +6,7 @@ use App\Enums\DiscountType;
 use App\Enums\OrderStatus;
 use App\Enums\PrintJobKind;
 use App\Enums\TableStatus;
+use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\OrderTable;
 use App\Models\PrintJob;
@@ -14,6 +15,7 @@ use App\Models\Room;
 use App\Models\Setting;
 use App\Models\Table;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\Orders\OrderService;
 use App\Services\Pos\ReceiptFormatter;
 
@@ -334,5 +336,21 @@ class JoinTablesTest extends PosTestCase
         foreach ([$t3, $t4, $t5] as $table) {
             $this->assertSame(TableStatus::Free, $table->fresh()->status);
         }
+    }
+
+    public function test_admin_shows_who_joined_and_separated(): void
+    {
+        [$t3, $t4, $t5] = [$this->table('3'), $this->table('4'), $this->table('5')];
+        $order = $this->open($t3, [[$this->tapa, 1]]);
+        $other = $this->open($t5, [[$this->beer, 1]]);
+        $this->join($order['id'], [$t4, $t5])->assertOk();
+        $this->asWaiter()->postJson("/api/orders/{$order['id']}/separate", ['table_ids' => [$t4->id]])->assertOk();
+
+        $admin = User::factory()->role(UserRole::Admin)->create();
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($admin, 'web')->get("/admin/pedidos/{$order['id']}")->assertOk()
+            ->assertSee('Mesa 4: unida el')->assertSee('separada el')->assertSee('por Ana López')
+            ->assertSee("Pedido #{$other['id']} de la mesa 5 unido el");
+        $this->get("/admin/pedidos/{$other['id']}")->assertOk()->assertSee('Unido a otra mesa')->assertSee("#{$order['id']}");
     }
 }

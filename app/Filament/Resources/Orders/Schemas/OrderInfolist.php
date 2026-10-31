@@ -7,6 +7,7 @@ use App\Filament\Components\LinesTree;
 use App\Filament\Components\MoneyEntry;
 use App\Filament\Resources\Tickets\TicketResource;
 use App\Models\Order;
+use App\Models\User;
 use App\Support\Format;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
@@ -25,7 +26,13 @@ class OrderInfolist
                     TextEntry::make('type')->label('Tipo')->badge(),
                     TextEntry::make('status')->label('Estado')->badge(),
                     TextEntry::make('table')->label('Mesa')->placeholder('—')
-                        ->state(fn (Order $record) => $record->table ? "{$record->table->room->name} · {$record->table->name}" : null),
+                        ->state(fn (Order $record) => $record->table ? "{$record->table->room->name} · {$record->tableLabel()}" : null),
+                    TextEntry::make('mergedInto.id')->label('Unido al pedido')->placeholder('—')
+                        ->visible(fn (Order $record) => $record->merged_into_order_id !== null)
+                        ->state(fn (Order $record) => "#{$record->merged_into_order_id} · ".$record->merged_at?->format('d/m H:i').' · '.User::query()->find($record->merged_by)?->name),
+                    TextEntry::make('cancelled_table')->label('Cancelado')->placeholder('—')->columnSpan(2)
+                        ->visible(fn (Order $record) => $record->table_id && $record->cancelled_at)
+                        ->state(fn (Order $record) => $record->cancelled_at?->format('d/m H:i').' · '.$record->cancelledBy?->name.' · '.$record->cancel_reason),
                     TextEntry::make('openedBy.name')->label('Abierto por'),
                     TextEntry::make('opened_at')->label('Abierto')->dateTime('d/m/Y H:i'),
                     TextEntry::make('closed_at')->label('Cerrado')->dateTime('d/m/Y H:i')->placeholder('—'),
@@ -66,6 +73,13 @@ class OrderInfolist
                     TextEntry::make('cancelled')->label('Cancelado')->placeholder('—')->columnSpan(2)
                         ->state(fn (Order $record) => $record->cancelled_at ? $record->cancelled_at->format('d/m H:i').' · '.$record->cancelledBy?->name.' · '.$record->cancel_reason : null),
                 ]),
+            Section::make('Mesas unidas')->columnSpanFull()
+                ->visible(fn (Order $record) => $record->tableLinks()->where('is_main', false)->exists()
+                    || Order::query()->where('merged_into_order_id', $record->id)->exists())
+                ->schema([
+                    TextEntry::make('table_history')->hiddenLabel()->listWithLineBreaks()
+                        ->state(fn (Order $record) => self::tableHistory($record)),
+                ]),
             Section::make('Líneas')->columnSpanFull()->schema([
                 LinesTree::make('lines'),
             ]),
@@ -102,5 +116,21 @@ class OrderInfolist
             $address['floor_door'] ?? null,
             trim(($address['postal_code'] ?? '').' '.($address['city'] ?? '')),
         ]))).(! empty($address['instructions']) ? " ({$address['instructions']})" : '');
+    }
+
+    /** Quién unió y separó cada mesa, y cuándo (order_tables y pedidos unidos). */
+    private static function tableHistory(Order $record): array
+    {
+        $rows = [];
+        foreach ($record->tableLinks()->where('is_main', false)->with(['diningTable', 'joinedBy', 'leftBy'])->orderBy('joined_at')->get() as $link) {
+            $rows[] = "Mesa {$link->diningTable->name}: unida el {$link->joined_at->format('d/m H:i')} por {$link->joinedBy?->name}"
+                .($link->left_by ? " · separada el {$link->left_at->format('d/m H:i')} por {$link->leftBy?->name}" : '');
+        }
+        foreach (Order::query()->where('merged_into_order_id', $record->id)->with('table')->get() as $merged) {
+            $rows[] = "Pedido #{$merged->id} de la mesa {$merged->table?->name} unido el {$merged->merged_at?->format('d/m H:i')} por "
+                .User::query()->find($merged->merged_by)?->name.' (sus líneas pasaron a este pedido)';
+        }
+
+        return $rows;
     }
 }

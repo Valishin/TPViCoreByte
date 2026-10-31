@@ -66,6 +66,7 @@ class Order extends Model
             'dispatched_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'merged_at' => 'datetime',
             'discount_type' => DiscountType::class,
             'delivery_address' => 'array',
             'promised_at' => 'datetime',

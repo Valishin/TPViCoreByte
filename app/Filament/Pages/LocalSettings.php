@@ -156,6 +156,8 @@ class LocalSettings extends Page
                         Toggle::make('lock_pos_after_send')->label('Bloquear la caja tras enviar una comanda')->inline(false),
                         Toggle::make('show_onscreen_keyboard_pos')->label('Mostrar teclado en pantalla en caja')->inline(false)
                             ->helperText('Desactivado, en caja solo se escribe con el teclado físico. En los móviles se usa siempre el del teléfono.'),
+                        Toggle::make('print_join_notice')->label('Avisar en cocina y barra al unir mesas')->inline(false)
+                            ->helperText('Imprime «MESA 4 UNIDA A MESA 3» en las impresoras de cocina y barra. Lo ya enviado nunca se reimprime.'),
                     ]),
                 Section::make('Notas rápidas generales')->columnSpanFull()
                     ->description('Salen en todos los productos, detrás de las notas de su categoría. Arrastra para ordenarlas.')
