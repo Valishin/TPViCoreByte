@@ -220,9 +220,15 @@ Sin abrir puertos en el router del cliente.
 - **Unir el equipo**: /admin → Puesta en marcha → Acceso remoto → pega una clave
   de un solo uso. La app la deja en `/opt/tpv/host/tailscale` (700, solo el
   usuario de la app y root); un servicio de root la recoge, **la borra** (también
-  si falla), ejecuta `tailscale up --ssh` y /admin muestra «Conectado como …».
-  A mano también vale: `sudo tailscale up --ssh --hostname tpv-<local>`.
-- **SSH**: `ssh soporte@tpv-<local>` (o `tailscale ssh`).
+  si falla), ejecuta `tailscale up --ssh=false` y /admin muestra «Conectado como …».
+  Root solo ejecuta `tailscale`; lo que toca la carpeta compartida lo hace como el
+  usuario de la app, y la clave nunca va en la línea de órdenes.
+- **SSH**: por defecto, el SSH normal del equipo (tu usuario y su contraseña o
+  clave) por la IP de Tailscale: `ssh soporte@tpv-<local>`. El **SSH de Tailscale**
+  (`tailscale ssh`, sin contraseña del equipo, según las ACL de tu red Tailscale)
+  está **desactivado**: solo se activa a mano en /admin → Acceso remoto → «Permitir
+  acceso SSH por Tailscale», con un aviso de lo que implica y marcando «Entiendo lo
+  que implica». Quítalo con «Quitar acceso SSH por Tailscale» cuando no haga falta.
 - **/admin con HTTPS** (solo por Tailscale; en la red local es HTTP):
   `sudo tailscale serve --bg http://localhost:80` → `https://tpv-<local>.<tu-tailnet>.ts.net/admin`.
 - En la consola de Tailscale, desactiva la caducidad de la clave del equipo

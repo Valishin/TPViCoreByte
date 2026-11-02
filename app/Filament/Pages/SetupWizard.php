@@ -15,6 +15,8 @@ use App\Support\TailscaleBridge;
 use App\Support\TaxId;
 use BackedEnum;
 use Closure;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
@@ -24,6 +26,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Wizard;
@@ -168,12 +171,15 @@ class SetupWizard extends Page
                                 ->hidden(fn () => TailscaleBridge::connected()),
                             Toggle::make('skip_remote')->label('No usar acceso remoto por ahora')
                                 ->hidden(fn () => TailscaleBridge::connected()),
+                            TextEntry::make('tailscale_ssh_state')->label('Acceso SSH por Tailscale')
+                                ->state(fn () => Setting::current()->tailscale_ssh ? 'Permitido (activado a mano)' : 'Desactivado'),
+                            Actions::make([self::allowSshAction(), self::revokeSshAction()])->key('tailscale-ssh'),
                         ])
                         ->afterValidation(function () {
                             $key = trim((string) ($this->data['tailscale_authkey'] ?? ''));
                             if ($key !== '') {
                                 try {
-                                    TailscaleBridge::submit($key, 'tpv-'.Setting::current()->trade_name);
+                                    TailscaleBridge::submit($key, 'tpv-'.Setting::current()->trade_name, (bool) Setting::current()->tailscale_ssh);
                                 } catch (\InvalidArgumentException|\RuntimeException $e) {
                                     throw ValidationException::withMessages(['data.tailscale_authkey' => $e->getMessage()]);
                                 } finally {
@@ -214,6 +220,43 @@ class SetupWizard extends Page
             ->icon($icon)
             ->completedIcon(Heroicon::OutlinedCheck)
             ->description(($complete ? '✓ Completo' : 'Pendiente').($description ? " · {$description}" : ''));
+    }
+
+    public const SSH_WARNING = 'Con el SSH de Tailscale, las personas y equipos de tu red Tailscale a los que las ACL lo permitan podrán abrir '
+        .'una consola en este mini PC sin su contraseña, con el usuario que digan las ACL (también root). Quien tenga esa consola '
+        .'puede ver y cambiar todo: ventas, tickets, clientes, certificado y copias. Actívalo solo para dar soporte por SSH y con '
+        .'las ACL limitadas a tus dispositivos; quítalo cuando no haga falta. El SSH normal por la red local no cambia.';
+
+    /** «Permitir acceso SSH por Tailscale»: solo a mano y con el aviso de lo que implica. */
+    public static function allowSshAction(): Action
+    {
+        return Action::make('allowTailscaleSsh')->label('Permitir acceso SSH por Tailscale')->icon(Heroicon::OutlinedCommandLine)->color('danger')
+            ->visible(fn () => ! Setting::current()->tailscale_ssh)
+            ->requiresConfirmation()
+            ->modalHeading('¿Permitir acceso SSH por Tailscale?')
+            ->modalDescription(self::SSH_WARNING)
+            ->modalSubmitActionLabel('Sí, permitir SSH')
+            ->schema([Checkbox::make('understood')->label('Entiendo lo que implica')->accepted()])
+            ->action(fn () => self::setSsh(true));
+    }
+
+    public static function revokeSshAction(): Action
+    {
+        return Action::make('revokeTailscaleSsh')->label('Quitar acceso SSH por Tailscale')->icon(Heroicon::OutlinedNoSymbol)->color('gray')
+            ->visible(fn () => (bool) Setting::current()->tailscale_ssh)
+            ->action(fn () => self::setSsh(false));
+    }
+
+    private static function setSsh(bool $on): void
+    {
+        Setting::current()->update(['tailscale_ssh' => $on]);
+        $applied = TailscaleBridge::connected() || TailscaleBridge::pending();
+        if ($applied) {
+            TailscaleBridge::requestSsh($on);
+        }
+        Notification::make()->{$on ? 'warning' : 'success'}()
+            ->title($on ? 'Acceso SSH por Tailscale permitido' : 'Acceso SSH por Tailscale quitado')
+            ->body($applied ? 'El equipo lo aplica en unos segundos.' : 'Se aplicará al unir el equipo a Tailscale.')->send();
     }
 
     public static function certificateText(): string

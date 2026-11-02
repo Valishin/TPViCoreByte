@@ -118,6 +118,8 @@ case "$1" in
         [ "$FAKE_TS" = ok ] && exit 0
         echo "backend error: invalid key: tskey-auth-kAbc123CNTRL-xyz987 rejected" >&2; exit 1 ;;
     status) [ "$FAKE_TS" = ok ] && echo "100.64.1.2   tpv-bella   alex@   linux   -" && exit 0; echo "Logged out."; exit 1 ;;
+    set) echo "$*" > /tmp/ts/set-argv; case "$*" in *--ssh=true*) touch /tmp/ts/ssh-on ;; *) rm -f /tmp/ts/ssh-on ;; esac ;;
+    debug) if [ -e /tmp/ts/ssh-on ]; then echo '{ "RunSSH": true }'; else echo '{ "RunSSH": false }'; fi ;;
 esac
 TS
 chmod +x "$T/bin/tailscale"
@@ -133,6 +135,7 @@ key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella"}'; join 
 check "conectado: borra la clave y deja el estado" '[ ! -e "$T/dir/authkey" ] && [ "$(state)" = conectado ] && grep -q "100.64.1.2" "$T/dir/status.json"'
 check "status.json 600 y del usuario de la app" '[ "$(stat -c "%a %u" "$T/dir/status.json")" = "600 1000" ]'
 check "la clave NO va en la línea de órdenes (ps)" '! grep -q tskey "$T/argv" && grep -q -- "--auth-key file:" "$T/argv"'
+check "SSH de Tailscale desactivado por defecto (--ssh=false)" 'grep -q -- "--ssh=false" "$T/argv" && grep -q "\"ssh\":\"false\"" "$T/dir/status.json"'
 check "tailscale lee la clave del fichero" '[ "$(cat "$T/key-leida")" = tskey-auth-kAbc123CNTRL-xyz987 ]'
 check "la copia de la clave se borra al terminar" '[ ! -e "$T/run/authkey" ]'
 
@@ -165,6 +168,17 @@ check "tailscale colgado: se corta y lo explica" '[ "$(state)" = error ] && grep
 
 FAKE_TS=ok TAILSCALE_BIN="$T/bin/tailscale" TPV_TAILSCALE_DIR="$T/dir" TPV_APP_UID=1000 bash "$SRC/scripts/install/host/tpv-tailscale-join" --status
 check "--status refresca el estado" '[ "$(state)" = conectado ]'
+
+key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella","ssh":true}'; join ok
+check "SSH solo si /admin lo pide (--ssh=true)" 'grep -q -- "--ssh=true" "$T/argv"'
+key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella","ssh":"sí"}'; join ok
+check "cualquier otro valor de ssh → desactivado" 'grep -q -- "--ssh=false" "$T/argv"'
+printf '{"ssh":true}' > "$T/dir/ssh-request"; chown 1000:1000 "$T/dir/ssh-request"; join ok
+check "ssh-request: tailscale set --ssh=true, se borra y el estado lo refleja" 'grep -q -- "--ssh=true" "$T/set-argv" && [ ! -e "$T/dir/ssh-request" ] && grep -q "\"ssh\":\"true\"" "$T/dir/status.json"'
+printf '{"ssh":false}' > "$T/dir/ssh-request"; chown 1000:1000 "$T/dir/ssh-request"; join ok
+check "ssh-request: quitar el SSH" 'grep -q -- "--ssh=false" "$T/set-argv" && grep -q "\"ssh\":\"false\"" "$T/dir/status.json"'
+printf 'basura' > "$T/dir/ssh-request"; chown 1000:1000 "$T/dir/ssh-request"; rm -f "$T/set-argv"; join ok
+check "ssh-request corrupto: no cambia nada" '[ ! -e "$T/set-argv" ] && [ ! -e "$T/dir/ssh-request" ]'
 
 echo
 echo "Resultado: $PASS correctas, $FAIL fallidas"

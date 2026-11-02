@@ -17,6 +17,10 @@ use RuntimeException;
  * Un servicio de root del equipo (tpv-tailscale.path → tpv-tailscale-join,
  * lo instala install.sh) recoge `authkey`, lo BORRA antes de usarlo (también
  * si falla), une el equipo y deja el resultado en `status.json`.
+ *
+ * SSH por Tailscale: desactivado por defecto (`tailscale up --ssh=false`). Solo
+ * si el admin lo permite a mano (settings.tailscale_ssh) se pide al equipo con
+ * `ssh-request` y el servicio ejecuta `tailscale set --ssh=…`.
  */
 final class TailscaleBridge
 {
@@ -31,7 +35,7 @@ final class TailscaleBridge
     }
 
     /** Deja la clave para el servicio del equipo (solo legible por el usuario de la app y root). */
-    public static function submit(string $authKey, string $hostname): void
+    public static function submit(string $authKey, string $hostname, bool $ssh = false): void
     {
         $authKey = trim($authKey);
         if (! preg_match('/^tskey-auth-[A-Za-z0-9-]{10,}$/', $authKey)) {
@@ -41,14 +45,28 @@ final class TailscaleBridge
             throw new RuntimeException('Este equipo no tiene el servicio de Tailscale del instalador (carpeta '.self::dir().').');
         }
         $hostname = strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $hostname), '-')) ?: 'tpv';
+        @unlink(self::dir().'/status.json');
+        self::write('authkey', ['authkey' => $authKey, 'hostname' => $hostname, 'ssh' => $ssh]);
+    }
 
-        $tmp = self::dir().'/.authkey-'.bin2hex(random_bytes(4));
+    /** Pide al equipo permitir o quitar el acceso SSH por Tailscale (`tailscale set --ssh=…`). */
+    public static function requestSsh(bool $on): void
+    {
+        if (! self::available()) {
+            throw new RuntimeException('Este equipo no tiene el servicio de Tailscale del instalador (carpeta '.self::dir().').');
+        }
+        self::write('ssh-request', ['ssh' => $on]);
+    }
+
+    /** Fichero 0600 que aparece completo (rename atómico): el servicio nunca lee medio fichero. */
+    private static function write(string $name, array $data): void
+    {
+        $tmp = self::dir().'/.'.$name.'-'.bin2hex(random_bytes(4));
         $old = umask(0077);
         try {
-            file_put_contents($tmp, json_encode(['authkey' => $authKey, 'hostname' => $hostname]));
+            file_put_contents($tmp, json_encode($data));
             chmod($tmp, 0600);
-            @unlink(self::dir().'/status.json');
-            rename($tmp, self::dir().'/authkey');   // aparece completo: el servicio no lee medio fichero
+            rename($tmp, self::dir().'/'.$name);
         } finally {
             umask($old);
             @unlink($tmp);
@@ -61,10 +79,10 @@ final class TailscaleBridge
         return is_file(self::dir().'/authkey');
     }
 
-    /** @return array{state: string, message: ?string, hostname: ?string, ip: ?string, at: ?Carbon} */
+    /** @return array{state: string, message: ?string, hostname: ?string, ip: ?string, ssh: ?bool, at: ?Carbon} */
     public static function status(): array
     {
-        $empty = ['state' => self::pending() ? 'pendiente' : 'sin_configurar', 'message' => null, 'hostname' => null, 'ip' => null, 'at' => null];
+        $empty = ['state' => self::pending() ? 'pendiente' : 'sin_configurar', 'message' => null, 'hostname' => null, 'ip' => null, 'ssh' => null, 'at' => null];
         $file = self::dir().'/status.json';
         if (self::pending() || ! is_readable($file)) {
             return $empty;
@@ -76,7 +94,8 @@ final class TailscaleBridge
 
         return [
             'state' => $data['state'], 'message' => $data['message'] ?? null, 'hostname' => $data['hostname'] ?? null,
-            'ip' => $data['ip'] ?? null, 'at' => isset($data['at']) ? Carbon::parse($data['at']) : null,
+            'ip' => $data['ip'] ?? null, 'ssh' => isset($data['ssh']) && $data['ssh'] !== '' ? $data['ssh'] === true || $data['ssh'] === 'true' : null,
+            'at' => isset($data['at']) ? Carbon::parse($data['at']) : null,
         ];
     }
 
@@ -90,7 +109,11 @@ final class TailscaleBridge
         $s = self::status();
 
         return match ($s['state']) {
-            'conectado' => "Conectado como {$s['hostname']}".($s['ip'] ? " ({$s['ip']})" : '').($s['at'] ? ' · comprobado '.$s['at']->format('d/m H:i') : ''),
+            'conectado' => "Conectado como {$s['hostname']}".($s['ip'] ? " ({$s['ip']})" : '')
+                .match ($s['ssh']) {
+                    true => ' · SSH por Tailscale PERMITIDO', false => ' · SSH por Tailscale desactivado', default => ''
+                }
+            .($s['at'] ? ' · comprobado '.$s['at']->format('d/m H:i') : ''),
             'pendiente', 'conectando' => 'Conectando… (el equipo lo hace en unos segundos)',
             'error' => 'No se ha podido conectar: '.($s['message'] ?? 'error desconocido').'. Genera otra clave y vuelve a intentarlo.',
             'desconectado' => 'Desconectado de Tailscale.',

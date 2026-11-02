@@ -1,9 +1,10 @@
-# Une el equipo a Tailscale en cuanto /admin deja la clave (ver tpv-tailscale-join).
+# Une el equipo a Tailscale (o cambia su SSH) en cuanto /admin deja la petición (ver tpv-tailscale-join).
 [Unit]
 Description=TPV: clave de Tailscale pendiente
 
 [Path]
 PathExists=/opt/tpv/host/tailscale/authkey
+PathExists=/opt/tpv/host/tailscale/ssh-request
 Unit=tpv-tailscale.service
 
 [Install]

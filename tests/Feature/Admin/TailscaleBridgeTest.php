@@ -6,6 +6,7 @@ use App\Filament\Pages\SetupWizard;
 use App\Models\Setting;
 use App\Support\SetupProgress;
 use App\Support\TailscaleBridge;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\File;
 use InvalidArgumentException;
 use Livewire\Livewire;
@@ -36,7 +37,7 @@ class TailscaleBridgeTest extends FilamentTestCase
 
         $file = "{$this->dir}/authkey";
         $this->assertSame('0600', substr(sprintf('%o', fileperms($file)), -4));
-        $this->assertSame(['authkey' => 'tskey-auth-kAbc123CNTRL-xyz987', 'hostname' => 'tpv-bella-napoli'], json_decode(file_get_contents($file), true));
+        $this->assertSame(['authkey' => 'tskey-auth-kAbc123CNTRL-xyz987', 'hostname' => 'tpv-bella-napoli', 'ssh' => false], json_decode(file_get_contents($file), true));
         $this->assertSame('pendiente', TailscaleBridge::status()['state']);
         $this->assertSame([], glob("{$this->dir}/.authkey-*"));
     }
@@ -81,5 +82,36 @@ class TailscaleBridgeTest extends FilamentTestCase
 
         $this->assertFileExists("{$this->dir}/authkey");
         $this->assertStringNotContainsString('tskey-auth', json_encode(Setting::current()->getAttributes()));
+    }
+
+    public function test_ssh_is_off_until_allowed_by_hand_with_the_warning(): void
+    {
+        $this->assertFalse(Setting::current()->tailscale_ssh);
+        file_put_contents("{$this->dir}/status.json", json_encode(['state' => 'conectado', 'hostname' => 'tpv-bella', 'ssh' => 'false']));
+        $this->assertStringContainsString('SSH por Tailscale desactivado', TailscaleBridge::describe());
+
+        $wizard = Livewire::test(SetupWizard::class);
+        $wizard->mountAction(TestAction::make('allowTailscaleSsh')->schemaComponent('tailscale-ssh', 'form'))
+            ->assertMountedActionModalSee('podrán abrir una consola en este mini PC sin su contraseña')
+            ->callMountedAction()->assertHasActionErrors(['understood']);
+        $this->assertFalse(Setting::current()->tailscale_ssh, 'Sin marcar «Entiendo lo que implica» no se activa.');
+
+        Livewire::test(SetupWizard::class)
+            ->callAction(TestAction::make('allowTailscaleSsh')->schemaComponent('tailscale-ssh', 'form'), ['understood' => true])
+            ->assertNotified('Acceso SSH por Tailscale permitido');
+        $this->assertTrue(Setting::current()->tailscale_ssh);
+        $this->assertSame(['ssh' => true], json_decode(file_get_contents("{$this->dir}/ssh-request"), true));
+
+        Livewire::test(SetupWizard::class)
+            ->callAction(TestAction::make('revokeTailscaleSsh')->schemaComponent('tailscale-ssh', 'form'));
+        $this->assertFalse(Setting::current()->tailscale_ssh);
+        $this->assertSame(['ssh' => false], json_decode(file_get_contents("{$this->dir}/ssh-request"), true));
+    }
+
+    public function test_joining_sends_the_chosen_ssh_setting(): void
+    {
+        Setting::current()->update(['tailscale_ssh' => true]);
+        Livewire::test(SetupWizard::class)->fillForm(['tailscale_authkey' => 'tskey-auth-kAbc123CNTRL-xyz987'])->goToWizardStep(7);
+        $this->assertTrue(json_decode(file_get_contents("{$this->dir}/authkey"), true)['ssh']);
     }
 }
