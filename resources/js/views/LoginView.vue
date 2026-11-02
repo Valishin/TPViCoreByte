@@ -1,5 +1,6 @@
 <template>
     <main class="v-login">
+        <img class="v-login__logo" src="/images/icorebyte-logo.png" alt="iCOREBYTE" width="320" height="48" />
         <h1 class="v-login__brand">{{ locked ? 'Pantalla bloqueada' : 'TPV' }}</h1>
 
         <!-- Primero el usuario; al elegirlo, el teclado del PIN sustituye a la lista (caja y móvil) -->

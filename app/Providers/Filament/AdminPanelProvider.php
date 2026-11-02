@@ -29,6 +29,9 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('TPV · Backoffice')
+            // En la pantalla de entrada, el logo de iCOREBYTE; dentro, el nombre en texto.
+            ->brandLogo(fn () => request()->routeIs('filament.admin.auth.*') ? asset('images/icorebyte-logo.png') : null)
+            ->brandLogoHeight('2.75rem')
             // Aviso si las copias de seguridad no están al día.
             ->renderHook(PanelsRenderHook::PAGE_START, fn () => view('filament.backup-warning'))
             ->renderHook(PanelsRenderHook::PAGE_START, fn () => view('filament.verifactu-notices'))
