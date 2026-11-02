@@ -19,6 +19,8 @@ describe('Visor de PDF dentro de la TPV', () => {
         await nextTick();
         expect(document.querySelector('iframe').getAttribute('src')).toBe('/api/tickets/7/pdf');
         expect(document.querySelector('.c-pdf-viewer__title').textContent).toBe('Factura F-26-000001');
+        const download = document.querySelector('a[download]');
+        expect(download.getAttribute('href')).toBe('/api/tickets/7/pdf?descargar=1');
 
         [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Cerrar y volver')).click();
         expect(wrapper.emitted('close')).toHaveLength(1);

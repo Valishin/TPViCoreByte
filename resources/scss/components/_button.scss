@@ -87,6 +87,11 @@
         border-color: $color-border;
     }
 
+    // Enlaces con aspecto de botón (p. ej. «Descargar PDF»).
+    &--link {
+        text-decoration: none;
+    }
+
     &--lg {
         min-height: calc(#{$touch-target} * 1.25);
         font-size: $font-size-lg;

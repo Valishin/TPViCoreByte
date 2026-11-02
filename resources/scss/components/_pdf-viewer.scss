@@ -19,6 +19,15 @@
         background: $color-surface;
     }
 
+    &__actions {
+        display: flex;
+        gap: $space-2;
+
+        a {
+            text-decoration: none;
+        }
+    }
+
     &__title {
         font-size: $font-size-lg;
         overflow: hidden;

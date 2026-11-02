@@ -56,6 +56,7 @@
                         <TpvButton v-if="t.can_exchange" variant="primary" size="sm" @click="exchanging = t">Hacer factura</TpvButton>
                         <template v-if="isInvoice(t)">
                             <TpvButton variant="secondary" size="sm" @click="openPdf(t)">PDF</TpvButton>
+                            <a class="c-button c-button--secondary c-button--sm c-button--link" :href="pos.invoicePdfDownloadUrl(t.id)" download>⤓ Descargar</a>
                             <TpvButton variant="secondary" size="sm" :loading="busy === `mail-${t.id}`" @click="sendEmail(t)">Email</TpvButton>
                         </template>
                         <TpvButton v-if="canRectify(t)" variant="danger" size="sm" @click="voiding = t">Anular</TpvButton>

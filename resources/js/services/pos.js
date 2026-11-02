@@ -63,6 +63,8 @@ const pos = {
     searchTickets: (q) => api.get('/tickets', { params: { q } }).then((r) => r.data.data),
     /** URL del PDF A4 (se abre en otra pestaña; la cookie de sesión vale). */
     invoicePdfUrl: (id) => `/api/tickets/${id}/pdf`,
+    /** El mismo PDF como fichero (por si falla el email y hay que enviarlo a mano). */
+    invoicePdfDownloadUrl: (id) => `/api/tickets/${id}/pdf?descargar=1`,
 
     // Destinatarios de factura (datos fiscales)
     billingCustomers: (q) => api.get('/billing-customers', { params: { q } }).then((r) => r.data.data),

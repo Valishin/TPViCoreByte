@@ -99,6 +99,10 @@ class InvoiceDocumentTest extends InvoiceTestCase
         $this->asWaiter()->get("/api/tickets/{$invoice->id}/pdf")->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('Content-Disposition', 'inline; filename="Factura-'.$this->docNumber('F', 1).'.pdf"');
+
+        // «Descargar» (por si falla el email): el mismo PDF como fichero.
+        $this->asWaiter()->get("/api/tickets/{$invoice->id}/pdf?descargar=1")->assertOk()
+            ->assertHeader('Content-Disposition', 'attachment; filename="Factura-'.$this->docNumber('F', 1).'.pdf"');
     }
 
     /** Art. 6.1.f: el envío es una línea más, con precio sin IVA y tipo, y cuadra con el desglose. */

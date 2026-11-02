@@ -20,6 +20,7 @@
                 <TpvButton variant="secondary" size="lg" @click="reprint">Imprimir copia</TpvButton>
                 <template v-if="done.ticket.type === 'completa'">
                     <TpvButton variant="secondary" size="lg" @click="openPdf(done.ticket)">PDF</TpvButton>
+                    <a class="c-button c-button--secondary c-button--lg c-button--link" :href="pos.invoicePdfDownloadUrl(done.ticket.id)" download>⤓ Descargar PDF</a>
                     <TpvButton variant="secondary" size="lg" :loading="mailing" @click="sendEmail">{{ done.ticket.email ? 'Reenviar email' : 'Enviar por email' }}</TpvButton>
                 </template>
                 <TpvButton variant="primary" size="lg" @click="router.replace(home)">{{ takeaway ? 'Volver a pedidos' : 'Volver a mesas' }}</TpvButton>

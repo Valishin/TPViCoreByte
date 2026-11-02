@@ -121,12 +121,14 @@ class TicketController extends Controller
         return response()->json(['data' => ['id' => $email->id, 'to' => $email->to, 'status' => $email->status]], 202);
     }
 
-    /** PDF A4 de una factura completa. */
-    public function pdf(Ticket $ticket, InvoicePdf $pdf): Response
+    /** PDF A4 de una factura completa (?descargar=1: como fichero, para enviarlo a mano). */
+    public function pdf(Request $request, Ticket $ticket, InvoicePdf $pdf): Response
     {
+        $disposition = $request->boolean('descargar') ? 'attachment' : 'inline';
+
         return response($pdf->render($ticket), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.InvoicePdf::filename($ticket).'"',
+            'Content-Disposition' => $disposition.'; filename="'.InvoicePdf::filename($ticket).'"',
         ]);
     }
 

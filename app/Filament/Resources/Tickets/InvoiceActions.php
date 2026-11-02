@@ -15,7 +15,7 @@ class InvoiceActions
     public static function pdf(): Action
     {
         return Action::make('pdf')
-            ->label('PDF')->icon('heroicon-o-arrow-down-tray')->color('gray')
+            ->label('Descargar PDF')->icon('heroicon-o-arrow-down-tray')->color('gray')
             ->visible(fn (Ticket $record) => $record->type->isFullInvoice())
             ->action(fn (Ticket $record) => response()->streamDownload(
                 fn () => print (app(InvoicePdf::class)->render($record)),
