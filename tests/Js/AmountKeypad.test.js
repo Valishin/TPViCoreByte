@@ -35,7 +35,7 @@ describe('Teclado de importes', () => {
 
     it('«Importe exacto» o un billete también se sustituyen al teclear', async () => {
         const cents = mountKeypad(0, { exact: 4550, quick: [5000] });
-        await tap('50,00 €');
+        await tap('50 €');
         expect(cents.value).toBe(5000);
         await tap('2');
         expect(cents.value).toBe(200);

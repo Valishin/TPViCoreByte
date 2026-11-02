@@ -1,5 +1,7 @@
 <template>
     <div class="c-payment-picker">
+        <!-- Lo que hay que decirle al cliente -->
+        <p v-if="total" class="c-payment-picker__total">Total del pedido <strong>{{ money(total) }}</strong></p>
         <div class="c-options c-options--large" role="radiogroup" aria-label="Pago previsto">
             <button
                 v-for="p in plans"
@@ -15,7 +17,7 @@
         <!-- Efectivo: "cambio para" con el teclado de importes y billetes -->
         <div v-if="plan === 'efectivo'" class="c-payment-picker__extra">
             <p class="v-config__question">Cambio para <span class="c-option__extra">(opcional)</span></p>
-            <AmountKeypad :model-value="modelValue.cash_change_for ?? 0" label="Paga con" :quick="[1000, 2000, 5000, 10000]" :exact="total || null" @update:model-value="setChange" />
+            <AmountKeypad :model-value="modelValue.cash_change_for ?? 0" label="Paga con" :quick="[1000, 2000, 5000, 10000]" :exact="total || null" split @update:model-value="setChange" />
             <p v-if="modelValue.cash_change_for && total" class="c-payment-picker__change">
                 Devolver <strong>{{ money(Math.max(0, modelValue.cash_change_for - total)) }}</strong>
             </p>

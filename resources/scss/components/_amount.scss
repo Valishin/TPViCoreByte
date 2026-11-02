@@ -28,15 +28,40 @@
         font-variant-numeric: tabular-nums;
     }
 
+    // Billetes en una sola fila a todo el ancho; «Importe exacto» ocupa la fila entera.
     &__quick {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        grid-template-columns: repeat(var(--quick-cols, 4), minmax(0, 1fr));
         gap: $space-2;
     }
 
     &__quick-btn {
         justify-content: center;
+        padding-inline: $space-1;
         font-weight: $font-weight-bold;
+        white-space: nowrap;
+
+        &--exact {
+            grid-column: 1 / -1;
+        }
+    }
+
+    // En caja: importe, «Importe exacto» y billetes a la izquierda; el teclado entero a la derecha.
+    html[data-layout='pos'] &--split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        column-gap: $space-4;
+
+        > .c-amount__display,
+        > .c-amount__quick {
+            grid-column: 1;
+        }
+
+        > .c-keypad {
+            grid-column: 2;
+            grid-row: 1 / span 3;
+        }
     }
 
     .c-keypad {

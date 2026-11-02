@@ -48,6 +48,21 @@
         }
     }
 
+    &--wide &__panel {
+        width: min(860px, 100%);
+    }
+
+    // Ventanas altas (forma de pago): «Volver / Enviar» siempre a la vista al pie.
+    &--wide &__actions {
+        position: sticky;
+        bottom: calc(-1 * #{$space-5});
+        z-index: 1;
+        margin-inline: calc(-1 * #{$space-5});
+        margin-bottom: calc(-1 * #{$space-5});
+        padding: $space-3 $space-5 $space-5;
+        background: $color-surface;
+    }
+
     &--danger &__panel {
         border-color: $color-danger;
     }

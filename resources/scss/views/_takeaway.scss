@@ -384,15 +384,44 @@
     flex-direction: column;
     gap: $space-3;
 
+    &__total {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: $space-3;
+        margin: 0;
+        font-size: $font-size-lg;
+        color: $color-text-muted;
+
+        strong {
+            font-size: $font-size-xxl;
+            color: $color-text;
+            font-variant-numeric: tabular-nums;
+        }
+    }
+
+    // Efectivo · Tarjeta · Ya pagado: a partes iguales en todo el ancho.
+    > .c-options {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .c-option {
+        justify-content: center;
+    }
+
+    // Contenido centrado y a todo el ancho de la ventana.
     &__extra {
         display: flex;
         flex-direction: column;
         gap: $space-2;
-        max-width: 420px;
+        width: 100%;
+        margin: 0 auto;
     }
 
     &__change {
+        margin: 0;
         font-size: $font-size-lg;
+        text-align: center;
     }
 }
 

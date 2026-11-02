@@ -136,13 +136,13 @@
         </ModalDialog>
 
         <!-- Llevar / domicilio: forma de pago y cambio al enviar (si aún no se ha elegido) -->
-        <BottomSheet :open="!!paymentAsk" title="Forma de pago" @close="answerPayment(false)">
+        <ModalDialog :open="!!paymentAsk" title="Forma de pago" wide @close="answerPayment(false)">
             <TakeawayPaymentPicker v-model="paymentChoice" :total="o?.total ?? 0" :card-label="o?.type === 'domicilio' ? 'Tarjeta (datáfono del repartidor)' : 'Tarjeta'" />
-            <template #footer>
-                <TpvButton variant="ghost" @click="answerPayment(false)">Volver</TpvButton>
-                <TpvButton variant="primary" block :loading="savingPayment" @click="savePaymentAndSend">Enviar</TpvButton>
+            <template #actions>
+                <TpvButton variant="ghost" size="lg" @click="answerPayment(false)">Volver</TpvButton>
+                <TpvButton variant="primary" size="lg" :loading="savingPayment" @click="savePaymentAndSend">Enviar</TpvButton>
             </template>
-        </BottomSheet>
+        </ModalDialog>
 
         <DispatchSheet v-if="o?.type === 'domicilio'" :order="dispatching" :busy="sending" :invoice-hint="invoiceHint" @confirm="dispatchTo" @close="dispatching = null" />
 

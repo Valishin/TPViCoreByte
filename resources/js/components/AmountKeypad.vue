@@ -1,12 +1,12 @@
 <template>
-    <div ref="root" class="c-amount">
+    <div ref="root" :class="['c-amount', { 'c-amount--split': split }]">
         <div class="c-amount__display" :aria-label="label">
             <span class="c-amount__label">{{ label }}</span>
             <span class="c-amount__value">{{ text || '0' }} €</span>
         </div>
-        <div v-if="quick.length || exact !== null" class="c-amount__quick">
-            <button v-if="exact !== null" type="button" class="c-option c-amount__quick-btn" @click="set(exact)">Importe exacto</button>
-            <button v-for="q in quick" :key="q" type="button" class="c-option c-amount__quick-btn" @click="set(q)">{{ money(q) }}</button>
+        <div v-if="quick.length || exact !== null" class="c-amount__quick" :style="{ '--quick-cols': Math.max(1, quick.length) }">
+            <button v-if="exact !== null" type="button" class="c-option c-amount__quick-btn c-amount__quick-btn--exact" @click="set(exact)">Importe exacto</button>
+            <button v-for="q in quick" :key="q" type="button" class="c-option c-amount__quick-btn" @click="set(q)">{{ bill(q) }}</button>
         </div>
         <div class="c-keypad">
             <button v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="n" type="button" class="c-keypad__key" @click="press(String(n))">{{ n }}</button>
@@ -34,6 +34,7 @@ const props = defineProps({
     label: { type: String, default: 'Importe' },
     quick: { type: Array, default: () => [] }, // céntimos: [500, 1000, 2000, 5000]
     exact: { type: Number, default: null }, // céntimos para "Importe exacto"
+    split: { type: Boolean, default: false }, // en caja: importe y botones a la izquierda, teclado a la derecha
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -41,6 +42,10 @@ const text = ref(toText(props.modelValue));
 // El importe que hay no lo ha tecleado nadie: la siguiente cifra empieza de cero.
 const proposed = ref(props.modelValue > 0);
 
+/** Billetes sin decimales («20 €») para que quepan en una fila. */
+function bill(cents) {
+    return cents % 100 ? money(cents) : `${cents / 100} €`;
+}
 function toText(cents) {
     if (!cents) return '';
     const units = Math.floor(cents / 100);
