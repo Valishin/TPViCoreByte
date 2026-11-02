@@ -9,7 +9,9 @@ use App\Enums\TableStatus;
 use App\Models\Modifier;
 use App\Models\ModifierGroup;
 use App\Models\OrderLine;
+use App\Models\Precheck;
 use App\Models\PrintJob;
+use App\Models\Setting;
 use App\Models\Table;
 use Illuminate\Support\Arr;
 
@@ -205,7 +207,17 @@ class OrderFlowTest extends PosTestCase
         $this->assertSame(TableStatus::BillRequested, $table->fresh()->status);
         $job = PrintJob::query()->where('kind', PrintJobKind::Precheck)->firstOrFail();
         $this->assertSame($this->tickets->id, $job->printer_id);
-        $this->assertStringContainsString('NO VÁLIDO COMO FACTURA', collect($job->content)->pluck('text')->implode("\n"));
+        $text = collect($job->content)->pluck('text')->implode("\n");
+        $this->assertStringContainsString('NO VÁLIDO COMO FACTURA', $text);
+        // Los mismos datos que el ticket de cobro: emisor, desglose de IVA y pie.
+        $settings = Setting::current();
+        foreach (['NIF '.$settings->tax_id, $settings->legal_name, 'IVA', 'Base', 'Cuota', '5,50 €'] as $expected) {
+            $this->assertStringContainsString($expected, $text);
+        }
+        foreach (array_filter(preg_split('/\R/', (string) $settings->ticket_footer)) as $footer) {
+            $this->assertStringContainsString($footer, $text);
+        }
+        $this->assertNotEmpty(Precheck::query()->value('content')['vat_breakdown'], 'La precuenta guardada lleva el desglose de IVA.');
 
         // Si piden algo más y se envía, la mesa vuelve a ocupada.
         $this->addLine($order['id'], ['product_id' => $this->product('Café', 140, $this->drinks)->id]);

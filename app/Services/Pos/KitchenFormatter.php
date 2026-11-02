@@ -6,15 +6,13 @@ use App\Enums\OrderLineKind;
 use App\Enums\OrderType;
 use App\Models\Order;
 use App\Models\OrderLine;
-use App\Models\Setting;
 use App\Models\Table;
 use App\Models\User;
 use App\Services\Printing\Ticket;
-use App\Support\Format;
 use Illuminate\Support\Collection;
 
 /**
- * Formatos de impresión del servicio: comanda, anulación y cuenta.
+ * Formatos de impresión del servicio: comanda y anulación (la cuenta, en ReceiptFormatter).
  * Pensados para leerse de un vistazo en cocina: lo importante, en grande.
  */
 class KitchenFormatter
@@ -66,45 +64,6 @@ class KitchenFormatter
             ->separator('=')
             ->line("Motivo: {$reason}", bold: true)
             ->line('*** ANULACIÓN ***', Ticket::ALIGN_CENTER, bold: true, large: true, reverse: true)
-            ->feed(3)->cut();
-    }
-
-    /** Cuenta provisional para el cliente. */
-    public function precheck(Order $order): Ticket
-    {
-        $settings = Setting::current();
-        $order->loadMissing('lines.modifiers');
-
-        $ticket = (new Ticket)
-            ->title($settings->trade_name)
-            ->line($this->where($order).($order->guests ? " · {$order->guests} pax" : ''), Ticket::ALIGN_CENTER)
-            ->line(now()->format('d/m/Y H:i'), Ticket::ALIGN_CENTER)
-            ->separator();
-
-        foreach ($order->lines->whereNull('parent_line_id')->whereNull('voided_at') as $line) {
-            $ticket->columns("{$line->quantity} {$this->name($line)}", Format::money($line->line_total));
-            foreach ($order->lines->where('parent_line_id', $line->id)->whereNull('voided_at') as $child) {
-                $ticket->line('   '.$this->name($child));
-            }
-            if ($line->is_invitation || $line->discount_amount) {
-                $ticket->columns($line->is_invitation ? '   Invitación' : '   Descuento', '-'.Format::money($line->discount_amount));
-            }
-        }
-
-        $ticket->separator();
-        if ($order->discount_amount) {
-            $ticket->columns('Descuento', '-'.Format::money($order->discount_amount));
-        }
-        if ($order->type === OrderType::Delivery && $order->delivery_fee) {
-            $ticket->columns('Envío', Format::money($order->delivery_fee));
-        }
-
-        return $ticket
-            ->columns('TOTAL', Format::money($order->total), bold: true)
-            ->line('IVA incluido', Ticket::ALIGN_RIGHT)
-            ->feed()
-            ->line('NO VÁLIDO COMO FACTURA', Ticket::ALIGN_CENTER, bold: true)
-            ->line('Pida su ticket al pagar', Ticket::ALIGN_CENTER)
             ->feed(3)->cut();
     }
 

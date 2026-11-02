@@ -8,10 +8,12 @@ use App\Enums\PaymentStatus;
 use App\Enums\TicketType;
 use App\Models\CourierSettlement;
 use App\Models\Order;
+use App\Models\OrderLine;
 use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketLine;
+use App\Models\User;
 use App\Services\Billing\InvoiceDocument;
 use App\Services\Printing\Ticket as Printable;
 use App\Services\Verifactu\TaxQr;
@@ -20,7 +22,8 @@ use App\Support\MapsLink;
 
 /**
  * Impresión de cara al cliente y a la caja: ticket (factura simplificada o
- * rectificativa), justificante de pago e informes X / Z. Se adapta al ancho
+ * rectificativa), cuenta (con el mismo formato), justificante de pago e
+ * informes X / Z. Se adapta al ancho
  * del papel: 48 columnas (80 mm) o 32 (58 mm).
  */
 class ReceiptFormatter
@@ -32,7 +35,6 @@ class ReceiptFormatter
             return $this->invoice($ticket, $columns, $copy);
         }
         $ticket->loadMissing(['lines', 'payments', 'issuedBy', 'order.table.room', 'rectifiedTicket']);
-        $issuer = $ticket->issuer ?? [];
         $p = new Printable;
 
         if ($copy) {
@@ -40,13 +42,7 @@ class ReceiptFormatter
         }
 
         $this->taxQrBlock($p, $ticket);
-        $p->title($issuer['trade_name'] ?? '')
-            ->line($issuer['legal_name'] ?? '', Printable::ALIGN_CENTER)
-            ->line('NIF '.($issuer['tax_id'] ?? ''), Printable::ALIGN_CENTER);
-        foreach (array_filter([$issuer['address'] ?? null, trim(($issuer['postal_code'] ?? '').' '.($issuer['city'] ?? '')), isset($issuer['phone']) ? 'Tel. '.$issuer['phone'] : null]) as $text) {
-            $p->line($text, Printable::ALIGN_CENTER);
-        }
-        $p->separator('=');
+        $this->issuerHeader($p, $ticket->issuer ?? []);
 
         if ($ticket->type === TicketType::Rectifying) {
             // VeriFactu: las rectificativas de facturas simplificadas son del tipo R5.
@@ -96,11 +92,7 @@ class ReceiptFormatter
         $p->line('TOTAL  '.Format::money($ticket->total), Printable::ALIGN_RIGHT, bold: true, large: true)
             ->line('IVA incluido', Printable::ALIGN_RIGHT);
 
-        // Desglose de IVA
-        $p->separator()->line($this->vatRow('IVA', 'Base', 'Cuota', 'Total', $columns), bold: true);
-        foreach ($ticket->vat_breakdown as $row) {
-            $p->line($this->vatRow(Format::percent($row['rate']), Format::money($row['base']), Format::money($row['tax']), Format::money($row['total']), $columns));
-        }
+        $this->vatBlock($p, $ticket->vat_breakdown, $columns);
 
         // Pagos
         if ($ticket->payments->isNotEmpty()) {
@@ -110,17 +102,106 @@ class ReceiptFormatter
             }
         }
 
-        $p->feed();
-        foreach (preg_split('/\R/', (string) Setting::current()->ticket_footer) as $footer) {
-            if ($footer !== '') {
-                $p->line($footer, Printable::ALIGN_CENTER);
-            }
-        }
+        $this->footer($p->feed());
         if ($copy) {
             $p->line('*** COPIA ***', Printable::ALIGN_CENTER, bold: true, reverse: true);
         }
 
         return $p->feed(3)->cut();
+    }
+
+    /**
+     * Cuenta (precuenta) que se lleva a la mesa: los mismos datos que el ticket
+     * de cobro (emisor, líneas, descuentos, total, desglose de IVA y pie), pero
+     * sin número y marcada como NO VÁLIDA COMO FACTURA.
+     *
+     * @param  list<array{rate: int, base: int, tax: int, total: int}>  $vatBreakdown
+     */
+    public function precheck(Order $order, array $vatBreakdown, ?User $by = null, int $columns = 48): Printable
+    {
+        $order->loadMissing(['lines.modifiers', 'table.room']);
+        $p = new Printable;
+        $this->issuerHeader($p, Setting::current()->issuerSnapshot());
+
+        $where = $order->table ? (string) $order->tableLabel() : $order->type->label();
+        $p->line('CUENTA', Printable::ALIGN_CENTER, bold: true, large: true)
+            ->line('NO VÁLIDO COMO FACTURA', Printable::ALIGN_CENTER, bold: true)
+            ->columns($where.($order->guests ? " · {$order->guests} pax" : ''), now()->format('d/m/Y H:i'), bold: true);
+        if ($by) {
+            $p->line('Atendió: '.$by->name);
+        }
+        $p->separator();
+
+        $lines = $order->lines->whereNull('voided_at');
+        foreach ($lines->whereNull('parent_line_id') as $line) {
+            $p->columns($line->quantity.' '.$this->orderLineName($line), Format::money($line->line_total));
+            foreach ($line->modifiers as $m) {
+                $p->line('   + '.($m->quantity > 1 ? $m->quantity.'x ' : '').$m->name);
+            }
+            foreach ($lines->where('parent_line_id', $line->id) as $child) {
+                $p->line('   · '.$this->orderLineName($child));
+                foreach ($child->modifiers as $m) {
+                    $p->line('     + '.$m->name);
+                }
+            }
+            if ($line->is_invitation) {
+                $p->columns('   Invitación', '-'.Format::money($line->discount_amount));
+            } elseif ($line->discount_amount) {
+                $p->columns('   Descuento', '-'.Format::money($line->discount_amount));
+            }
+        }
+        $p->separator();
+
+        $deliveryFee = (int) $order->delivery_fee;
+        if ($order->discount_amount || $deliveryFee) {
+            $p->columns('Suma', Format::money($order->subtotal));
+            if ($order->discount_amount) {
+                $p->columns('Descuento'.($order->discount_reason ? " ({$order->discount_reason})" : ''), '-'.Format::money($order->discount_amount));
+            }
+            if ($deliveryFee) {
+                $p->columns('Gastos de envío', Format::money($deliveryFee));
+            }
+        }
+        $p->line('TOTAL  '.Format::money($order->total), Printable::ALIGN_RIGHT, bold: true, large: true)
+            ->line('IVA incluido', Printable::ALIGN_RIGHT);
+        $this->vatBlock($p, $vatBreakdown, $columns);
+
+        $this->footer($p->feed());
+
+        return $p->line('NO VÁLIDO COMO FACTURA', Printable::ALIGN_CENTER, bold: true)
+            ->line('Pida su ticket al pagar', Printable::ALIGN_CENTER)
+            ->feed(3)->cut();
+    }
+
+    /** Nombre comercial, razón social, NIF, dirección y teléfono del emisor. */
+    private function issuerHeader(Printable $p, array $issuer): void
+    {
+        $p->title($issuer['trade_name'] ?? '')
+            ->line($issuer['legal_name'] ?? '', Printable::ALIGN_CENTER)
+            ->line('NIF '.($issuer['tax_id'] ?? ''), Printable::ALIGN_CENTER);
+        foreach (array_filter([$issuer['address'] ?? null, trim(($issuer['postal_code'] ?? '').' '.($issuer['city'] ?? '')), isset($issuer['phone']) ? 'Tel. '.$issuer['phone'] : null]) as $text) {
+            $p->line($text, Printable::ALIGN_CENTER);
+        }
+        $p->separator('=');
+    }
+
+    /** Desglose de IVA (tipo · base · cuota · total). */
+    private function vatBlock(Printable $p, array $breakdown, int $columns): void
+    {
+        $p->separator()->line($this->vatRow('IVA', 'Base', 'Cuota', 'Total', $columns), bold: true);
+        foreach ($breakdown as $row) {
+            $p->line($this->vatRow(Format::percent($row['rate']), Format::money($row['base']), Format::money($row['tax']), Format::money($row['total']), $columns));
+        }
+    }
+
+    /** Pie de ticket de /admin (una línea por renglón). */
+    private function footer(Printable $p): void
+    {
+        foreach (preg_split('/\R/', (string) Setting::current()->ticket_footer) as $footer) {
+            if ($footer !== '') {
+                $p->line($footer, Printable::ALIGN_CENTER);
+            }
+        }
     }
 
     /**
@@ -488,6 +569,13 @@ class ReceiptFormatter
     }
 
     private function lineName(TicketLine $line): string
+    {
+        $half = $line->kind->value === 'mitad' ? '½ ' : '';
+
+        return $half.$line->name.($line->variant_name ? " ({$line->variant_name})" : '');
+    }
+
+    private function orderLineName(OrderLine $line): string
     {
         $half = $line->kind->value === 'mitad' ? '½ ' : '';
 

@@ -21,6 +21,7 @@ use App\Models\Table;
 use App\Models\User;
 use App\Services\Pos\KitchenFormatter;
 use App\Services\Pos\PrintJobDispatcher;
+use App\Services\Pos\ReceiptFormatter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -36,6 +37,7 @@ class OrderService
         private OrderTotalsCalculator $totals,
         private PrintJobDispatcher $printing,
         private KitchenFormatter $formatter,
+        private ReceiptFormatter $receipts,
     ) {}
 
     /** Abre un pedido. Para tipo mesa, ocupa la mesa. */
@@ -256,8 +258,8 @@ class OrderService
             ?? throw new LogicException('No hay ninguna impresora de tickets activa.');
 
         return DB::transaction(function () use ($order, $printer, $by) {
-            $this->totals->apply($order);
-            $printable = $this->formatter->precheck($order->refresh());
+            $totals = $this->totals->apply($order);
+            $printable = $this->receipts->precheck($order->refresh(), $totals->vatBreakdown, $by, $printer->columns ?: 48);
             $this->printing->dispatch($order, $printer, PrintJobKind::Precheck, $printable, by: $by);
             // Precuenta conservada de forma inalterable (LGT 29.2.j; FAQ 11 AEAT): no es factura ni genera registro.
             Precheck::create([
@@ -268,7 +270,7 @@ class OrderService
                     'printed' => $printable->operations(),
                     'lines' => $order->lines()->whereNull('voided_at')->get(['id', 'parent_line_id', 'name', 'variant_name', 'quantity', 'line_total', 'discount_amount', 'vat_rate'])->toArray(),
                     'subtotal' => (int) $order->subtotal, 'discount_amount' => (int) $order->discount_amount, 'total' => (int) $order->total,
-                    'vat_breakdown' => $order->vat_breakdown,
+                    'vat_breakdown' => $totals->vatBreakdown,
                 ],
                 'printed_at' => now(),
             ]);

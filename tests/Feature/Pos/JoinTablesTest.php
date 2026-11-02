@@ -208,7 +208,7 @@ class JoinTablesTest extends PosTestCase
         $this->asWaiter()->postJson("/api/orders/{$order['id']}/precheck")->assertOk();
         $this->assertSame(TableStatus::BillRequested, $t5->fresh()->status);
         $precheck = PrintJob::query()->where('kind', PrintJobKind::Precheck)->latest('id')->firstOrFail();
-        $this->assertStringContainsString('MESA 3 + 4 + 5', $this->printedText($precheck->content));
+        $this->assertStringContainsString('Mesa 3 + 4 + 5', $this->printedText($precheck->content));
 
         // D3: una cuenta separada del grupo se queda en la mesa principal.
         $beerLine = Order::query()->findOrFail($order['id'])->lines()->where('product_id', $this->beer->id)->value('id');
