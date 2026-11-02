@@ -75,7 +75,7 @@ class UsbPrinterDetectionTest extends FilamentTestCase
     public function test_search_with_several_printers_lets_you_choose_and_fills_the_device(): void
     {
         $this->usbForm()
-            ->callAction(TestAction::make('scanUsb')->schemaComponent('device_path'), ['path' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
+            ->callAction(TestAction::make('scanUsb')->schemaComponent('usb-scan'), ['path' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
             ->assertSchemaStateSet(['device_path' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
             ->call('create')->assertHasNoFormErrors();
 
@@ -86,7 +86,7 @@ class UsbPrinterDetectionTest extends FilamentTestCase
     {
         File::deleteDirectory("{$this->sys}/class/usbmisc/lp1");
         $this->usbForm()
-            ->mountAction(TestAction::make('scanUsb')->schemaComponent('device_path'))
+            ->mountAction(TestAction::make('scanUsb')->schemaComponent('usb-scan'))
             ->assertSchemaStateSet(['device_path' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
             ->assertNotified('Encontrada: EPSON TM-T20III');
     }
@@ -95,7 +95,7 @@ class UsbPrinterDetectionTest extends FilamentTestCase
     {
         config(['printing.sysfs' => '/no/existe']);
         $this->usbForm()
-            ->mountAction(TestAction::make('scanUsb')->schemaComponent('device_path'))
+            ->mountAction(TestAction::make('scanUsb')->schemaComponent('usb-scan'))
             ->assertNotified('No se detecta ninguna impresora USB')
             ->assertSchemaStateSet(['device_path' => null]);
     }

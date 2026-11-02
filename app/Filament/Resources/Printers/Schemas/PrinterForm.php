@@ -12,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -40,12 +41,13 @@ class PrinterForm
                     ->validationMessages(['starts_with' => 'Debe ser una ruta absoluta, p. ej. /dev/usb/lp0.'])
                     ->visible(fn (Get $get) => self::usb($get))->required(fn (Get $get) => self::usb($get))
                     ->columnSpanFull()
-                    ->suffixAction(self::scanAction())
                     // Indicador de estado: ¿está conectada ahora mismo la impresora de este dispositivo?
                     ->hint(fn (?string $state) => self::status($state)['text'])
                     ->hintColor(fn (?string $state) => self::status($state)['color'])
                     ->hintIcon(fn (?string $state) => self::status($state)['icon'])
                     ->helperText('Pulsa «Buscar impresoras USB» con la impresora enchufada y encendida. Enlace fijo /dev/usb/impresora-…: no cambia al reiniciar.'),
+                Actions::make([self::scanAction()])->key('usb-scan')
+                    ->visible(fn (Get $get) => self::usb($get))->columnSpanFull(),
                 Select::make('columns')->label('Ancho del papel')->required()->default(48)
                     ->options([48 => '80 mm (48 caracteres)', 32 => '58 mm (32 caracteres)']),
                 TextInput::make('codepage')->label('Página de códigos')->numeric()->integer()->default(16)
@@ -63,7 +65,7 @@ class PrinterForm
      */
     public static function scanAction(): Action
     {
-        return Action::make('scanUsb')->label('Buscar impresoras USB')->icon(Heroicon::OutlinedMagnifyingGlass)
+        return Action::make('scanUsb')->label('Buscar impresoras USB')->icon(Heroicon::OutlinedMagnifyingGlass)->color('gray')
             ->modalHeading('Impresoras USB conectadas')
             ->modalSubmitActionLabel('Usar esta')
             ->mountUsing(function (Action $action, Set $set, ?Schema $schema) {
