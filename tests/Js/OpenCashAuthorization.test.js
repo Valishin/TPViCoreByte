@@ -108,21 +108,22 @@ describe('Cobrar sin caja: abrir caja con autorización de encargado', () => {
     it('un fondo fuera de lo normal pide confirmación con el importe en grande', async () => {
         wrapper = mount(Harness, { attachTo: '#app' });
         await flushPromises();
-        for (const key of ['9', '9', '9']) await tap(key, flushPromises);   // 150999 €
-        expect(floatShown()).toBe('150999 €');
+        // El fondo propuesto (150 €) se sustituye al teclear: antes se pegaba detrás (150999 €).
+        for (const key of ['9', '9', '9', '9', '9', '9']) await tap(key, flushPromises);
+        expect(floatShown()).toBe('999999 €');
 
-        await tap('Abrir con 150.999,00 €', flushPromises);
+        await tap('Abrir con 999.999,00 €', flushPromises);
         const confirm = topLayer();
         expect(confirm.getAttribute('aria-label')).toBe('¿Seguro?');
-        expect(confirm.textContent).toContain('150.999,00 €');
+        expect(confirm.textContent).toContain('999.999,00 €');
         expect(pos.openCash).not.toHaveBeenCalled();
 
         await tap('Corregir', flushPromises);
         expect(pos.openCash).not.toHaveBeenCalled();
         expect(topLayer().getAttribute('aria-label')).toBe('Abrir caja');
 
-        await tap('Abrir con 150.999,00 €', flushPromises);
+        await tap('Abrir con 999.999,00 €', flushPromises);
         await tap('Sí, es correcto', flushPromises);
-        expect(pos.openCash).toHaveBeenCalledWith(expect.objectContaining({ opening_float: 15099900 }));
+        expect(pos.openCash).toHaveBeenCalledWith(expect.objectContaining({ opening_float: 99999900 }));
     });
 });

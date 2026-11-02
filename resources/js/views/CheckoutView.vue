@@ -82,7 +82,7 @@
                 </ul>
 
                 <div class="v-checkout__due">
-                    <span>{{ remaining ? (parts > 1 ? `Parte ${payments.length + 1} de ${parts}` : 'Pendiente') : 'Todo cobrado' }}</span>
+                    <span>{{ remaining ? (parts > 1 ? `Parte ${payments.length + 1} de ${parts}` : payments.length ? 'Queda por cobrar' : 'Pendiente') : 'Todo cobrado' }}</span>
                     <strong>{{ money(remaining ? due : 0) }}</strong>
                 </div>
 
@@ -99,6 +99,7 @@
 
                     <template v-if="method === 'efectivo'">
                         <AmountKeypad v-model="tendered" label="Entregado" :quick="[500, 1000, 2000, 5000]" :exact="due" />
+                        <p v-if="!tendered && parts <= 1" class="v-checkout__hint">Si paga solo una parte en efectivo, escribe lo que entrega: el resto se cobra después.</p>
                         <p class="v-checkout__change" :class="{ 'v-checkout__change--short': tendered && tendered < due }">
                             <template v-if="tendered >= due">Cambio <strong>{{ money(tendered - due) }}</strong></template>
                             <template v-else-if="tendered">Se cobran {{ money(tendered) }}, falta {{ money(due - tendered) }}</template>
@@ -114,7 +115,9 @@
                                 </button>
                             </span>
                         </div>
-                        <p class="v-checkout__hint">Cobra en el datáfono y confirma.</p>
+                        <p class="v-checkout__hint">
+                            Cobra en el datáfono y confirma.<template v-if="parts <= 1"> Para pagar solo una parte, escribe el importe: el resto se cobra después, con lo que sea.</template>
+                        </p>
                     </template>
 
                     <TpvButton v-if="method" variant="secondary" size="lg" block :disabled="!canAdd" @click="addPayment">
@@ -266,7 +269,9 @@ async function addPayment() {
     if (p.tendered && !(await guard.check('cash_tendered', p.tendered, 'el efectivo entregado'))) return;
     if (p.tip && !(await guard.check('tip', p.tip, 'la propina'))) return;
     payments.value.push(p);
-    resetEntry();
+    // Pago por separado: si queda algo, la misma forma de pago con el resto propuesto.
+    if (remaining.value > 0) selectMethod(p.method);
+    else resetEntry();
 }
 
 async function charge() {

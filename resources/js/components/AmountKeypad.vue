@@ -25,6 +25,9 @@ import { money } from '@/utils/format';
 /**
  * Teclado de importes en euros: "20" son 20,00 €; la tecla "," abre los
  * céntimos (máx. 2). v-model en céntimos (entero).
+ *
+ * Un importe propuesto (el total, «Importe exacto», un billete…) se sustituye
+ * con la primera cifra que se teclea: para cobrar una parte basta escribirla.
  */
 const props = defineProps({
     modelValue: { type: Number, default: 0 },
@@ -35,6 +38,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const text = ref(toText(props.modelValue));
+// El importe que hay no lo ha tecleado nadie: la siguiente cifra empieza de cero.
+const proposed = ref(props.modelValue > 0);
 
 function toText(cents) {
     if (!cents) return '';
@@ -49,10 +54,17 @@ function toCents(value) {
 }
 
 watch(() => props.modelValue, (cents) => {
-    if (toCents(text.value) !== cents) text.value = toText(cents);
+    if (toCents(text.value) !== cents) {
+        text.value = toText(cents);
+        proposed.value = cents > 0;
+    }
 });
 
 function press(key) {
+    if (proposed.value) {
+        text.value = '';
+        proposed.value = false;
+    }
     const value = text.value;
     if (key === ',') {
         if (!value.includes(',')) text.value = (value || '0') + ',';
@@ -64,11 +76,13 @@ function press(key) {
     emit('update:modelValue', toCents(text.value));
 }
 function back() {
+    proposed.value = false;
     text.value = text.value.slice(0, -1);
     emit('update:modelValue', toCents(text.value));
 }
 function set(cents) {
     text.value = toText(cents);
+    proposed.value = cents > 0;
     emit('update:modelValue', cents);
 }
 
