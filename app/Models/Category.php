@@ -22,7 +22,10 @@ class Category extends Model
 
     protected static function booted(): void
     {
-        static::saving(fn (Category $category) => $category->quick_notes = QuickNotes::normalize($category->quick_notes));
+        // Sin devolver nada: un listener «saving» que devuelve un valor corta los siguientes.
+        static::saving(function (Category $category): void {
+            $category->quick_notes = QuickNotes::normalize($category->quick_notes);
+        });
     }
 
     public function printer(): BelongsTo
