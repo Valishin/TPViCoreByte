@@ -116,6 +116,26 @@ check "cliente → demo no se permite" '[ "$CODE" != 0 ] && grep -q "no se convi
 install /tmp/r-ghcr --ghcr ghp_prueba
 check "--ghcr descarga la imagen" 'grep -q "de GHCR" <<<"$OUT"'
 
+echo "▸ Puerto 80 ocupado (antes fallaba al final: «address already in use»)"
+F=/tmp/fake80; rm -rf "$F"; mkdir -p "$F"
+# ss y docker simulados: lo que haya en el puerto 80 lo dicen FAKE_SS y FAKE_DOCKER.
+printf '#!/bin/sh\n[ -n "$FAKE_SS" ] && echo "$FAKE_SS"\nexit 0\n' > "$F/ss"
+printf '#!/bin/sh\n[ "$1" = ps ] && [ -n "$FAKE_DOCKER" ] && printf "%%s\\n" $FAKE_DOCKER\nexit 0\n' > "$F/docker"
+chmod +x "$F/ss" "$F/docker"
+port80() { # port80 <ss> <contenedores>
+    OUT="$(FAKE_SS="$1" FAKE_DOCKER="$2" PATH="$F:$PATH" ROOT_PREFIX=/tmp/r-p80 timeout 60 bash "$SRC/install.sh" --dry-run </dev/null 2>&1)"; CODE=$?
+}
+port80 'LISTEN 0 511 0.0.0.0:80 0.0.0.0:* users:(("nginx",pid=812,fd=6))' ''
+check "nginx en el 80: lo detecta y propone pararlo" 'grep -q "el puerto 80 lo usa nginx" <<<"$OUT"'
+port80 'LISTEN 0 4096 0.0.0.0:80 0.0.0.0:* users:(("docker-proxy",pid=90,fd=7))' 'otra-web-1'
+check "otro contenedor en el 80: se para antes de instalar nada y dice cómo" '[ "$CODE" != 0 ] && grep -q "otro contenedor de Docker (otra-web-1)" <<<"$OUT" && grep -q "docker stop otra-web-1" <<<"$OUT" && ! grep -q "\[1/9\]" <<<"$OUT"'
+port80 'LISTEN 0 128 0.0.0.0:80 0.0.0.0:* users:(("python3",pid=55,fd=3))' ''
+check "otro programa en el 80: lo nombra y se para" '[ "$CODE" != 0 ] && grep -q "otro programa (python3)" <<<"$OUT"'
+port80 'LISTEN 0 4096 0.0.0.0:80 0.0.0.0:* users:(("docker-proxy",pid=90,fd=7))' 'tpv-app-1'
+check "el propio TPV en el 80 (relanzar): sigue" '[ "$CODE" = 0 ] && ! grep -q "puerto 80" <<<"$OUT"'
+port80 '' ''
+check "puerto 80 libre: sigue" '[ "$CODE" = 0 ]'
+
 echo "▸ Nombre de las impresoras USB (igual que /admin)"
 S=/tmp/sys; rm -rf "$S"; mkdir -p "$S/devices/usb1/1-1/1-1:1.0/usbmisc/lp0"
 printf '04B8\n' > "$S/devices/usb1/1-1/idVendor"; printf '0202\n' > "$S/devices/usb1/1-1/idProduct"; printf 'X5E8-012345\n' > "$S/devices/usb1/1-1/serial"

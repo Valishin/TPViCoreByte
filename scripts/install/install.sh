@@ -139,6 +139,46 @@ detect_ip() {
 LAN_IP="${LAN_IP:-$(detect_ip)}"
 LOCAL_NAME="${LOCAL_NAME:-Mi local}"
 
+# El TPV necesita el puerto 80 (caja: http://localhost; móviles: http://IP). Se mira al principio:
+# antes, si lo tenía otro programa, fallaba al final («address already in use») tras instalarlo todo.
+port80_check() {
+    command -v ss >/dev/null 2>&1 || return 0
+    local line proc others unit answer
+    line="$(ss -H -ltnp 'sport = :80' 2>/dev/null | head -1 || true)"
+    others=""
+    if command -v docker >/dev/null 2>&1; then
+        # Contenedores que publican el 80 que no son del TPV (/opt/tpv → proyecto «tpv»).
+        others="$(docker ps --filter publish=80 --format '{{.Names}}' 2>/dev/null | grep -v '^tpv-' | tr '\n' ' ' | sed 's/ *$//' || true)"
+    fi
+    [ -n "$line" ] || [ -n "$others" ] || return 0
+    proc="$(printf '%s' "$line" | sed -nE 's/.*users:\(\("([^"]+)".*/\1/p')"
+    if [ "$proc" = docker-proxy ] || { [ -z "$line" ] && [ -n "$others" ]; }; then
+        [ -n "$others" ] || return 0   # es el propio TPV (se relanza el instalador)
+        die "El puerto 80 lo usa otro contenedor de Docker ($others) y el TPV lo necesita. Páralo para que no vuelva a arrancar y relanza el instalador: sudo docker update --restart=no $others && sudo docker stop $others"
+    fi
+    case "$proc" in
+        apache2|httpd) unit=apache2 ;;
+        nginx) unit=nginx ;;
+        lighttpd) unit=lighttpd ;;
+        caddy) unit=caddy ;;
+        *) die "El puerto 80 lo usa otro programa (${proc:-desconocido}) y el TPV lo necesita. Míralo con «sudo ss -ltnp 'sport = :80'», páralo o desinstálalo y relanza el instalador." ;;
+    esac
+    if [ "$DRY_RUN" = 1 ]; then
+        echo "  [dry-run] el puerto 80 lo usa $unit: preguntaría si pararlo y desactivarlo"
+    elif [ -t 0 ]; then
+        echo
+        read -r -p "El puerto 80 lo usa el servidor web $unit y el TPV lo necesita. ¿Lo paro y lo desactivo? [s/N] " answer
+        case "$answer" in
+            s|S|si|sí|Si|Sí|SI|SÍ) systemctl disable --now "$unit" >/dev/null 2>&1 || die "No se ha podido parar $unit: sudo systemctl disable --now $unit"
+                ok "$unit parado y desactivado: el puerto 80 queda para el TPV" ;;
+            *) die "Cancelado: sin el puerto 80 el TPV no puede funcionar. Para $unit (sudo systemctl disable --now $unit) y relanza el instalador." ;;
+        esac
+    else
+        die "El puerto 80 lo usa el servidor web $unit y el TPV lo necesita. Desactívalo y relanza el instalador: sudo systemctl disable --now $unit"
+    fi
+}
+port80_check
+
 ENV="$TPV_DIR/.env"
 CRED_FILE="${ROOT}/root/tpv-credenciales.txt"
 CRED_KEYS="APP_KEY DB_PASSWORD REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET VERIFACTU_INSTALLATION_NUMBER"

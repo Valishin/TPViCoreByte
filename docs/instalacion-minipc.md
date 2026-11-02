@@ -176,6 +176,14 @@ Qué hace (se puede volver a lanzar sin perder datos ni cambiar claves):
 > `--demo`) pide escribir **BORRAR**: se borran los datos de demo y la numeración
 > empieza de cero. Un cliente real no se convierte en demo.
 
+> **Puerto 80 ocupado** («failed to bind host port 0.0.0.0:80 … address already
+> in use»): el TPV necesita el 80. El instalador lo comprueba al empezar y dice
+> qué lo ocupa. Un servidor web (Apache, Nginx, Lighttpd, Caddy): desde una
+> terminal pregunta si lo para y desactiva (o `sudo systemctl disable --now
+> apache2`). Otro contenedor de Docker: `sudo docker update --restart=no NOMBRE
+> && sudo docker stop NOMBRE`. Para verlo a mano: `sudo ss -ltnp 'sport = :80'` y
+> `sudo docker ps --filter publish=80`.
+
 ## 5. Primer acceso y Puesta en marcha (/admin)
 
 1. Abre `http://<IP>/admin` desde la caja, la red local o Tailscale: sale
