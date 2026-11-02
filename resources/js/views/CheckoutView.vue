@@ -157,6 +157,7 @@
         <OpenCashDialog :open="openCash" @close="openCash = false" @opened="openCash = false; charge()" />
         <SplitSheet :open="splitOpen" @close="splitOpen = false" @split="onSplit" />
         <InvoiceRecipientSheet :open="recipientOpen" :hint="recipientHint" @close="recipientOpen = false; recipientHint = ''" @select="onRecipient" />
+        <PdfViewer :url="pdf?.url" :title="pdf?.title" @close="pdf = null" />
     </main>
 </template>
 
@@ -167,6 +168,7 @@ import AmountKeypad from '@/components/AmountKeypad.vue';
 import DiscountSheet from '@/components/DiscountSheet.vue';
 import InvoiceRecipientSheet from '@/components/InvoiceRecipientSheet.vue';
 import OpenCashDialog from '@/components/OpenCashDialog.vue';
+import PdfViewer from '@/components/PdfViewer.vue';
 import SplitSheet from '@/components/SplitSheet.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import { useRememberedToggle } from '@/composables/useRememberedToggle';
@@ -326,8 +328,10 @@ function onRecipient(c) {
     if (recipientHint.value && remaining.value === 0) charge();
     recipientHint.value = '';
 }
+// En la propia TPV, con «Cerrar y volver»: en el kiosko una pestaña nueva no tiene salida.
+const pdf = ref(null);
 function openPdf(t) {
-    window.open(pos.invoicePdfUrl(t.id), '_blank');
+    pdf.value = { url: pos.invoicePdfUrl(t.id), title: `Factura ${t.number ?? ''}`.trim() };
 }
 async function sendEmail() {
     mailing.value = true;

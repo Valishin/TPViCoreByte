@@ -114,6 +114,7 @@
                 <TpvButton v-else variant="primary" @click="closeOpen = false; closed = null; load()">Hecho</TpvButton>
             </template>
         </ModalDialog>
+        <PdfViewer :url="pdf?.url" :title="pdf?.title" @close="pdf = null" />
     </main>
 </template>
 
@@ -126,6 +127,7 @@ import AnnulSheet from '@/components/AnnulSheet.vue';
 import InvoiceRecipientSheet from '@/components/InvoiceRecipientSheet.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import OpenCashDialog from '@/components/OpenCashDialog.vue';
+import PdfViewer from '@/components/PdfViewer.vue';
 import TextField from '@/components/TextField.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import VoidTicketSheet from '@/components/VoidTicketSheet.vue';
@@ -238,8 +240,10 @@ async function exchange(customer, confirmOtherYear) {
         busy.value = null;
     }
 }
+// En la propia TPV, con «Cerrar y volver»: en el kiosko una pestaña nueva no tiene salida.
+const pdf = ref(null);
 function openPdf(t) {
-    window.open(pos.invoicePdfUrl(t.id), '_blank');
+    pdf.value = { url: pos.invoicePdfUrl(t.id), title: `Factura ${t.number ?? ''}`.trim() };
 }
 function sendEmail(t) {
     guarded(`mail-${t.id}`, async () => {

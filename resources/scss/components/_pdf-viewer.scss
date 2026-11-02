@@ -1,0 +1,35 @@
+@use '../tokens' as *;
+
+// Visor de PDF a pantalla completa (facturas): barra con «Cerrar y volver» arriba.
+.c-pdf-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: $z-modal;
+    display: flex;
+    flex-direction: column;
+    background: $color-bg;
+
+    &__bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $space-3;
+        padding: $space-2 $space-3;
+        border-bottom: 2px solid $color-border;
+        background: $color-surface;
+    }
+
+    &__title {
+        font-size: $font-size-lg;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__frame {
+        flex: 1;
+        width: 100%;
+        border: 0;
+        background: #fff;
+    }
+}
