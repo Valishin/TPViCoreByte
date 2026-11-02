@@ -201,6 +201,9 @@ class PrinterManager
                 case 'feed':
                     $printer->feed($op['lines']);
                     break;
+                case 'spacing':
+                    $printer->setLineSpacing($op['dots']);
+                    break;
                 case 'cut':
                     $printer->cut();
                     break;
@@ -267,6 +270,8 @@ class PrinterManager
                 case 'pulse':
                     $out[] = '[ABRIR CAJÓN]';
                     break;
+                case 'spacing':
+                    break; // el interlineado solo cuenta en papel
                 case 'qr':
                     $out[] = "[QR] {$op['data']}";
                     break;

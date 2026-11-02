@@ -53,6 +53,17 @@ class Ticket
         return $this;
     }
 
+    /**
+     * Interlineado desde aquí (en puntos de 1/203", ESC 3): más aire entre
+     * líneas, p. ej. en la parte de reparto. null vuelve al normal (ESC 2).
+     */
+    public function lineSpacing(?int $dots = null): static
+    {
+        $this->operations[] = ['type' => 'spacing', 'dots' => $dots === null ? null : max(1, min(255, $dots))];
+
+        return $this;
+    }
+
     /** Código QR centrado (p. ej. la dirección en Google Maps). size: 1-16 (tamaño del módulo). */
     public function qr(string $data, int $size = 6): static
     {

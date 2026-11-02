@@ -6,7 +6,10 @@ use App\Models\Order;
 use App\Models\PrintJob;
 use App\Models\Setting;
 use App\Models\Ticket;
+use App\Services\Printing\PrinterManager;
+use App\Services\Printing\Ticket as Printable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class DispatchTest extends TakeawayTestCase
 {
@@ -68,6 +71,26 @@ class DispatchTest extends TakeawayTestCase
             $this->assertStringContainsString($expected, $text);
         }
         $this->assertSame(0, PrintJob::query()->where('kind', 'copia_reparto')->count());
+    }
+
+    public function test_delivery_part_has_more_line_spacing_on_paper(): void
+    {
+        Storage::fake('local');
+        $this->openCash();
+        $id = $this->readyDelivery();
+        $this->dispatchTo($id, $this->javi->id)->assertOk();
+
+        $ticket = Ticket::query()->where('order_id', $id)->sole();
+        $ops = PrintJob::query()->where('ticket_id', $ticket->id)->where('kind', 'ticket')->sole()->content;
+        $spacing = array_values(array_filter($ops, fn ($op) => $op['type'] === 'spacing'));
+        $this->assertSame([60, null], array_column($spacing, 'dots'), 'Más aire en la parte de reparto y luego el normal.');
+        $this->assertSame('DOMICILIO', $ops[array_search($spacing[0], $ops, true) + 1]['text'] ?? null);
+
+        // En papel: ESC 3 n (interlineado) y ESC 2 (normal).
+        $result = (new PrinterManager(['mode' => 'simulated'] + config('printing')))->print((new Printable)->lineSpacing(60)->line('Calle Mayor 1')->lineSpacing());
+        $bin = Storage::disk('local')->get(str_replace('.txt', '.bin', str_replace(Storage::disk('local')->path(''), '', $result['file'])));
+        $this->assertStringContainsString("\x1b3".chr(60), $bin);
+        $this->assertStringContainsString("\x1b2", $bin);
     }
 
     public function test_courier_copy_with_maps_qr_when_enabled(): void

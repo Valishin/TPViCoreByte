@@ -29,6 +29,9 @@ use App\Support\PostalCode;
  */
 class ReceiptFormatter
 {
+    /** Interlineado de la parte de reparto (puntos de 1/203"; el normal son ~30). */
+    private const DELIVERY_LINE_SPACING = 60;
+
     /** Ticket (o factura completa, ver invoice()). Con $copy, marca "COPIA" arriba y abajo. */
     public function ticket(Ticket $ticket, int $columns = 48, bool $copy = false): Printable
     {
@@ -236,6 +239,8 @@ class ReceiptFormatter
     private function deliveryHeader(Printable $p, Ticket $ticket, Order $order): Printable
     {
         $a = $order->delivery_address ?? [];
+        // Parte de reparto con más aire entre líneas: se lee de un vistazo en la puerta.
+        $p->lineSpacing(self::DELIVERY_LINE_SPACING);
         $p->line('DOMICILIO', Printable::ALIGN_CENTER, bold: true, large: true, reverse: true);
         $p->line(trim(($a['street'] ?? '').' '.($a['number'] ?? '')), bold: true, large: true);
         if (! empty($a['floor_door'])) {
@@ -274,6 +279,8 @@ class ReceiptFormatter
             $p->line('PENDIENTE DE COBRO', Printable::ALIGN_CENTER, bold: true, large: true, reverse: true)
                 ->line('TOTAL A COBRAR '.Format::money($ticket->total), Printable::ALIGN_CENTER, bold: true, large: true);
         }
+
+        $p->lineSpacing();   // el resto del ticket, con el interlineado normal
 
         return $p;
     }
