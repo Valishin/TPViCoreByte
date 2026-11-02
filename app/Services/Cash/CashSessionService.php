@@ -115,16 +115,23 @@ class CashSessionService
      */
     public function assertNoOpenOrders(bool $force): void
     {
-        $open = Order::query()->where('status', OrderStatus::Open)->with('table')->get()
-            ->map(fn (Order $o) => ($o->table ? "Mesa {$o->table->name}" : $o->type->label()).' · '.Format::money($o->total));
+        // Cada pedido con la pantalla de la caja donde se resuelve (cobrar, liberar o cancelar).
+        $open = Order::query()->where('status', OrderStatus::Open)->with('table')->oldest('id')->get()
+            ->map(fn (Order $o) => [
+                'label' => ($o->table ? $o->tableLabel() : ($o->type === OrderType::Bar ? 'Venta rápida' : $o->type->label())).' · '.Format::money($o->total),
+                'path' => $o->isTakeawayOrDelivery() ? "/pedidos/{$o->id}" : "/mesas/pedido/{$o->id}",
+            ]);
         // Domicilios con ticket aún sin cobrar (en manos del repartidor).
         $pending = Ticket::query()->where('order_type', OrderType::Delivery)->whereIn('type', TicketType::orderDocuments())
             ->where('status', TicketStatus::Issued)->where('payment_status', PaymentStatus::Pending)->with('order.courier')->get()
-            ->map(fn (Ticket $t) => "Domicilio {$t->fullNumber()} sin cobrar".($t->order?->courier ? " ({$t->order->courier->name})" : '').' · '.Format::money($t->total - $t->paidAmount()));
+            ->map(fn (Ticket $t) => [
+                'label' => "Domicilio {$t->fullNumber()} sin cobrar".($t->order?->courier ? " ({$t->order->courier->name})" : '').' · '.Format::money($t->total - $t->paidAmount()),
+                'path' => '/repartidores',
+            ]);
 
-        $all = $open->concat($pending)->values()->all();
-        if ($all && ! $force) {
-            throw new OpenOrdersException($all);
+        $all = $open->concat($pending)->values();
+        if ($all->isNotEmpty() && ! $force) {
+            throw new OpenOrdersException($all->pluck('label')->all(), $all->all());
         }
     }
 

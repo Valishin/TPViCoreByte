@@ -19,7 +19,8 @@ const pos = {
             })
             .then((r) => (r.status === 304 ? null : r.data)),
 
-    rooms: () => api.get('/rooms').then((r) => r.data.data),
+    /** Salas con sus mesas y los pedidos abiertos que el plano no enseña ({ data, unplaced }). */
+    rooms: () => api.get('/rooms').then((r) => r.data),
     openTable: (tableId, guests) => api.post(`/tables/${tableId}/open`, { guests }).then((r) => r.data.data),
 
     order: (id) => api.get(`/orders/${id}`).then((r) => r.data.data),

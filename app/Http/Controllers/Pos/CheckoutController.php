@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pos;
 
 use App\Enums\AuthorizationAction;
 use App\Enums\DiscountType;
+use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Events\Pos\OrderUpdated;
 use App\Http\Controllers\Controller;
@@ -31,9 +32,13 @@ class CheckoutController extends Controller
     /** Venta rápida de barra (sin mesa). */
     public function quickSale(Request $request): JsonResponse
     {
-        $order = $this->orders->open(OrderType::Bar, $request->user());
+        // Si este camarero ya tiene una venta rápida vacía abierta, se reutiliza: pulsar varias
+        // veces «Venta rápida» y salir sin cobrar dejaba pedidos vacíos abiertos para siempre.
+        $empty = Order::query()->where('status', OrderStatus::Open)->where('type', OrderType::Bar)
+            ->where('opened_by', $request->user()->id)->whereDoesntHave('lines')->oldest('id')->first();
+        $order = $empty ?? $this->orders->open(OrderType::Bar, $request->user());
 
-        return response()->json(['data' => (new OrderResource($order))->resolve($request)], 201);
+        return response()->json(['data' => (new OrderResource($order))->resolve($request)], $empty ? 200 : 201);
     }
 
     public function checkout(Request $request, Order $order, CheckoutService $checkout): JsonResponse

@@ -3,7 +3,7 @@ import pos from '@/services/pos';
 
 /** Plano: salas y mesas con el resumen de su pedido abierto. */
 export const useFloorStore = defineStore('floor', {
-    state: () => ({ rooms: [], roomId: null, loaded: false }),
+    state: () => ({ rooms: [], unplaced: [], roomId: null, loaded: false }),
     getters: {
         currentRoom: (s) => s.rooms.find((r) => r.id === s.roomId) ?? s.rooms[0],
         tables: (s) => s.rooms.flatMap((r) => r.tables.map((t) => ({ ...t, room: r.name }))),
@@ -13,7 +13,9 @@ export const useFloorStore = defineStore('floor', {
     },
     actions: {
         async load() {
-            this.rooms = await pos.rooms();
+            const result = await pos.rooms();
+            this.rooms = result.data;
+            this.unplaced = result.unplaced ?? [];
             if (!this.rooms.some((r) => r.id === this.roomId)) {
                 this.roomId = this.rooms[0]?.id ?? null;
             }

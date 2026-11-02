@@ -92,7 +92,12 @@
                 <p class="v-checkout__change" :class="{ 'v-checkout__change--short': difference < 0 }">Diferencia <strong>{{ money(difference) }}</strong></p>
                 <TextField v-model="notes" label="Notas" :maxlength="500" />
                 <div v-if="openOrders.length" class="c-alert c-alert--warning" style="margin-top: 1rem">
-                    <span class="c-alert__text">Hay pedidos abiertos o sin cobrar: {{ openOrders.join(', ') }}. Si cierras, quedarán pendientes para la próxima caja.</span>
+                    <span class="c-alert__text">Hay pedidos abiertos o sin cobrar. Tócalos para cobrarlos, liberarlos o cancelarlos; si cierras igualmente, quedarán pendientes para la próxima caja.</span>
+                </div>
+                <div v-if="openOrders.length" class="c-options v-cash__open-orders">
+                    <button v-for="(item, i) in openOrders" :key="i" type="button" class="c-option" :disabled="!item.path" @click="goToOrder(item)">
+                        {{ item.label }} <span v-if="item.path" class="c-option__extra">Abrir →</span>
+                    </button>
                 </div>
             </template>
             <template v-else>
@@ -242,6 +247,11 @@ function sendEmail(t) {
         t.email = { to: e.to, status: e.status };
     }, () => notices.success(`Factura ${t.number} en cola para ${t.email.to}`));
 }
+/** Desde el cierre Z, al pedido abierto para resolverlo (cobrar, liberar, cancelar). */
+function goToOrder(item) {
+    closeOpen.value = false;
+    router.push(item.path);
+}
 async function closeCash(force) {
     // El arqueo se fija al pulsar: lo que pase después (autorización) no lo cambia.
     const payload = {
@@ -256,7 +266,10 @@ async function closeCash(force) {
         closed.value = await authorize.withAuthorization('cerrar_caja', (token) => pos.closeCash({ ...payload, authorization_token: token }));
         cash.value = null;
     } catch (e) {
-        if (errorCode(e) === 'open_orders') openOrders.value = e.response.data.orders;
+        if (errorCode(e) === 'open_orders') {
+            const data = e.response.data;
+            openOrders.value = data.items?.length ? data.items : data.orders.map((label) => ({ label, path: null }));
+        }
         else if (!isCancelled(e)) notices.error(errorMessage(e));
     } finally {
         busy.value = null;

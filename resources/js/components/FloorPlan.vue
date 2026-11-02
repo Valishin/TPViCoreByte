@@ -42,6 +42,7 @@
 import { computed } from 'vue';
 import TableCard from './TableCard.vue';
 import { useUiStore } from '@/stores/ui';
+import { layoutTables } from '@/utils/floorLayout';
 import { groupLinks } from '@/utils/tableGroups';
 
 const props = defineProps({
@@ -66,15 +67,18 @@ const sorted = computed(() =>
     }),
 );
 
-// Cuadrícula del plano: cada mesa ocupa 2×2 celdas por unidad de tamaño.
-const cols = computed(() => Math.max(6, ...props.tables.map((t) => t.x + t.w * 2 + 1)));
-const rows = computed(() => Math.max(4, ...props.tables.map((t) => t.y + t.h * 2 + 1)));
-const links = computed(() => groupLinks(props.tables));
+// Cuadrícula del plano: cada mesa ocupa 2×2 celdas por unidad de tamaño, sin superponerse.
+const layout = computed(() => layoutTables(props.tables));
+const placedTables = computed(() => props.tables.map((t) => ({ ...t, ...layout.value.get(t.id) })));
+const cols = computed(() => Math.max(6, ...placedTables.value.map((t) => t.x + t.w * 2 + 1)));
+const rows = computed(() => Math.max(4, ...placedTables.value.map((t) => t.y + t.h * 2 + 1)));
+const links = computed(() => groupLinks(placedTables.value));
 
 function planStyle(t) {
+    const p = layout.value.get(t.id) ?? t;
     return {
-        gridColumn: `${t.x + 1} / span ${t.w * 2}`,
-        gridRow: `${t.y + 1} / span ${t.h * 2}`,
+        gridColumn: `${p.x + 1} / span ${p.w * 2}`,
+        gridRow: `${p.y + 1} / span ${p.h * 2}`,
     };
 }
 const markOf = (t) => props.marks?.(t)?.mark ?? null;

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use App\Enums\TableShape;
 use App\Enums\TableStatus;
+use App\Support\FloorLayout;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +35,14 @@ class Table extends Model
 
     protected static function booted(): void
     {
+        // Mesa nueva sin sitio en el plano (p. ej. creada en /admin): al primer hueco libre de su sala.
+        static::creating(function (Table $table): void {
+            $table->pos_x ??= 0;
+            $table->pos_y ??= 0;
+            if ($table->room_id && FloorLayout::collides($table)) {
+                [$table->pos_x, $table->pos_y] = FloorLayout::freeSlot($table->room_id, (int) ($table->width ?: 1), (int) ($table->height ?: 1));
+            }
+        });
         static::saving(function (Table $table) {
             if ($table->exists && $table->isDirty('is_active') && ! $table->is_active && $table->isInUse()) {
                 throw ValidationException::withMessages([

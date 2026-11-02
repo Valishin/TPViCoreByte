@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Pos;
 
 use App\Enums\OrderStatus;
+use App\Enums\OrderType;
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\OrderTable;
 use App\Models\Room;
 use App\Models\Table;
@@ -42,15 +44,43 @@ class RoomController extends Controller
             }
         }
 
-        return response()->json(['data' => $rooms->map(fn (Room $room) => [
-            'id' => $room->id,
-            'name' => $room->name,
-            'tables' => $room->tables->map(fn (Table $table) => self::table($table))->values(),
-        ])]);
+        return response()->json([
+            'data' => $rooms->map(fn (Room $room) => [
+                'id' => $room->id,
+                'name' => $room->name,
+                'tables' => $room->tables->map(fn (Table $table) => self::table($table))->values(),
+            ]),
+            'unplaced' => self::unplaced($rooms),
+        ]);
     }
 
     /** @var array<int, array<string, mixed>> mesa => grupo (mesas unidas) */
     private static array $groups = [];
+
+    /**
+     * Pedidos abiertos de sala que el plano no enseña: ventas rápidas de barra
+     * sin cobrar, o mesas fuera de servicio o de una sala desactivada. Salen en
+     * una franja encima del plano para que nunca se queden abiertos sin acceso
+     * (y el Z no los arrastre para siempre).
+     */
+    private static function unplaced($rooms): array
+    {
+        $visible = $rooms->flatMap(fn (Room $room) => $room->tables->pluck('id'))->all();
+
+        return Order::query()->where('status', OrderStatus::Open)->whereIn('type', [OrderType::Bar, OrderType::Table])
+            ->where(fn ($q) => $q->whereNull('table_id')->orWhereNotIn('table_id', $visible ?: [0]))
+            ->with(['openedBy', 'table.room', 'lines' => fn ($l) => $l->whereNull('parent_line_id')->whereNull('voided_at')])
+            ->oldest('id')->get()
+            ->map(fn (Order $o) => self::order($o) + [
+                'type' => $o->type->value,
+                'label' => $o->table ? "Mesa {$o->table->name}" : 'Venta rápida',
+                'reason' => match (true) {
+                    $o->table === null => 'sin mesa',
+                    ! $o->table->room?->is_active => "sala {$o->table->room?->name} desactivada",
+                    default => 'mesa fuera de servicio',
+                },
+            ])->values()->all();
+    }
 
     public static function table(Table $table): array
     {

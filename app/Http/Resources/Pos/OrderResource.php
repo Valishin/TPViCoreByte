@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Pos;
 
+use App\Enums\OrderType;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\PrintJob;
@@ -42,7 +43,7 @@ class OrderResource extends JsonResource
                 ->whereKeyNot($this->id)->orderBy('id')->get(['id', 'total'])->map(fn ($o) => ['id' => $o->id, 'total' => $o->total])->values() : [],
             'merged_into_order_id' => $this->merged_into_order_id,
             'precheck_printed' => $this->resource->prechecks()->exists(),
-            'release_blocker' => $this->table_id && $this->resource->isOpen() ? app(OrderService::class)->releaseBlocker($this->resource) : null,
+            'release_blocker' => ($this->table_id || $this->type === OrderType::Bar) && $this->resource->isOpen() ? app(OrderService::class)->releaseBlocker($this->resource) : null,
             'guests' => $this->guests,
             'notes' => $this->notes,
             'opened_at' => $this->opened_at->toIso8601String(),

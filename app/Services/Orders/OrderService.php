@@ -505,7 +505,7 @@ class OrderService
     {
         return match (true) {
             ! $order->isOpen() => 'El pedido ya no está abierto.',
-            $order->type !== OrderType::Table => 'Solo se pueden liberar mesas.',
+            ! in_array($order->type, [OrderType::Table, OrderType::Bar], true) => 'Solo se pueden liberar mesas y ventas rápidas.',
             $order->lines()->whereNotNull('sent_at')->exists() => 'Ya se envió a cocina: anula las líneas o cobra la mesa.',
             Precheck::query()->where('order_id', $order->id)->exists() => 'Ya se imprimió la cuenta: cobra la mesa o anula las líneas.',
             $order->tickets()->exists() => 'La mesa ya tiene ticket.',

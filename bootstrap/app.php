@@ -75,7 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
         $exceptions->render(function (OpenOrdersException $e, Request $request) {
             if ($request->is('api/*')) {
-                return response()->json(['message' => $e->getMessage(), 'code' => 'open_orders', 'orders' => $e->orders], 409);
+                return response()->json(['message' => $e->getMessage(), 'code' => 'open_orders', 'orders' => $e->orders, 'items' => $e->items], 409);
             }
         });
 

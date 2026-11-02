@@ -15,6 +15,20 @@
         <TpvButton variant="primary" :loading="quick" @click="quickSale">Venta rápida</TpvButton>
         </div>
 
+        <!-- Pedidos abiertos que el plano no enseña (venta rápida sin cobrar, sala desactivada…): nunca se pierden -->
+        <section v-if="floor.unplaced.length" class="v-floor__unplaced" aria-label="Otros pedidos abiertos">
+            <p class="v-floor__unplaced-title">Otros pedidos abiertos ({{ floor.unplaced.length }})</p>
+            <div class="v-floor__unplaced-list">
+                <button v-for="o in floor.unplaced" :key="o.id" type="button" class="c-option v-floor__unplaced-item" @click="openOrder(o.id)">
+                    <span>
+                        <strong>{{ o.label }}</strong>
+                        <span class="c-option__extra">{{ o.reason }} · {{ o.summary || 'sin productos' }} · {{ duration(minutesSince(o.opened_at, now)) }}<template v-if="o.waiter"> · {{ o.waiter.name }}</template></span>
+                    </span>
+                    <strong>{{ money(o.total) }}</strong>
+                </button>
+            </div>
+        </section>
+
         <p v-if="floor.loaded && !floor.rooms.length" class="v-floor__empty">No hay salas. Créalas en el backoffice (/admin → Sala).</p>
 
         <FloorPlan v-if="floor.currentRoom" :tables="floor.currentRoom.tables" :all-tables="floor.tables" :now="now" @select="select" />
@@ -60,7 +74,7 @@ import GuestsDialog from '@/components/GuestsDialog.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import pos, { errorMessage } from '@/services/pos';
-import { money } from '@/utils/format';
+import { duration, minutesSince, money } from '@/utils/format';
 import { useFloorStore } from '@/stores/floor';
 import { useNoticesStore } from '@/stores/notices';
 

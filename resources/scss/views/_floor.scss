@@ -58,4 +58,34 @@
         color: $color-text-muted;
         text-align: center;
     }
+
+    // Pedidos abiertos fuera del plano: avisan en naranja y se abren con un toque.
+    &__unplaced {
+        padding: $space-3;
+        border: 2px solid $color-warning;
+        border-radius: $radius-lg;
+        background: $color-pending-bg;
+    }
+
+    &__unplaced-title {
+        margin-bottom: $space-2;
+        font-weight: $font-weight-bold;
+    }
+
+    &__unplaced-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: $space-2;
+    }
+
+    &__unplaced-item {
+        width: 100%;
+        min-height: calc(#{$touch-target} * 1.2);
+
+        > span {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
 }

@@ -12,14 +12,14 @@
                 </span>
                 <!-- Separado de las acciones frecuentes -->
                 <TpvButton
-                    v-if="o?.type === 'mesa'"
+                    v-if="o?.type === 'mesa' || o?.type === 'barra'"
                     variant="ghost"
                     :class="['v-order__release', { 'v-order__release--blocked': o.release_blocker }]"
                     :aria-disabled="o.release_blocker ? 'true' : undefined"
                     :title="o.release_blocker || ''"
                     @click="askRelease"
                 >
-                    {{ o.other_accounts?.length ? 'Liberar esta cuenta' : 'Liberar mesa' }}
+                    {{ o.type === 'barra' ? 'Descartar venta' : o.other_accounts?.length ? 'Liberar esta cuenta' : 'Liberar mesa' }}
                 </TpvButton>
             </div>
             <template v-if="isTakeaway">
@@ -123,7 +123,7 @@
         <ModalDialog :open="releaseOpen" :title="releaseTitle" :text="releaseText" danger @close="releaseOpen = false">
             <template #actions>
                 <TpvButton variant="ghost" @click="releaseOpen = false">Volver</TpvButton>
-                <TpvButton variant="danger" :loading="releasing" @click="release">{{ o?.other_accounts?.length ? 'Liberar esta cuenta' : 'Liberar mesa' }}</TpvButton>
+                <TpvButton variant="danger" :loading="releasing" @click="release">{{ o?.type === 'barra' ? 'Descartar venta' : o?.other_accounts?.length ? 'Liberar esta cuenta' : 'Liberar mesa' }}</TpvButton>
             </template>
         </ModalDialog>
 
@@ -232,10 +232,12 @@ const otherPrinters = computed(() => notices.printers.filter((p) => p.id !== fai
 const types = { barra: 'Barra', para_llevar: 'Para llevar', domicilio: 'Domicilio' };
 const where = computed(() => (o.value?.table ? `${o.value.table_label} · ${o.value.table.room}` : types[o.value?.type] ?? 'Pedido'));
 const joinedTables = computed(() => (o.value?.tables ?? []).filter((t) => !t.is_main));
-const releaseTitle = computed(() => (o.value?.other_accounts?.length ? '¿Liberar esta cuenta?' : `¿Liberar ${o.value?.table_label ?? 'la mesa'}?`));
+const releaseTitle = computed(() => (o.value?.type === 'barra' ? '¿Descartar esta venta?'
+    : o.value?.other_accounts?.length ? '¿Liberar esta cuenta?' : `¿Liberar ${o.value?.table_label ?? 'la mesa'}?`));
 const releaseText = computed(() => {
     const pending = order.pendingCount;
     const parts = [pending === 1 ? 'Se descartará 1 producto sin enviar.' : pending ? `Se descartarán ${pending} productos sin enviar.` : 'No hay productos.'];
+    if (o.value?.type === 'barra') return parts.join(' ');
     parts.push(o.value?.other_accounts?.length
         ? `La mesa ${o.value.table.name} sigue abierta con su otra cuenta.`
         : `${(o.value?.tables?.length ?? 1) > 1 ? 'Las mesas quedan libres' : 'La mesa queda libre'} (abierta por error).`);
@@ -456,7 +458,7 @@ async function release() {
         await pos.releaseTable(o.value.id);
         releaseOpen.value = false;
         floor.refresh();
-        notices.success('Mesa liberada');
+        notices.success(o.value?.type === 'barra' ? 'Venta descartada' : 'Mesa liberada');
         order.clear();
         router.replace('/mesas');
     } catch (e) {
