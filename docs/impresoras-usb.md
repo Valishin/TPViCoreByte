@@ -155,6 +155,8 @@ petición web, con o sin pcntl.
 |---|---|
 | Impresora no conectada: no existe el dispositivo … | Cable, alimentación, `ls -l /dev/usb/`, regla udev (`udevadm test`), módulo `usblp`. |
 | … sin permiso de escritura … | Grupo `lp` y `group_add` con el GID correcto. |
-| Impresora USB sin respuesta en … | Impresora sin papel, con la tapa abierta o en error: se corta a los `PRINTER_TIMEOUT` segundos (3) y queda como envío fallido con *Reintentar* / *Enviar a otra*. |
+| Impresora USB sin respuesta en … | Impresora sin papel, con la tapa abierta o en error: se corta si pasa `PRINTER_USB_IDLE_TIMEOUT` segundos (3) **sin aceptar nada** o si el ticket supera `PRINTER_USB_MAX_SECONDS` (15), y queda como envío fallido con *Reintentar* / *Enviar a otra*. |
+| … a mitad del ticket | Ya había salido una parte: **no se reintenta solo** (evita tickets duplicados). Mira qué ha salido antes de pulsar *Reintentar*. |
+| Sale el ticket sin el final o sin cortar | Corregido: antes se cerraba el dispositivo con el último trozo aún en camino y el driver `usblp` lo descartaba. Ahora se espera a que lo termine de enviar. |
 | Caracteres raros (Ã±, â‚¬) | Página de códigos de la impresora (prueba 16, 19 o vacío). |
 | Imprime bien en el host pero no en Docker | `docker compose exec printing ls -l /dev/usb/` y que exista `compose.override.yaml`. |

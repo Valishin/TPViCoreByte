@@ -6,6 +6,7 @@ use App\Enums\PrinterStatus;
 use App\Enums\PrintJobStatus;
 use App\Models\PrintJob;
 use App\Services\Printing\PrinterManager;
+use App\Services\Printing\PrintWriteException;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use RuntimeException;
@@ -39,7 +40,18 @@ class ProcessPrintJob implements ShouldQueue
         $job->increment('attempts');
         $printer = $job->printer ?? throw new RuntimeException('La impresora ya no existe.');
 
-        $manager->forPrinter($printer)->print($job->printable());
+        try {
+            $manager->forPrinter($printer)->print($job->printable());
+        } catch (PrintWriteException $e) {
+            // Si algo llegó a la impresora, el ticket puede haber salido a medias: reintentarlo
+            // solo lo duplicaría. Queda fallido para «Reintentar» a mano (nunca se reimprime solo).
+            if ($e->bytesWritten > 0) {
+                $this->job ? $this->fail($e) : $this->failed($e);   // fail() no reintenta y llama a failed()
+
+                return;
+            }
+            throw $e;   // no llegó nada (desconectada, sin permiso…): se reintenta
+        }
 
         $job->update(['status' => PrintJobStatus::Printed, 'printed_at' => now(), 'error' => null]);
 

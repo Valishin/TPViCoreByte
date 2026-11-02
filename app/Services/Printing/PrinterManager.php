@@ -112,7 +112,9 @@ class PrinterManager
         $bytes = $dummy->getData();
         $dummy->finalize();
 
-        app(UsbDeviceWriter::class)->write($path, $bytes, (int) $this->config['network']['timeout']);
+        app(UsbDeviceWriter::class)->write($path, $bytes,
+            (int) ($this->config['usb']['idle_timeout'] ?? $this->config['network']['timeout']),
+            (int) ($this->config['usb']['max_seconds'] ?? 15));
 
         return ['mode' => self::MODE_REAL, 'bytes' => strlen($bytes), 'target' => $path];
     }
@@ -212,12 +214,18 @@ class PrinterManager
                     break;
                 case 'tax_qr':
                     // Ráster a 203 ppp (8 puntos/mm): el tamaño en papel no depende del modelo de impresora.
-                    $file = tempnam(sys_get_temp_dir(), 'qr').'.png';
-                    file_put_contents($file, TaxQr::png($op['data'], (int) config('printing.dots_per_mm', 8)));
-                    $printer->setJustification(Printer::JUSTIFY_CENTER);
-                    $printer->bitImage(EscposImage::load($file, false));
-                    $printer->setJustification(Printer::JUSTIFY_LEFT);
-                    @unlink($file);
+                    // tempnam() ya crea un fichero vacío: se borran los dos (antes quedaba el vacío).
+                    $base = tempnam(sys_get_temp_dir(), 'qr');
+                    $file = $base.'.png';
+                    try {
+                        file_put_contents($file, TaxQr::png($op['data'], (int) config('printing.dots_per_mm', 8)));
+                        $printer->setJustification(Printer::JUSTIFY_CENTER);
+                        $printer->bitImage(EscposImage::load($file, false));
+                        $printer->setJustification(Printer::JUSTIFY_LEFT);
+                    } finally {
+                        @unlink($file);
+                        @unlink($base);
+                    }
                     break;
             }
         }

@@ -17,6 +17,10 @@ return [
 
     'usb' => [
         'device_path' => env('PRINTER_DEVICE', '/dev/usb/lp0'),
+        // «Sin respuesta»: segundos sin que la impresora acepte nada (se reinicia con cada trozo).
+        'idle_timeout' => (int) env('PRINTER_USB_IDLE_TIMEOUT', env('PRINTER_TIMEOUT', 3)),
+        // Máximo total de un ticket (por debajo del timeout de ProcessPrintJob).
+        'max_seconds' => (int) env('PRINTER_USB_MAX_SECONDS', 15),
     ],
 
     // sysfs del equipo para detectar las impresoras USB (UsbPrinterDetector).
