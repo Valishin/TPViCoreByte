@@ -124,6 +124,17 @@
     gap: $space-2;
 }
 
+// Comensales: «Más de 8» ocupa la fila entera bajo el 1-8; «8 o menos» bajo el teclado.
+.c-guests__more {
+    grid-column: 1 / -1;
+    justify-content: center;
+    gap: $space-2;
+}
+
+.c-guests__back {
+    margin-top: $space-3;
+}
+
 // Campo de texto
 .c-field {
     display: flex;
