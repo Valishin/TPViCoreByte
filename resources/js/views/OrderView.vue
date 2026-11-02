@@ -135,6 +135,15 @@
             </template>
         </ModalDialog>
 
+        <!-- Llevar / domicilio: forma de pago y cambio al enviar (si aún no se ha elegido) -->
+        <BottomSheet :open="!!paymentAsk" title="Forma de pago" @close="answerPayment(false)">
+            <TakeawayPaymentPicker v-model="paymentChoice" :total="o?.total ?? 0" :card-label="o?.type === 'domicilio' ? 'Tarjeta (datáfono del repartidor)' : 'Tarjeta'" />
+            <template #footer>
+                <TpvButton variant="ghost" @click="answerPayment(false)">Volver</TpvButton>
+                <TpvButton variant="primary" block :loading="savingPayment" @click="savePaymentAndSend">Enviar</TpvButton>
+            </template>
+        </BottomSheet>
+
         <DispatchSheet v-if="o?.type === 'domicilio'" :order="dispatching" :busy="sending" :invoice-hint="invoiceHint" @confirm="dispatchTo" @close="dispatching = null" />
 
         <BottomSheet :open="cancelOpen" title="Cancelar pedido" @close="cancelOpen = false">
@@ -178,6 +187,7 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductConfigurator from '@/components/ProductConfigurator.vue';
 import DispatchSheet from '@/components/DispatchSheet.vue';
 import TakeawayHeader from '@/components/TakeawayHeader.vue';
+import TakeawayPaymentPicker from '@/components/TakeawayPaymentPicker.vue';
 import TextField from '@/components/TextField.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import pos, { errorCode, errorMessage } from '@/services/pos';
@@ -334,8 +344,39 @@ async function sendBelowMinimum() {
     }
 }
 
+// Forma de pago y cambio: se piden al enviar un pedido de llevar / domicilio que aún no la tiene.
+const paymentAsk = ref(null);
+const paymentChoice = ref({ payment: 'efectivo', cash_change_for: null });
+const savingPayment = ref(false);
+function needsPayment() {
+    const t = o.value?.takeaway;
+    return !!t && !t.planned_payment_method && !t.prepaid_method;
+}
+function askPayment() {
+    paymentChoice.value = { payment: 'efectivo', cash_change_for: null };
+    return new Promise((resolve) => {
+        paymentAsk.value = { resolve };
+    });
+}
+function answerPayment(ok) {
+    paymentAsk.value?.resolve(ok);
+    paymentAsk.value = null;
+}
+async function savePaymentAndSend() {
+    savingPayment.value = true;
+    try {
+        order.order = (await pos.updateTakeaway(o.value.id, paymentChoice.value)).data;
+        answerPayment(true);
+    } catch (e) {
+        notices.error(errorMessage(e));
+    } finally {
+        savingPayment.value = false;
+    }
+}
+
 async function send() {
     if (isTakeaway.value) {
+        if (needsPayment() && !(await askPayment())) return;
         sending.value = true;
         try {
             sent(await order.send());

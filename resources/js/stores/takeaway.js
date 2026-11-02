@@ -72,5 +72,5 @@ export const PAYMENT_LABELS = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', bizum:
 
 export function paymentLabel(order) {
     if (order.prepaid_method) return `Pagado (${PAYMENT_LABELS[order.prepaid_method]})`;
-    return PAYMENT_LABELS[order.planned_payment_method] ?? '—';
+    return PAYMENT_LABELS[order.planned_payment_method] ?? 'Pago sin elegir';
 }
