@@ -1,8 +1,26 @@
+# Une el equipo a Tailscale con la clave de /admin (ver /usr/local/sbin/tpv-tailscale-join).
+# Root solo para `tailscale up`; la carpeta compartida se usa como el usuario de la app.
 [Unit]
 Description=TPV: unir el equipo a Tailscale con la clave de /admin
 After=network-online.target tailscaled.service
 Wants=network-online.target
+# Si la clave no se pudiera borrar, no reintentar en bucle.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/tpv-tailscale-join
+# /run/tpv-tailscale (700, root): la copia de la clave para tailscale; systemd la borra al terminar.
+RuntimeDirectory=tpv-tailscale
+RuntimeDirectoryMode=0700
+UMask=0077
+TimeoutStartSec=150
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

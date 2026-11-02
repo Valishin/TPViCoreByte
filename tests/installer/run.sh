@@ -103,24 +103,68 @@ check "impresora-04b8-0202-x5e8012345" '[ "$(SYSFS=$S sh "$SRC/scripts/install/h
 rm "$S/devices/usb1/1-1/serial"
 check "sin número de serie" '[ "$(SYSFS=$S sh "$SRC/scripts/install/host/impresora-usb-nombre" /devices/usb1/1-1/1-1:1.0/usbmisc/lp0)" = impresora-04b8-0202 ]'
 
-echo "▸ Servicio de Tailscale (tailscale simulado)"
-T=/tmp/ts; rm -rf "$T"; mkdir -p "$T/dir" "$T/bin"
+echo "▸ Servicio de Tailscale (tailscale simulado, carpeta del usuario 1000)"
+id -u tpvapp >/dev/null 2>&1 || useradd -u 1000 -M tpvapp
+T=/tmp/ts; rm -rf "$T"; mkdir -p "$T/dir" "$T/bin" "$T/run"
+chown 1000:1000 "$T/dir"; chmod 700 "$T/dir"
+# tailscale simulado: anota con qué argumentos se le llama y qué clave lee del fichero.
 cat > "$T/bin/tailscale" <<'TS'
 #!/bin/sh
 case "$1" in
-    up) [ "$FAKE_TS" = ok ] && exit 0; echo "backend error: invalid key: unable to validate API key" >&2; exit 1 ;;
-    status) [ "$FAKE_TS" = ok ] && echo "100.64.1.2   tpv-bella   alex@   linux   -" && exit 0; echo "Logged out." ; exit 1 ;;
+    up)
+        echo "$*" > /tmp/ts/argv
+        for a in "$@"; do case "$a" in file:*) cat "${a#file:}" > /tmp/ts/key-leida ;; esac; done
+        [ "$FAKE_TS" = lento ] && sleep 10
+        [ "$FAKE_TS" = ok ] && exit 0
+        echo "backend error: invalid key: tskey-auth-kAbc123CNTRL-xyz987 rejected" >&2; exit 1 ;;
+    status) [ "$FAKE_TS" = ok ] && echo "100.64.1.2   tpv-bella   alex@   linux   -" && exit 0; echo "Logged out."; exit 1 ;;
 esac
 TS
 chmod +x "$T/bin/tailscale"
-printf '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella"}' > "$T/dir/authkey"
-FAKE_TS=ok TAILSCALE_BIN="$T/bin/tailscale" TPV_TAILSCALE_DIR="$T/dir" TPV_APP_UID=0 bash "$SRC/scripts/install/host/tpv-tailscale-join"
-check "conectado: borra la clave y deja el estado" '[ ! -e "$T/dir/authkey" ] && grep -q "\"state\":\"conectado\"" "$T/dir/status.json" && grep -q "100.64.1.2" "$T/dir/status.json"'
-check "status.json 600" '[ "$(stat -c %a "$T/dir/status.json")" = 600 ]'
-printf '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella"}' > "$T/dir/authkey"
-FAKE_TS=mal TAILSCALE_BIN="$T/bin/tailscale" TPV_TAILSCALE_DIR="$T/dir" TPV_APP_UID=0 bash "$SRC/scripts/install/host/tpv-tailscale-join"
-check "si falla: también borra la clave y deja el error" '[ ! -e "$T/dir/authkey" ] && grep -q "\"state\":\"error\"" "$T/dir/status.json" && grep -q "invalid key" "$T/dir/status.json"'
-check "la clave no queda en el estado" '! grep -q tskey "$T/dir/status.json"'
+join() { # join <modo tailscale>
+    rm -f "$T/argv" "$T/key-leida"
+    FAKE_TS="$1" TAILSCALE_BIN="$T/bin/tailscale" TPV_TAILSCALE_DIR="$T/dir" TPV_APP_UID=1000 RUNTIME_DIRECTORY="$T/run" TPV_TAILSCALE_TIMEOUT=2 \
+        bash "$SRC/scripts/install/host/tpv-tailscale-join"
+}
+key() { printf '%s' "$1" > "$T/dir/authkey"; chown 1000:1000 "$T/dir/authkey"; }
+state() { sed -n 's/.*"state":"\([^"]*\)".*/\1/p' "$T/dir/status.json"; }
+
+key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella"}'; join ok
+check "conectado: borra la clave y deja el estado" '[ ! -e "$T/dir/authkey" ] && [ "$(state)" = conectado ] && grep -q "100.64.1.2" "$T/dir/status.json"'
+check "status.json 600 y del usuario de la app" '[ "$(stat -c "%a %u" "$T/dir/status.json")" = "600 1000" ]'
+check "la clave NO va en la línea de órdenes (ps)" '! grep -q tskey "$T/argv" && grep -q -- "--auth-key file:" "$T/argv"'
+check "tailscale lee la clave del fichero" '[ "$(cat "$T/key-leida")" = tskey-auth-kAbc123CNTRL-xyz987 ]'
+check "la copia de la clave se borra al terminar" '[ ! -e "$T/run/authkey" ]'
+
+key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella"}'; join mal
+check "si falla: borra la clave y deja el error" '[ ! -e "$T/dir/authkey" ] && [ "$(state)" = error ] && grep -q "invalid key" "$T/dir/status.json"'
+check "el error no repite la clave" '! grep -q tskey-auth "$T/dir/status.json" && grep -q "\[clave\]" "$T/dir/status.json" && [ ! -e "$T/run/authkey" ]'
+
+key '{"authkey":"tskey-auth-kAbc12'; join ok
+check "clave cortada: error y no se llama a tailscale" '[ "$(state)" = error ] && grep -q "llegó cortada" "$T/dir/status.json" && [ ! -e "$T/argv" ] && [ ! -e "$T/dir/authkey" ]'
+key 'basura $(touch /tmp/pwned) `id`'; join ok
+check "contenido corrupto: error, sin ejecutar nada" '[ "$(state)" = error ] && [ ! -e /tmp/pwned ] && [ ! -e "$T/argv" ]'
+key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"x; rm -rf /"}'; join ok
+check "nombre de equipo raro → tpv" 'grep -q -- "--hostname tpv " "$T/argv"'
+
+setpriv --reuid=1000 --regid=1000 --clear-groups mkfifo "$T/dir/authkey"
+timeout 30 bash -c "$(declare -f join); T=$T SRC=$SRC; join ok"; code=$?
+check "una tubería en vez de fichero no cuelga el servicio" '[ "$code" != 124 ] && [ ! -e "$T/dir/authkey" ] && [ "$(state)" = error ]'
+
+echo "secreto-de-root" > /tmp/solo-root; chmod 600 /tmp/solo-root
+setpriv --reuid=1000 --regid=1000 --clear-groups ln -s /tmp/solo-root "$T/dir/authkey"
+join ok
+check "un enlace a un fichero de root no se lee" '! grep -q secreto "$T/dir/status.json" && [ "$(state)" = error ] && [ ! -e "$T/argv" ]'
+rm -f "$T/dir/status.json"
+setpriv --reuid=1000 --regid=1000 --clear-groups ln -s /tmp/solo-root "$T/dir/status.json"
+key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella"}'; join ok
+check "un enlace en status.json no hace escribir a root fuera de la carpeta" '[ "$(cat /tmp/solo-root)" = secreto-de-root ] && [ ! -L "$T/dir/status.json" ] && [ "$(state)" = conectado ]'
+
+key '{"authkey":"tskey-auth-kAbc123CNTRL-xyz987","hostname":"tpv-bella"}'; join lento
+check "tailscale colgado: se corta y lo explica" '[ "$(state)" = error ] && grep -q "no ha respondido" "$T/dir/status.json" && [ ! -e "$T/run/authkey" ]'
+
+FAKE_TS=ok TAILSCALE_BIN="$T/bin/tailscale" TPV_TAILSCALE_DIR="$T/dir" TPV_APP_UID=1000 bash "$SRC/scripts/install/host/tpv-tailscale-join" --status
+check "--status refresca el estado" '[ "$(state)" = conectado ]'
 
 echo
 echo "Resultado: $PASS correctas, $FAIL fallidas"

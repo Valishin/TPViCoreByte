@@ -54,6 +54,10 @@ class TailscaleBridgeTest extends FilamentTestCase
         $this->assertStringContainsString('Conectado como tpv-bella-napoli (100.64.1.2)', TailscaleBridge::describe());
         $this->assertTrue(SetupProgress::steps()['remoto']['complete']);
 
+        file_put_contents("{$this->dir}/status.json", json_encode(['state' => 'conectando', 'hostname' => 'tpv-bella-napoli']));
+        $this->assertStringStartsWith('Conectando', TailscaleBridge::describe());
+        $this->assertFalse(TailscaleBridge::connected());
+
         file_put_contents("{$this->dir}/status.json", json_encode(['state' => 'error', 'message' => 'invalid key']));
         $this->assertFalse(TailscaleBridge::connected());
         $this->assertStringContainsString('invalid key', TailscaleBridge::describe());

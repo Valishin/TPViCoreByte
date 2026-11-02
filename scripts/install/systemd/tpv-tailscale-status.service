@@ -4,3 +4,9 @@ Description=TPV: estado de Tailscale para /admin
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/tpv-tailscale-join --status
+UMask=0077
+TimeoutStartSec=60
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full

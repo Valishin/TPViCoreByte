@@ -1,69 +1,93 @@
 #!/usr/bin/env bash
 # Une el equipo a Tailscale con la clave que deja /admin (Puesta en marcha →
-# Acceso remoto). Lo lanza systemd como root (tpv-tailscale.path) en cuanto
-# aparece la clave, y cada 5 minutos con --status para refrescar el estado.
+# Acceso remoto). Lo lanza systemd como root (tpv-tailscale.service, por
+# tpv-tailscale.path) en cuanto aparece la clave, y cada 5 minutos con --status
+# (tpv-tailscale-status.timer) para refrescar el estado que ve /admin.
 #
 #   /opt/tpv/host/tailscale/authkey      {"authkey":"tskey-auth-…","hostname":"tpv-…"} (lo escribe la app)
 #   /opt/tpv/host/tailscale/status.json  estado para /admin (lo escribe este script)
 #
-# La clave se BORRA antes de usarla (también si algo falla): nunca queda en disco.
+# Mínimo privilegio: la carpeta es del usuario de la app (uid 1000, 700), así que
+# TODO lo que se lee o escribe en ella se hace COMO ese usuario (setpriv): un enlace
+# o una tubería puestos ahí no dan acceso a nada que ese usuario no tenga ya. Como
+# root solo se ejecuta `tailscale up` / `tailscale status`.
+#
+# La clave: se lee (máx. 4 KB, 5 s), se BORRA de la carpeta antes de usarla, pasa a
+# un fichero de $RUNTIME_DIRECTORY (/run/tpv-tailscale, 700, solo root, lo borra
+# systemd al terminar aunque el proceso muera) y tailscale la lee de ahí
+# (--auth-key=file:…): nunca va en la línea de órdenes (ps) ni en el estado.
 set -u
+umask 077
 DIR="${TPV_TAILSCALE_DIR:-/opt/tpv/host/tailscale}"
 TS="${TAILSCALE_BIN:-tailscale}"
 APP_UID="${TPV_APP_UID:-1000}"
+RUN="${RUNTIME_DIRECTORY:-$(mktemp -d)}"
+UP_TIMEOUT="${TPV_TAILSCALE_TIMEOUT:-90}"
 
-# status.json con permisos del usuario de la app (la carpeta es suya y 700).
+# Como el usuario de la app (sin grupos extra).
+as_app() { setpriv --reuid="$APP_UID" --regid="$APP_UID" --clear-groups -- "$@"; }
+
+# status.json escrito por el usuario de la app (rename atómico: /admin nunca lee medio fichero).
 write_status() { # write_status estado mensaje [hostname] [ip]
-    local clean tmp
-    clean="$(printf '%s' "${2:-}" | tr -d '"\\' | tr '\n\r\t' '   ' | cut -c1-300)"
-    tmp="$DIR/.status.$$"
+    local clean
+    clean="$(printf '%s' "${2:-}" | sed -E 's/tskey-[A-Za-z0-9_-]+/[clave]/g' | tr -d '"\\' | tr '\n\r\t' '   ' | cut -c1-300)"
     printf '{"state":"%s","message":"%s","hostname":"%s","ip":"%s","at":"%s"}\n' \
-        "$1" "$clean" "${3:-}" "${4:-}" "$(date -Iseconds)" > "$tmp"
-    chmod 600 "$tmp"
-    chown "$APP_UID:$APP_UID" "$tmp" 2>/dev/null || true
-    mv -f "$tmp" "$DIR/status.json"
+        "$1" "$clean" "${3:-}" "${4:-}" "$(date -Iseconds)" |
+        as_app sh -c 'umask 077; t="$(mktemp "$1/.status.XXXXXX")" && cat > "$t" && mv -f "$t" "$1/status.json"' sh "$DIR"
 }
 
 refresh_status() {
     local self ip host
-    if self="$("$TS" status --self=true --peers=false 2>/dev/null)" && [ -n "$self" ]; then
+    if self="$(timeout 20 "$TS" status --self=true --peers=false 2>/dev/null)" && [ -n "$self" ]; then
         ip="$(printf '%s\n' "$self" | awk 'NR==1 {print $1}')"
         host="$(printf '%s\n' "$self" | awk 'NR==1 {print $2}')"
         write_status conectado "" "$host" "$ip"
     else
-        write_status desconectado "$("$TS" status 2>&1 | head -1)"
+        write_status desconectado "$(timeout 20 "$TS" status 2>&1 | head -1)"
     fi
 }
 
-[ -d "$DIR" ] || exit 0
+[ -d "$DIR" ] && [ ! -L "$DIR" ] || exit 0
 
 if [ "${1:-}" = "--status" ]; then
-    [ -f "$DIR/authkey" ] || refresh_status
+    as_app test -e "$DIR/authkey" || refresh_status
     exit 0
 fi
 
-[ -f "$DIR/authkey" ] || exit 0
-request="$(cat "$DIR/authkey" 2>/dev/null || true)"
-rm -f "$DIR/authkey"                      # borrada antes de usarla
-trap 'rm -f "$DIR/authkey"' EXIT          # y si algo falla después, tampoco queda
+# Recoger la clave (como la app): solo un fichero normal, máx. 4 KB y 5 s; y borrarla ya.
+request="$(as_app sh -c 'f="$1/authkey"; [ -f "$f" ] && [ ! -L "$f" ] && timeout 5 head -c 4096 "$f"' sh "$DIR" 2>/dev/null || true)"
+as_app rm -f "$DIR/authkey"
+[ -n "$request" ] || { as_app test -e "$DIR/authkey" || write_status error "La clave llegó vacía o no es un fichero normal."; exit 1; }
 
 key="$(printf '%s' "$request" | sed -n 's/.*"authkey"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
 host="$(printf '%s' "$request" | sed -n 's/.*"hostname"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-host="${host:-tpv}"
-case "$key" in
-    tskey-auth-*) ;;
-    *) write_status error "La clave no es una clave de autenticación de Tailscale."; exit 1 ;;
-esac
+unset request
+# Validación propia (no se fía de la app): clave de autenticación y nombre DNS sencillo.
+if ! printf '%s' "$key" | grep -Eqx 'tskey-auth-[A-Za-z0-9-]{10,200}'; then
+    unset key
+    write_status error "La clave no es una clave de autenticación de Tailscale (tskey-auth-…) o llegó cortada."
+    exit 1
+fi
+printf '%s' "$host" | grep -Eqx '[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?' || host=tpv
 if ! command -v "$TS" >/dev/null 2>&1; then
+    unset key
     write_status error "Tailscale no está instalado en este equipo."
     exit 1
 fi
 
-if out="$(timeout 90 "$TS" up --ssh --hostname "$host" --authkey "$key" 2>&1)"; then
-    unset key request
+keyfile="$RUN/authkey"
+printf '%s' "$key" > "$keyfile"          # 600 (umask), en /run/tpv-tailscale (700, root)
+unset key
+trap 'rm -f "$keyfile"' EXIT             # y systemd borra $RUNTIME_DIRECTORY al terminar
+write_status conectando "" "$host"
+
+if out="$(timeout "$UP_TIMEOUT" "$TS" up --ssh --hostname "$host" --auth-key "file:$keyfile" 2>&1)"; then
+    rm -f "$keyfile"
     refresh_status
 else
-    unset key request
+    code=$?
+    rm -f "$keyfile"
+    [ "$code" = 124 ] && out="Tailscale no ha respondido en ${UP_TIMEOUT} s: se volverá a comprobar el estado en unos minutos."
     write_status error "$(printf '%s' "$out" | tail -1)" "$host"
     exit 1
 fi

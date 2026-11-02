@@ -70,7 +70,7 @@ final class TailscaleBridge
             return $empty;
         }
         $data = json_decode((string) file_get_contents($file), true);
-        if (! is_array($data) || ! in_array($data['state'] ?? null, ['conectado', 'error', 'desconectado'], true)) {
+        if (! is_array($data) || ! in_array($data['state'] ?? null, ['conectando', 'conectado', 'error', 'desconectado'], true)) {
             return $empty;
         }
 
@@ -91,7 +91,7 @@ final class TailscaleBridge
 
         return match ($s['state']) {
             'conectado' => "Conectado como {$s['hostname']}".($s['ip'] ? " ({$s['ip']})" : '').($s['at'] ? ' · comprobado '.$s['at']->format('d/m H:i') : ''),
-            'pendiente' => 'Conectando… (el equipo lo hace en unos segundos)',
+            'pendiente', 'conectando' => 'Conectando… (el equipo lo hace en unos segundos)',
             'error' => 'No se ha podido conectar: '.($s['message'] ?? 'error desconocido').'. Genera otra clave y vuelve a intentarlo.',
             'desconectado' => 'Desconectado de Tailscale.',
             default => self::available() ? 'Sin configurar.' : 'Este equipo no tiene el servicio de Tailscale (se instala con install.sh).',
