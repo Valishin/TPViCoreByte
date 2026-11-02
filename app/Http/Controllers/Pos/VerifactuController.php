@@ -12,7 +12,7 @@ class VerifactuController extends Controller
 {
     public function status(): JsonResponse
     {
-        return response()->json(['notices' => VerifactuStatus::notices()]);
+        return response()->json(['notices' => VerifactuStatus::notices(audience: 'pos')]);
     }
 
     public function about(): JsonResponse

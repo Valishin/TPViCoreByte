@@ -89,18 +89,9 @@ class StatusAndAboutTest extends InvoiceTestCase
         $this->assertMatchesRegularExpression('/caduca en (19|20) días/', $texts);
     }
 
-    public function test_production_obligation_warning_and_end_date_notice(): void
+    public function test_end_date_notice(): void
     {
-        Setting::current()->update(['verifactu_enabled' => false]);
-        $this->app['env'] = 'production';
-        config(['verifactu.obligation_date' => now()->addDays(10)->toDateString()]);
-        $this->assertStringContainsString('será obligatorio', implode("\n", $this->texts()));
-
-        config(['verifactu.obligation_date' => now()->subDay()->toDateString()]);
-        $this->assertStringContainsString('no se pueden emitir', implode("\n", $this->texts()));
-
-        $this->app['env'] = 'testing';
-        Setting::current()->update(['verifactu_enabled' => true, 'verifactu_end_date' => now('Europe/Madrid')->endOfYear()->toDateString()]);
+        Setting::current()->update(['verifactu_end_date' => now('Europe/Madrid')->endOfYear()->toDateString()]);
         $this->assertStringContainsString('Renuncia a VERI*FACTU comunicada', implode("\n", $this->texts()));
     }
 

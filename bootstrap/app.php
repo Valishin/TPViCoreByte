@@ -57,7 +57,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
         $exceptions->render(function (VerifactuRequiredException $e, Request $request) {
             if ($request->is('api/*')) {
-                return response()->json(['message' => $e->getMessage(), 'code' => 'verifactu_required'], 423);
+                return response()->json(['message' => $e->getMessage(), 'code' => $e->reason], 423);
             }
         });
         $exceptions->render(function (InvoiceRequiredException $e, Request $request) {

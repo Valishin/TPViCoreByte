@@ -49,11 +49,12 @@ final class VerifactuStatus
     }
 
     /**
-     * Avisos para mostrar (de más a menos grave).
+     * Avisos para mostrar (de más a menos grave). $audience: «admin» o «pos»
+     * (la caja solo ve la falta de certificado desde 30 días antes de la fecha).
      *
      * @return list<array{level: 'danger'|'warning', text: string}>
      */
-    public static function notices(?Setting $settings = null): array
+    public static function notices(?Setting $settings = null, string $audience = 'admin'): array
     {
         $settings ??= Setting::current();
         $s = self::summary($settings);
@@ -78,12 +79,21 @@ final class VerifactuStatus
             $notices[] = ['level' => $s['certificate_days'] < 0 ? 'danger' : 'warning',
                 'text' => $s['certificate_days'] < 0 ? 'El certificado de VERI*FACTU ha caducado: renuévalo.' : "El certificado de VERI*FACTU caduca en {$s['certificate_days']} días: renuévalo."];
         }
-        if (EmissionGuard::enforced() && ! $s['active']) {
-            $date = Verifactu::obligationDate();
-            if (now()->greaterThanOrEqualTo($date)) {
-                $notices[] = ['level' => 'danger', 'text' => 'VERI*FACTU es obligatorio desde el '.$date->format('d/m/Y').' y no está activo: no se pueden emitir tickets ni facturas.'];
-            } elseif (($days = EmissionGuard::warningDaysLeft($settings)) !== null) {
-                $notices[] = ['level' => 'warning', 'text' => 'VERI*FACTU será obligatorio el '.$date->format('d/m/Y')." (faltan {$days} días) y no está activo."];
+        // Instalación «cliente» (en «demo», nada): bloqueo de emisión y avisos previos.
+        if (EmissionGuard::enforced()) {
+            $date = Verifactu::obligationDate($settings)->format('d/m/Y');
+            if ($block = EmissionGuard::blocker($settings)) {
+                $notices[] = ['level' => 'danger', 'text' => $block['message']];
+            } else {
+                $days = EmissionGuard::warningDaysLeft($settings);
+                $left = $days !== null ? " (faltan {$days} días)" : '';
+                if (! EmissionGuard::certificateValid($settings)) {
+                    if ($audience === 'admin' || $days !== null) {
+                        $notices[] = ['level' => 'warning', 'text' => "Falta el certificado electrónico de VERI*FACTU: es obligatorio desde el {$date}{$left}. Súbelo en /admin → VERI*FACTU."];
+                    }
+                } elseif (! $s['active'] && $days !== null) {
+                    $notices[] = ['level' => 'warning', 'text' => "VERI*FACTU será obligatorio el {$date}{$left} y no está activo."];
+                }
             }
         }
         if ($s['end_date']) {

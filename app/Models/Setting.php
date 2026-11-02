@@ -45,6 +45,7 @@ class Setting extends Model
             'delivery_minutes' => 'integer',
             'print_courier_copy' => 'boolean',
             'print_join_notice' => 'boolean',
+            'corporate_tax' => 'boolean',
             'invoice_require_address' => 'boolean',
             'smtp_password' => 'encrypted', // con APP_KEY: guárdala con la clave age (docs/instalacion-minipc.md)
             // VERI*FACTU (docs/verifactu/PLAN.md). Certificado .p12 y su contraseña, cifrados con la APP_KEY:

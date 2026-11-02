@@ -4,5 +4,15 @@ namespace App\Exceptions;
 
 use LogicException;
 
-/** En producción, desde la fecha de obligación no se puede emitir sin VERI*FACTU activo (respuesta a la duda Q5). */
-class VerifactuRequiredException extends LogicException {}
+/**
+ * No se puede emitir (instalación «cliente»): faltan los datos fiscales o,
+ * desde la fecha de obligación, el certificado o VERI*FACTU activo.
+ * `reason` va en la respuesta de la API: fiscal_data_required | verifactu_required.
+ */
+class VerifactuRequiredException extends LogicException
+{
+    public function __construct(string $message, public readonly string $reason = 'verifactu_required')
+    {
+        parent::__construct($message);
+    }
+}

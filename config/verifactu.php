@@ -36,7 +36,9 @@ return [
     'installation_number' => env('VERIFACTU_INSTALLATION_NUMBER', 'DEV-'.substr(md5((string) env('APP_KEY')), 0, 12)),
 
     // Fecha a partir de la cual el cliente está obligado (RDL 15/2025): 2027-01-01 si declara el
-    // Impuesto sobre Sociedades; 2027-07-01 en el resto. La pone el instalador desde tpv-install.conf.
+    // Impuesto sobre Sociedades; 2027-07-01 en el resto. Se elige en /admin (paso 2 de la puesta
+    // en marcha, settings.corporate_tax); sin contestar, la del .env (instalaciones anteriores).
+    'obligation_dates' => ['sociedades' => '2027-01-01', 'resto' => '2027-07-01'],
     'obligation_date' => env('VERIFACTU_OBLIGATION_DATE', '2027-07-01'),
 
     // Días antes de la fecha de obligación desde los que se avisa si VERI*FACTU no está activo (Q5).

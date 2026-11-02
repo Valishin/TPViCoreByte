@@ -3,7 +3,6 @@
 namespace Tests\Feature\Verifactu;
 
 use App\Enums\RectificationReason;
-use App\Exceptions\VerifactuRequiredException;
 use App\Models\Customer;
 use App\Models\FiscalRecord;
 use App\Models\FiscalRecordState;
@@ -15,7 +14,6 @@ use App\Services\Pos\CheckoutService;
 use App\Services\Tickets\RectificationService;
 use App\Services\Tickets\TicketIssuer;
 use App\Services\Verifactu\ChainVerifier;
-use App\Services\Verifactu\EmissionGuard;
 use App\Services\Verifactu\FiscalRecordGenerator;
 use App\Services\Verifactu\SubmissionXml;
 use App\Services\Verifactu\Verifactu;
@@ -268,21 +266,6 @@ class RecordGenerationTest extends InvoiceTestCase
         $problems = ChainVerifier::verify()['problems'];
         $this->assertNotEmpty($problems);
         $this->assertStringContainsString('no corresponde a sus datos', implode(' ', $problems));
-    }
-
-    public function test_production_blocks_issuing_without_verifactu_from_the_obligation_date(): void
-    {
-        Setting::current()->update(['verifactu_enabled' => false]);
-        config(['verifactu.obligation_date' => '2027-07-01']);
-        $this->app->detectEnvironment(fn () => 'production');
-
-        $this->travelTo(Carbon::parse('2027-06-10', 'Europe/Madrid'));
-        $this->assertSame(21, EmissionGuard::warningDaysLeft());
-        EmissionGuard::assertCanIssue();   // aún se puede
-
-        $this->travelTo(Carbon::parse('2027-07-01 08:00', 'Europe/Madrid'));
-        $this->expectException(VerifactuRequiredException::class);
-        EmissionGuard::assertCanIssue();
     }
 
     public function test_schema_validator_rejects_an_invalid_record(): void

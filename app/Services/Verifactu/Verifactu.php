@@ -45,10 +45,17 @@ final class Verifactu
         return ($settings ?? Setting::current())->verifactu_environment === 'produccion' ? 'produccion' : 'pruebas';
     }
 
-    /** Fecha desde la que el cliente está obligado (RDL 15/2025), según el instalador. */
-    public static function obligationDate(): Carbon
+    /** Fecha desde la que el cliente está obligado (RDL 15/2025): según declare o no Sociedades (paso 2). */
+    public static function obligationDate(?Setting $settings = null): Carbon
     {
-        return Carbon::parse((string) config('verifactu.obligation_date'), 'Europe/Madrid')->startOfDay();
+        $settings ??= Setting::query()->first();
+        $date = match ($settings?->corporate_tax) {
+            true => config('verifactu.obligation_dates.sociedades'),
+            false => config('verifactu.obligation_dates.resto'),
+            default => config('verifactu.obligation_date'),
+        };
+
+        return Carbon::parse((string) $date, 'Europe/Madrid')->startOfDay();
     }
 
     /** Bloque SistemaInformatico (Diseños de registro, hoja 5). */
