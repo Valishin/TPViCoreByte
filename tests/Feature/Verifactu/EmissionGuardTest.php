@@ -23,6 +23,7 @@ class EmissionGuardTest extends InvoiceTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['tpv.install_mode' => 'cliente']);   // VERI*FACTU solo en instalaciones reales
         Queue::fake();
         $this->openCash();
     }
@@ -48,6 +49,7 @@ class EmissionGuardTest extends InvoiceTestCase
 
     public function test_demo_sells_with_example_data_and_shows_no_verifactu_notices(): void
     {
+        config(['tpv.install_mode' => 'demo']);
         Setting::current()->update(['tax_id' => 'PENDIENTE', 'corporate_tax' => null]);
         $this->travelTo(Carbon::parse('2027-08-01', 'Europe/Madrid'));
 

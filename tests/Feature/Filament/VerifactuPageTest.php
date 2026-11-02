@@ -10,6 +10,12 @@ use Tests\Feature\Verifactu\CertificateTest;
 
 class VerifactuPageTest extends FilamentTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['tpv.install_mode' => 'cliente']);   // VERI*FACTU solo en instalaciones reales
+    }
+
     public function test_only_admin_can_open_it(): void
     {
         $this->get('/admin/verifactu')->assertOk()->assertSee('Certificado electrónico');

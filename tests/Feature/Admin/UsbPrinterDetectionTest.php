@@ -5,8 +5,10 @@ namespace Tests\Feature\Admin;
 use App\Enums\PrinterConnection;
 use App\Enums\PrinterType;
 use App\Filament\Resources\Printers\Pages\CreatePrinter;
+use App\Filament\Resources\Printers\Schemas\PrinterForm;
 use App\Models\Printer;
 use App\Services\Printing\UsbPrinterDetector;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
 use Tests\Feature\Filament\FilamentTestCase;
@@ -64,14 +66,48 @@ class UsbPrinterDetectionTest extends FilamentTestCase
         $this->assertSame([], (new UsbPrinterDetector)->detect());
     }
 
-    public function test_choosing_a_detected_printer_fills_the_device(): void
+    private function usbForm()
     {
-        Livewire::test(CreatePrinter::class)
-            ->fillForm(['name' => 'Tickets', 'type' => PrinterType::Ticket->value, 'connection_type' => PrinterConnection::Usb->value])
-            ->fillForm(['detected_usb' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
+        return Livewire::test(CreatePrinter::class)
+            ->fillForm(['name' => 'Tickets', 'type' => PrinterType::Ticket->value, 'connection_type' => PrinterConnection::Usb->value]);
+    }
+
+    public function test_search_with_several_printers_lets_you_choose_and_fills_the_device(): void
+    {
+        $this->usbForm()
+            ->callAction(TestAction::make('scanUsb')->schemaComponent('device_path'), ['path' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
             ->assertSchemaStateSet(['device_path' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
             ->call('create')->assertHasNoFormErrors();
 
         $this->assertSame('/dev/usb/impresora-04b8-0202-x5e8012345', Printer::query()->sole()->device_path);
+    }
+
+    public function test_search_with_one_printer_fills_it_without_asking(): void
+    {
+        File::deleteDirectory("{$this->sys}/class/usbmisc/lp1");
+        $this->usbForm()
+            ->mountAction(TestAction::make('scanUsb')->schemaComponent('device_path'))
+            ->assertSchemaStateSet(['device_path' => '/dev/usb/impresora-04b8-0202-x5e8012345'])
+            ->assertNotified('Encontrada: EPSON TM-T20III');
+    }
+
+    public function test_search_with_none_says_so(): void
+    {
+        config(['printing.sysfs' => '/no/existe']);
+        $this->usbForm()
+            ->mountAction(TestAction::make('scanUsb')->schemaComponent('device_path'))
+            ->assertNotified('No se detecta ninguna impresora USB')
+            ->assertSchemaStateSet(['device_path' => null]);
+    }
+
+    public function test_status_indicator(): void
+    {
+        $this->assertSame(['text' => 'Conectada: EPSON TM-T20III', 'color' => 'success'],
+            array_intersect_key(PrinterForm::status('/dev/usb/impresora-04b8-0202-x5e8012345'), ['text' => 1, 'color' => 1]));
+        $this->assertSame('danger', PrinterForm::status('/dev/usb/impresora-ticket')['color']);
+        $this->assertNull(PrinterForm::status(null)['text']);
+
+        $this->usbForm()->fillForm(['device_path' => '/dev/usb/impresora-0416-5011'])
+            ->assertSee('Conectada: Winbond POS-58');
     }
 }

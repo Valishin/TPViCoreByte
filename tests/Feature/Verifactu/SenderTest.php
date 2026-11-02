@@ -38,6 +38,7 @@ class SenderTest extends InvoiceTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['tpv.install_mode' => 'cliente']);   // VERI*FACTU solo en instalaciones reales
         Queue::fake();   // el envío se lanza a mano en cada test
         $this->aeat = fn () => Http::response('', 503);
         Http::fake(fn (Request $request) => ($this->aeat)($request));

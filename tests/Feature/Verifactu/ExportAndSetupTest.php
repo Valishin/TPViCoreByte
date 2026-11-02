@@ -20,6 +20,7 @@ class ExportAndSetupTest extends InvoiceTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['tpv.install_mode' => 'cliente']);   // VERI*FACTU solo en instalaciones reales
         Queue::fake();
     }
 

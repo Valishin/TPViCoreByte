@@ -6,12 +6,14 @@ use App\Enums\HalfAndHalfModifierPricing;
 use App\Enums\HalfAndHalfPricing;
 use App\Enums\OrderType;
 use App\Services\Pos\CatalogService;
+use App\Support\InstallMode;
 use App\Support\QuickNotes;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 /**
  * Ajustes del local (una sola fila). Usa Setting::current().
@@ -69,7 +71,16 @@ class Setting extends Model
 
     protected static function booted(): void
     {
-        static::saving(fn (Setting $setting) => $setting->quick_notes = QuickNotes::normalize($setting->quick_notes ?? []));
+        // Sin devolver nada: un listener «saving» que devuelve un valor corta los siguientes.
+        static::saving(function (Setting $setting): void {
+            $setting->quick_notes = QuickNotes::normalize($setting->quick_notes ?? []);
+        });
+        // Instalación de demostración: VERI*FACTU no se activa por ningún camino (/admin, API, comandos).
+        static::saving(function (Setting $setting) {
+            if (InstallMode::isDemo() && $setting->verifactu_enabled && ($setting->isDirty('verifactu_enabled') || ! $setting->exists)) {
+                throw new LogicException('Instalación de demostración: VERI*FACTU no se puede activar.');
+            }
+        });
 
         // Las notas generales viajan con la carta del TPV.
         static::saved(function (Setting $setting) {

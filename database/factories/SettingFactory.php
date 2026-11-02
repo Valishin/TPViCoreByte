@@ -17,7 +17,8 @@ class SettingFactory extends Factory
         return [
             'trade_name' => 'Bar Demo',
             'legal_name' => 'Hostelería Demo S.L.',
-            'tax_id' => 'B12345678',
+            'tax_id' => 'B12345674',   // CIF válido: datos fiscales completos (modo cliente)
+            'corporate_tax' => false,
             'address' => 'Calle Mayor, 1',
             'postal_code' => '28001',
             'city' => 'Madrid',

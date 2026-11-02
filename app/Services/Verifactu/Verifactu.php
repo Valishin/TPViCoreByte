@@ -3,6 +3,7 @@
 namespace App\Services\Verifactu;
 
 use App\Models\Setting;
+use App\Support\InstallMode;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
@@ -33,7 +34,9 @@ final class Verifactu
 
         $at ??= now();
 
-        return $settings->verifactu_enabled
+        // En demo nunca, aunque la base de datos diga otra cosa (p. ej. una copia de un cliente).
+        return InstallMode::isClient()
+            && $settings->verifactu_enabled
             && $settings->verifactu_started_at !== null
             && $settings->verifactu_started_at->lessThanOrEqualTo($at)
             // Renuncia (OM 17.3): funciona como VERI*FACTU hasta el final de FechaFinVeriFactu.

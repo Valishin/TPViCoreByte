@@ -29,6 +29,7 @@ class ReconcileVerifyAndTestSendTest extends InvoiceTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['tpv.install_mode' => 'cliente']);   // VERI*FACTU solo en instalaciones reales
         Queue::fake();
         Setting::current()->update(['verifactu_enabled' => true, 'verifactu_started_at' => now()->subMinute(), 'tax_id' => 'B12345674', 'legal_name' => 'Pizzeria Bella Napoli SL']);
         app(CertificateStore::class)->import(CertificateTest::p12(['organizationIdentifier' => 'VATES-B12345674']), 'secreto');
