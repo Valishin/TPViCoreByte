@@ -14,12 +14,12 @@ use App\Services\Verifactu\Verifactu as VerifactuState;
 use App\Services\Verifactu\VerifactuSender;
 use App\Services\Verifactu\VerifactuStatus;
 use App\Support\Format;
+use App\Support\InstallMode;
 use App\Support\TaxId;
 use App\Support\VerifactuAlarm;
 use BackedEnum;
 use DOMDocument;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
@@ -90,9 +90,11 @@ class Verifactu extends Page implements HasTable
         return $schema->statePath('data')->columns(2)->components([
             Section::make('Estado')->columns(4)->columnSpanFull()->schema([
                 TextEntry::make('st_active')->label('VERI*FACTU')->badge()
-                    ->state($status['active'] ? 'Activo' : ($status['enabled'] ? 'Programado' : 'No activo'))
-                    ->color($status['active'] ? 'success' : 'gray')
-                    ->helperText(fn () => $status['started_at'] ? 'Desde el '.$status['started_at']->format('d/m/Y H:i') : null),
+                    ->state(InstallMode::isDemo() ? 'Apagado (demo)' : ($status['active'] ? 'Activo' : ($status['enabled'] ? 'Programado' : 'No activo')))
+                    ->color($status['active'] ? 'success' : ($status['enabled'] ? 'warning' : 'gray'))
+                    ->helperText(fn () => InstallMode::isDemo() ? 'Instalación de demostración: VERI*FACTU no se activa.'
+                        : ($status['started_at'] ? ($status['active'] ? 'Desde el ' : 'Se activará el ').$status['started_at']->format('d/m/Y H:i')
+                            : 'Obligatorio desde el '.VerifactuState::obligationDate($settings)->format('d/m/Y').'.')),
                 TextEntry::make('st_env')->label('Entorno')->state($status['environment'] === 'produccion' ? 'Producción' : 'Pruebas'),
                 TextEntry::make('st_pending')->label('Pendientes de enviar')->state($status['pending'])
                     ->color($status['pending'] ? 'warning' : null)
@@ -190,26 +192,55 @@ class Verifactu extends Page implements HasTable
     }
 
     /** Activar VERI*FACTU: desde ese momento cada documento genera su registro y se remite (RRSIF 15 y 16). */
+    /**
+     * Activar VERI*FACTU: ahora (con certificado válido) o automáticamente en la
+     * fecha de obligación (RDL 15/2025: 1/1/2027 con Sociedades, 1/7/2027 en el
+     * resto). Desde ese momento cada documento genera su registro y se remite
+     * (RRSIF 15 y 16); tras el primer envío no se puede desactivar hasta el
+     * 31 de diciembre (RRSIF 16.5). En demo no se activa.
+     */
     public function activateAction(): Action
     {
+        $date = fn () => VerifactuState::obligationDate(Setting::current());
+
         return Action::make('activate')->label('Activar VERI*FACTU')->icon('heroicon-o-power')->color('success')
-            ->visible(fn () => ! Setting::current()->verifactu_enabled)
-            ->modalDescription('Cada ticket y factura generará su registro de facturación y se enviará a la AEAT. Desde el primer envío efectivo no se puede desactivar hasta el 31 de diciembre de ese año (RD 1007/2023, art. 16.5).')
-            ->schema([DateTimePicker::make('starts_at')->label('Empieza')->default(now())->required()->minDate(now()->subMinute())->seconds(false)])
-            ->action(function (array $data) {
+            ->visible(fn () => ! Setting::current()->verifactu_enabled && InstallMode::isClient())
+            ->modalHeading('Activar VERI*FACTU')
+            ->modalDescription('Cada ticket y factura generará su registro de facturación y se enviará a la AEAT. '
+                .'Una vez hecho el primer envío, NO se puede desactivar hasta el 31 de diciembre de ese año (RD 1007/2023, art. 16.5).')
+            ->modalSubmitActionLabel('Sí, activar')
+            ->schema([
+                Radio::make('when')->label('¿Cuándo?')->required()->default('fecha')->options(fn () => [
+                    'ahora' => 'Activar ahora',
+                    'fecha' => 'Activar automáticamente el '.$date()->format('d/m/Y').' (fecha de obligación)',
+                ]),
+                Radio::make('environment')->label('Entorno de la AEAT')->required()->default('produccion')->options([
+                    'produccion' => 'Producción (con efectos fiscales)',
+                    'pruebas' => 'Pruebas (portal de pruebas, sin efectos fiscales)',
+                ]),
+            ])
+            ->action(function (array $data) use ($date) {
                 $settings = Setting::current();
-                if (! CertificateStore::installed($settings)) {
-                    Notification::make()->danger()->title('Sube antes el certificado electrónico.')->send();
-
-                    return;
-                }
                 if (! TaxId::isValidSpanish($settings->tax_id)) {
-                    Notification::make()->danger()->title('El NIF del local no es válido: revísalo en Ajustes del local.')->send();
+                    Notification::make()->danger()->title('El NIF del local no es válido: complétalo en Puesta en marcha → Datos de la empresa.')->send();
 
                     return;
                 }
-                $settings->update(['verifactu_enabled' => true, 'verifactu_started_at' => $data['starts_at'], 'verifactu_end_date' => null]);
-                Notification::make()->success()->title('VERI*FACTU activado')->send();
+                $now = $data['when'] === 'ahora' || now()->greaterThanOrEqualTo($date());
+                if ($now && ! EmissionGuard::certificateValid($settings)) {
+                    Notification::make()->danger()->title('Sube antes un certificado electrónico válido y sin caducar.')->send();
+
+                    return;
+                }
+                $settings->update([
+                    'verifactu_enabled' => true, 'verifactu_environment' => $data['environment'],
+                    'verifactu_started_at' => $now ? now() : $date(), 'verifactu_end_date' => null,
+                ]);
+                $note = Notification::make()->success()->title($now ? 'VERI*FACTU activado' : 'VERI*FACTU se activará el '.$date()->format('d/m/Y'));
+                if (! $now && ! EmissionGuard::certificateValid($settings)) {
+                    $note->warning()->body('Sube el certificado antes de esa fecha: sin él, desde ese día no se podrán emitir tickets ni facturas.');
+                }
+                $note->send();
                 $this->redirect(static::getUrl());
             });
     }

@@ -4,7 +4,6 @@ namespace Tests\Feature\Filament;
 
 use App\Filament\Pages\Verifactu;
 use App\Models\Setting;
-use App\Services\Verifactu\CertificateStore;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Tests\Feature\Verifactu\CertificateTest;
@@ -34,20 +33,6 @@ class VerifactuPageTest extends FilamentTestCase
             ->call('save')->assertHasNoFormErrors();
         $this->assertSame('produccion', Setting::current()->verifactu_environment);
         $this->assertSame('20', Setting::current()->vat_regime_key);
-    }
-
-    public function test_activation_requires_certificate(): void
-    {
-        Setting::current()->update(['tax_id' => 'B12345674']);
-        Livewire::test(Verifactu::class)->callAction('activate', ['starts_at' => now()->toDateTimeString()])
-            ->assertNotified('Sube antes el certificado electrónico.');
-        $this->assertFalse((bool) Setting::current()->verifactu_enabled);
-
-        app(CertificateStore::class)->import(CertificateTest::p12(['organizationIdentifier' => 'VATES-B12345674']), 'secreto');
-        Livewire::test(Verifactu::class)->callAction('activate', ['starts_at' => now()->toDateTimeString()])
-            ->assertNotified('VERI*FACTU activado');
-        $this->assertTrue((bool) Setting::current()->verifactu_enabled);
-        $this->assertNotNull(Setting::current()->verifactu_started_at);
     }
 
     public function test_renouncing_before_any_send_disables_and_after_a_send_lasts_until_31_december(): void

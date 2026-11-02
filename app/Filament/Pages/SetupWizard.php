@@ -7,6 +7,8 @@ use App\Filament\Resources\Printers\PrinterResource;
 use App\Models\Printer;
 use App\Models\Setting;
 use App\Services\Printing\UsbPrinterDetector;
+use App\Services\Verifactu\CertificateStore;
+use App\Services\Verifactu\Verifactu as VerifactuState;
 use App\Support\InstallMode;
 use App\Support\SetupProgress;
 use App\Support\TailscaleBridge;
@@ -184,12 +186,13 @@ class SetupWizard extends Page
                             }
                         }),
 
-                    $this->step('verifactu', Heroicon::OutlinedShieldCheck)
+                    $this->step('verifactu', Heroicon::OutlinedShieldCheck, 'Obligatorio desde la fecha del paso 2.')
                         ->schema([
-                            Text::make(InstallMode::isDemo()
-                                ? 'Instalación de demostración: VERI*FACTU queda apagado.'
-                                : new HtmlString('Sube el certificado electrónico y elige cuándo activar VERI*FACTU: '
-                                    .'<a class="underline" href="'.e(Verifactu::getUrl()).'">VERI*FACTU</a>.')),
+                            TextEntry::make('cert_status')->label('Certificado electrónico')->state(fn () => self::certificateText())
+                                ->hidden(fn () => InstallMode::isDemo()),
+                            TextEntry::make('verifactu_status')->label('VERI*FACTU')->state(fn () => self::verifactuText()),
+                            Text::make(new HtmlString('Sube el certificado (.p12 o .pfx) y elige «Activar ahora» o «Activar automáticamente en la fecha de obligación» en '
+                                .'<a class="underline" href="'.e(Verifactu::getUrl()).'">VERI*FACTU</a>.'))->hidden(fn () => InstallMode::isDemo()),
                         ]),
                 ])
                     ->startOnStep(fn () => SetupProgress::firstPending())
@@ -211,6 +214,32 @@ class SetupWizard extends Page
             ->icon($icon)
             ->completedIcon(Heroicon::OutlinedCheck)
             ->description(($complete ? '✓ Completo' : 'Pendiente').($description ? " · {$description}" : ''));
+    }
+
+    public static function certificateText(): string
+    {
+        $s = Setting::current();
+        if (! CertificateStore::installed($s)) {
+            return 'Sin certificado (se puede subir cuando quieras; es obligatorio desde el '.VerifactuState::obligationDate($s)->format('d/m/Y').').';
+        }
+        $days = CertificateStore::daysToExpiry($s);
+
+        return "{$s->verifactu_certificate_subject} · NIF {$s->verifactu_certificate_nif} · ".($days < 0 ? 'CADUCADO el ' : 'válido hasta el ')
+            .$s->verifactu_certificate_valid_to?->format('d/m/Y');
+    }
+
+    public static function verifactuText(): string
+    {
+        $s = Setting::current();
+        if (InstallMode::isDemo()) {
+            return 'Instalación de demostración: VERI*FACTU queda apagado.';
+        }
+        if (! $s->verifactu_enabled || ! $s->verifactu_started_at) {
+            return 'No activado.';
+        }
+
+        return VerifactuState::active($s) ? 'Activo desde el '.$s->verifactu_started_at->format('d/m/Y H:i')
+            : 'Se activará automáticamente el '.$s->verifactu_started_at->format('d/m/Y').'.';
     }
 
     /** Paso 5: guarda la clave age y el destino (también antes de «Probar copia»). */
