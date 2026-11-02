@@ -33,7 +33,7 @@ class TicketSeriesForm
                 TextInput::make('last_number')->label('Último número emitido este año')
                     ->disabled()->dehydrated(false)->visibleOn('edit')
                     ->formatStateUsing(fn (?TicketSeries $record) => $record?->lastNumber())
-                    ->helperText('Lo asigna el sistema al emitir cada documento; no se puede modificar.'),
+                    ->helperText('Lo asigna el sistema al emitir cada documento. Para continuar la numeración de un sistema anterior, «Cambiar primer número» (solo antes del primer documento del año).'),
             ]),
         ]);
     }

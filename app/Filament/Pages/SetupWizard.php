@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Enums\OrderType;
 use App\Filament\Resources\Printers\PrinterResource;
+use App\Filament\Resources\TicketSeries\SeriesNumbering;
 use App\Models\Printer;
 use App\Models\Setting;
 use App\Services\Printing\UsbPrinterDetector;
@@ -127,6 +128,8 @@ class SetupWizard extends Page
                                 ->boolean('Sí (sociedad)', 'No (autónomo o comunidad de bienes)')
                                 ->helperText(fn ($state) => $state === null ? 'Decide desde cuándo es obligatorio VERI*FACTU.'
                                     : 'VERI*FACTU será obligatorio desde el '.SetupProgress::obligationLabel((bool) $state).'.'),
+                            // Primer número de cada serie (continuar la de un sistema anterior); se guarda con su propio botón.
+                            SeriesNumbering::section(),
                         ])
                         ->afterValidation(fn (Step $component) => $this->saveStep($component, 'fiscal', ['vat_regime_key', 'corporate_tax'])),
 

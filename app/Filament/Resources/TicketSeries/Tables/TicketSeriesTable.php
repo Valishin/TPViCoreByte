@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\TicketSeries\Tables;
 
+use App\Filament\Resources\TicketSeries\SeriesNumbering;
 use App\Models\Setting;
 use App\Models\TicketSeries;
 use App\Support\DocumentNumber;
@@ -37,6 +38,7 @@ class TicketSeriesTable
             ])
             ->recordActions([
                 EditAction::make(),
+                SeriesNumbering::action(),
             ]);
     }
 }
