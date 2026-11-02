@@ -26,24 +26,25 @@
                 :aria-current="isActive(item.path) ? 'page' : null"
                 @click="router.push(item.path)"
             >{{ item.label }}</TpvButton>
-            <TpvButton variant="ghost" icon aria-label="Acerca de" @click="router.push('/acerca')">ⓘ</TpvButton>
-            <TpvButton variant="ghost" icon :aria-label="ui.theme === 'dark' ? 'Tema claro' : 'Tema oscuro'" @click="ui.toggleTheme()">
-                {{ ui.theme === 'dark' ? '☀' : '☾' }}
-            </TpvButton>
+            <TpvButton variant="ghost" icon aria-label="Ajustes" @click="menu = true">⚙</TpvButton>
             <TpvButton variant="secondary" aria-label="Bloquear" @click="$emit('lock')">Bloquear</TpvButton>
         </template>
         <TpvButton v-else variant="ghost" icon aria-label="Más opciones" @click="menu = true">⋯</TpvButton>
 
-        <BottomSheet v-if="!ui.isPos" :open="menu" title="Opciones" @close="menu = false">
+        <BottomSheet :open="menu" :title="ui.isPos ? 'Ajustes' : 'Opciones'" @close="menu = false">
             <div class="c-topbar__menu">
-                <TpvButton v-for="item in nav" :key="item.path" :variant="isActive(item.path) ? 'primary' : 'secondary'" size="lg" block @click="go(item.path)">
-                    {{ item.label }}
-                </TpvButton>
+                <template v-if="!ui.isPos">
+                    <TpvButton v-for="item in nav" :key="item.path" :variant="isActive(item.path) ? 'primary' : 'secondary'" size="lg" block @click="go(item.path)">
+                        {{ item.label }}
+                    </TpvButton>
+                </template>
                 <TpvButton variant="secondary" size="lg" block @click="ui.toggleTheme()">
                     {{ ui.theme === 'dark' ? '☀ Tema claro' : '☾ Tema oscuro' }}
                 </TpvButton>
                 <TpvButton variant="secondary" size="lg" block @click="go('/acerca')">Acerca de</TpvButton>
-                <TpvButton variant="secondary" size="lg" block @click="menu = false; $emit('lock')">Bloquear</TpvButton>
+                <!-- Al login de /admin: no entra solo, pide email y contraseña. -->
+                <TpvButton variant="secondary" size="lg" block data-testid="go-admin" @click="goAdmin">⚙ Administración</TpvButton>
+                <TpvButton v-if="!ui.isPos" variant="secondary" size="lg" block @click="menu = false; $emit('lock')">Bloquear</TpvButton>
             </div>
         </BottomSheet>
     </header>
@@ -94,5 +95,10 @@ function isActive(path) {
 function go(path) {
     menu.value = false;
     router.push(path);
+}
+/** Administración: a la pantalla de login de /admin (fuera de la SPA; la sesión de la caja sigue abierta). */
+function goAdmin() {
+    menu.value = false;
+    window.location.assign('/admin/login');
 }
 </script>

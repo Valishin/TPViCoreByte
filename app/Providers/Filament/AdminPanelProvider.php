@@ -32,6 +32,8 @@ class AdminPanelProvider extends PanelProvider
             // Aviso si las copias de seguridad no están al día.
             ->renderHook(PanelsRenderHook::PAGE_START, fn () => view('filament.backup-warning'))
             ->renderHook(PanelsRenderHook::PAGE_START, fn () => view('filament.verifactu-notices'))
+            // «Ir a la TPV» en la cabecera.
+            ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.pos-link'))
             // Versión instalada, al pie de todas las páginas.
             ->renderHook(PanelsRenderHook::FOOTER, fn (): string => '<div style="padding:1rem;text-align:center;font-size:.75rem;opacity:.6">TPV '
                 .e(config('app.version')).(config('app.commit') ? ' · '.e(config('app.commit')) : '').'</div>')

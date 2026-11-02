@@ -165,6 +165,8 @@ class LocalSettings extends Page
                                 MoneyInput::make('max_cash_tendered')->label('Efectivo entregado al cobrar')->required(),
                                 MoneyInput::make('max_tip')->label('Propina')->required(),
                             ]),
+                        Toggle::make('admin_pos_link_new_tab')->label('«Ir a la TPV» abre otra pestaña')->inline(false)
+                            ->helperText('Desactivado, la caja se abre en la misma pestaña de /admin.'),
                         Toggle::make('print_join_notice')->label('Avisar en cocina y barra al unir mesas')->inline(false)
                             ->helperText('Imprime «MESA 4 UNIDA A MESA 3» en las impresoras de cocina y barra. Lo ya enviado nunca se reimprime.'),
                     ]),

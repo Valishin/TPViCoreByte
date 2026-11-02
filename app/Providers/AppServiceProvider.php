@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Events\Pos\PrinterStatusChanged;
 use App\Events\Pos\PrintJobUpdated;
 use App\Events\Pos\TableStatusChanged;
+use App\Http\Controllers\Admin\AdminLogoutController;
 use App\Models\Category;
 use App\Models\MenuGroup;
 use App\Models\MenuGroupItem;
@@ -20,6 +21,7 @@ use App\Models\Ticket;
 use App\Services\Billing\InvoiceMailer;
 use App\Services\Pos\CatalogService;
 use App\Services\Printing\PrinterManager;
+use Filament\Auth\Http\Controllers\LogoutController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 
@@ -31,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(PrinterManager::class, fn () => new PrinterManager(config('printing')));
+        // Salir de /admin no cierra la sesión de la TPV (comparten cookie).
+        $this->app->bind(LogoutController::class, AdminLogoutController::class);
     }
 
     /**

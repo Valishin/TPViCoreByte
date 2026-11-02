@@ -46,6 +46,7 @@ class Setting extends Model
             'print_courier_copy' => 'boolean',
             'print_join_notice' => 'boolean',
             'corporate_tax' => 'boolean',
+            'admin_pos_link_new_tab' => 'boolean',
             'setup_steps' => 'array',
             'backup_s3_secret_key' => 'encrypted',
             'backup_sftp_private_key' => 'encrypted',
