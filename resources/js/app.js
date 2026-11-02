@@ -6,8 +6,10 @@ import router from './router';
 import keyboard from './directives/keyboard';
 import './composables/useLayout';
 import { startKioskCursor } from './composables/useKioskCursor';
+import { startTouchClickGuard } from './composables/useTouchClickGuard';
 import './services/echo';
 
 startKioskCursor();
+startTouchClickGuard(); // scroll con el dedo sin pulsar botones
 
 createApp(App).use(createPinia()).use(router).directive('keyboard', keyboard).mount('#app');
