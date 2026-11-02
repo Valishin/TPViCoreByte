@@ -99,7 +99,9 @@ class OrderInfolist
                                 ->url(fn ($record) => TicketResource::getUrl('view', ['record' => $record])),
                             TextEntry::make('issued_at')->label('Emitido')->dateTime('d/m/Y H:i'),
                             MoneyEntry::make('total')->label('Total'),
-                            TextEntry::make('payment_status')->label('Cobro')->badge(),
+                            TextEntry::make('payment_status')->label('Cobro')->badge()
+                                ->formatStateUsing(fn ($record) => $record->collectionLabel())
+                                ->color(fn ($record) => $record->collectionColor()),
                         ]),
                 ]),
         ]);

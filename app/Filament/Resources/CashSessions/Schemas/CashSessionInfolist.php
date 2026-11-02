@@ -31,9 +31,9 @@ class CashSessionInfolist
                     TextEntry::make('tickets_count')->label('Tickets y facturas emitidos')
                         ->state(fn (CashSession $record) => $record->tickets()->where('type', '!=', 'completa_canje')->count()),
                     TextEntry::make('sales_total')->label('Total vendido')
-                        ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->where('type', '!=', 'completa_canje')->sum('total'))),
+                        ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->countsAsSale()->sum('total'))),
                     TextEntry::make('pending_total')->label('Pendiente de cobro')
-                        ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->where('payment_status', 'pendiente')->sum('total'))),
+                        ->state(fn (CashSession $record) => Format::money((int) $record->tickets()->pendingCollection()->sum('total'))),
                 ]),
                 Section::make('Cobros por forma de pago')->schema([
                     ...collect(PaymentMethod::cases())->map(fn (PaymentMethod $method) => TextEntry::make("by_{$method->value}")

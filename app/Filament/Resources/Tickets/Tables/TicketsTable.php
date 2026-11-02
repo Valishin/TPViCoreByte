@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Tickets\Tables;
 
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
+use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Filament\Components\DateRangeFilter;
 use App\Filament\Components\MoneyColumn;
@@ -15,6 +16,7 @@ use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TicketsTable
 {
@@ -41,7 +43,8 @@ class TicketsTable
                 MoneyColumn::make('total')->label('Total')->sortable()
                     ->summarize(Sum::make()->label('Suma')->formatStateUsing(fn ($state) => Format::money((int) $state))),
                 TextColumn::make('payment_status')->label('Cobro')->badge()
-                    ->color(fn (PaymentStatus $state) => $state === PaymentStatus::Paid ? 'success' : 'warning'),
+                    ->formatStateUsing(fn (Ticket $record) => $record->collectionLabel())
+                    ->color(fn (Ticket $record) => $record->collectionColor()),
                 TextColumn::make('status')->label('Estado')->badge()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -51,7 +54,15 @@ class TicketsTable
                     ->options(fn () => Ticket::query()->distinct()->orderByDesc('year')->pluck('year', 'year')->all()),
                 SelectFilter::make('type')->label('Tipo')->options(TicketType::class),
                 SelectFilter::make('order_type')->label('Tipo de pedido')->options(OrderType::class),
-                SelectFilter::make('payment_status')->label('Cobro')->options(PaymentStatus::class),
+                // «Pendiente de cobro» no incluye los anulados (no se cobran).
+                SelectFilter::make('payment_status')->label('Cobro')
+                    ->options(['pagado' => PaymentStatus::Paid->label(), 'pendiente' => PaymentStatus::Pending->label(), 'anulado' => 'Anulado: no se cobra'])
+                    ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
+                        'pagado' => $query->where('payment_status', PaymentStatus::Paid)->where('status', '!=', TicketStatus::Annulled),
+                        'pendiente' => $query->where('payment_status', PaymentStatus::Pending)->where('status', '!=', TicketStatus::Annulled),
+                        'anulado' => $query->where('status', TicketStatus::Annulled),
+                        default => $query,
+                    }),
             ])
             ->recordActions([ViewAction::make()])
             ->recordUrl(fn (Ticket $record) => TicketResource::getUrl('view', ['record' => $record]));

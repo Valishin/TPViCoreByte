@@ -3,6 +3,9 @@
 namespace Tests\Feature\Pos;
 
 use App\Enums\UserRole;
+use App\Filament\Resources\CashSessions\Pages\ViewCashSession;
+use App\Filament\Resources\Tickets\Pages\ListTickets;
+use App\Filament\Resources\Tickets\Pages\ViewTicket;
 use App\Models\CashMovement;
 use App\Models\Order;
 use App\Models\PrintJob;
@@ -11,6 +14,9 @@ use App\Models\Ticket;
 use App\Models\TicketAnnulment;
 use App\Models\User;
 use App\Services\Cash\CashReportService;
+use App\Support\Format;
+use Filament\Facades\Filament;
+use Livewire\Livewire;
 
 class CourierSettlementTest extends TakeawayTestCase
 {
@@ -156,6 +162,35 @@ class CourierSettlementTest extends TakeawayTestCase
         $this->assertSame(0, $report['sales_total']);
         $this->assertSame(10000, $report['cash']['expected']);
         $this->assertSame([], collect($this->asWaiter()->getJson('/api/couriers/settlement')->json('data'))->firstWhere('courier.name', 'Javi')['orders']);
+    }
+
+    /** /admin decía «Pendiente de cobro» de un domicilio no entregado (anulado): ni se cobra ni es venta. */
+    public function test_admin_shows_the_not_delivered_ticket_as_annulled_not_pending(): void
+    {
+        $session = $this->openCash();
+        $failed = $this->outForDelivery($this->javi);
+        $pending = $this->outForDelivery($this->sara);   // este sí sigue pendiente
+        $this->asWaiter()->postJson("/api/takeaway-orders/{$failed}/not-delivered", ['reason' => 'No está en casa', 'authorization_token' => $this->managerToken('no_entregado')])->assertOk();
+        $annulled = $this->ticketOf($failed);
+        $open = $this->ticketOf($pending);
+
+        $this->assertSame('Anulado: no se cobra', $annulled->collectionLabel());
+        $this->assertSame([$open->id], Ticket::query()->pendingCollection()->pluck('id')->all());
+        $this->assertSame([$open->id], Ticket::query()->countsAsSale()->pluck('id')->all());
+
+        Filament::setCurrentPanel('admin');
+        $this->actingAs(User::factory()->role(UserRole::Admin)->create(), 'web');
+        Livewire::test(ListTickets::class)
+            ->assertSee('Anulado: no se cobra')
+            ->filterTable('payment_status', 'pendiente')
+            ->assertCanSeeTableRecords([$open])->assertCanNotSeeTableRecords([$annulled])
+            ->filterTable('payment_status', 'anulado')
+            ->assertCanSeeTableRecords([$annulled])->assertCanNotSeeTableRecords([$open]);
+        Livewire::test(ViewTicket::class, ['record' => $annulled->getRouteKey()])
+            ->assertSee('Anulado: no se cobra')->assertDontSee('Pendiente de cobro');
+        Livewire::test(ViewCashSession::class, ['record' => $session->getRouteKey()])
+            ->assertSee(Format::money($open->total))   // pendiente y vendido: solo el que no se anuló
+            ->assertDontSee(Format::money($open->total + $annulled->total));
     }
 
     public function test_closing_z_with_pending_delivery_warns_like_open_tables(): void

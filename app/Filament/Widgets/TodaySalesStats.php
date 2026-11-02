@@ -4,7 +4,6 @@ namespace App\Filament\Widgets;
 
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
-use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Support\Format;
@@ -21,11 +20,12 @@ class TodaySalesStats extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $today = Ticket::query()->whereDate('issued_at', today());
-        $yesterday = (int) Ticket::query()->whereDate('issued_at', today()->subDay())->sum('total');
+        // Sin anulados ni canjes (no son ventas), como el informe de caja.
+        $today = Ticket::query()->countsAsSale()->whereDate('issued_at', today());
+        $yesterday = (int) Ticket::query()->countsAsSale()->whereDate('issued_at', today()->subDay())->sum('total');
         $total = (int) (clone $today)->sum('total');
         $count = (clone $today)->count();
-        $pending = (int) (clone $today)->where('payment_status', PaymentStatus::Pending)->sum('total');
+        $pending = (int) (clone $today)->pendingCollection()->sum('total');
 
         $open = Order::query()->where('status', OrderStatus::Open)
             ->selectRaw('type, count(*) as n')->groupBy('type')->pluck('n', 'type');

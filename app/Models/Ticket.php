@@ -97,6 +97,36 @@ class Ticket extends Model
         return $this->full_number ?? DocumentNumber::format($this->series_code, $this->year ?? DocumentNumber::yearOf($this->issued_at), $this->number);
     }
 
+    /**
+     * Cobro para mostrar: un documento anulado no se cobra (su payment_status
+     * se queda como estaba: el ticket es inmutable salvo estado y cobro).
+     */
+    public function collectionLabel(): string
+    {
+        return $this->status === TicketStatus::Annulled ? 'Anulado: no se cobra' : $this->payment_status->label();
+    }
+
+    public function collectionColor(): string
+    {
+        return match (true) {
+            $this->status === TicketStatus::Annulled => 'gray',
+            $this->payment_status === PaymentStatus::Paid => 'success',
+            default => 'warning',
+        };
+    }
+
+    /** Pendientes de cobro de verdad: emitidos y sin cobrar (como el informe de caja). */
+    public function scopePendingCollection(Builder $query): Builder
+    {
+        return $query->where('status', TicketStatus::Issued)->where('payment_status', PaymentStatus::Pending);
+    }
+
+    /** Lo que cuenta como venta: sin anulados ni facturas de canje (como el informe de caja). */
+    public function scopeCountsAsSale(Builder $query): Builder
+    {
+        return $query->where('status', '!=', TicketStatus::Annulled)->where('type', '!=', TicketType::InvoiceExchange);
+    }
+
     /** Búsqueda por número (ver whereNumber), primero los del año actual. */
     public function scopeSearchNumber(Builder $query, string $search): Builder
     {

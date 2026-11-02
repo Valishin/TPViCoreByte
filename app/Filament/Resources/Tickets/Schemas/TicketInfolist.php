@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Tickets\Schemas;
 
 use App\Enums\PaymentStatus;
+use App\Enums\TicketStatus;
 use App\Enums\TicketType;
 use App\Filament\Components\LinesTree;
 use App\Filament\Components\MoneyEntry;
@@ -67,7 +68,9 @@ class TicketInfolist
                     MoneyEntry::make('delivery_fee')->label('Gastos de envío')
                         ->visible(fn (Ticket $record) => $record->delivery_fee !== 0),
                     MoneyEntry::make('total')->label('Total')->size('lg')->weight('bold'),
-                    TextEntry::make('payment_status')->label('Cobro')->badge(),
+                    TextEntry::make('payment_status')->label('Cobro')->badge()
+                        ->formatStateUsing(fn (Ticket $record) => $record->collectionLabel())
+                        ->color(fn (Ticket $record) => $record->collectionColor()),
                 ]),
             ]),
             Section::make('Líneas')->columnSpanFull()->schema([LinesTree::make('lines')]),
@@ -95,6 +98,7 @@ class TicketInfolist
                     RepeatableEntry::make('payments')->label('Pagos')->hiddenLabel()
                         // Canje o sustitución con los mismos importes: cobrado, pero sin pagos propios.
                         ->placeholder(fn (Ticket $record) => match (true) {
+                            $record->status === TicketStatus::Annulled => 'Anulado: no se cobra',
                             $record->payment_status !== PaymentStatus::Paid => 'Pendiente de cobro',
                             $record->replacedTicket !== null => 'Cobrado con el ticket '.$record->replacedTicket->fullNumber(),
                             default => 'Sin cobros ni devoluciones en este documento',
