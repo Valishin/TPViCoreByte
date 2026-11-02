@@ -32,6 +32,7 @@ class SettingFactory extends Factory
             'half_and_half_pricing' => HalfAndHalfPricing::MostExpensive,
             'half_and_half_modifier_pricing' => HalfAndHalfModifierPricing::Full,
             'delivery_fee_vat_rate' => 1000,
+            'setup_seen_at' => now(),   // local ya puesto en marcha (el primer acceso lo prueban sus tests)
         ];
     }
 }

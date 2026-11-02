@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Unguarded]
 class Setting extends Model
 {
-    protected $hidden = ['smtp_password', 'verifactu_certificate', 'verifactu_certificate_password'];
+    protected $hidden = ['smtp_password', 'verifactu_certificate', 'verifactu_certificate_password', 'setup_code_hash'];
 
     use HasFactory;
 
@@ -46,6 +46,8 @@ class Setting extends Model
             'print_courier_copy' => 'boolean',
             'print_join_notice' => 'boolean',
             'corporate_tax' => 'boolean',
+            'setup_steps' => 'array',
+            'setup_seen_at' => 'datetime',
             'invoice_require_address' => 'boolean',
             'smtp_password' => 'encrypted', // con APP_KEY: guárdala con la clave age (docs/instalacion-minipc.md)
             // VERI*FACTU (docs/verifactu/PLAN.md). Certificado .p12 y su contraseña, cifrados con la APP_KEY:
