@@ -100,7 +100,7 @@ class AccessTest extends FilamentTestCase
     public function test_admin_saves_takeaway_and_delivery_settings(): void
     {
         Livewire::test(LocalSettings::class)
-            ->fillForm(['takeaway_prep_minutes' => 20, 'delivery_minutes' => 45, 'print_courier_copy' => true])
+            ->fillForm(['takeaway_prep_minutes' => 20, 'delivery_minutes' => 45, 'print_courier_copy' => true, 'print_courier_settlement' => false])
             ->call('save')
             ->assertHasNoFormErrors();
 
@@ -108,5 +108,6 @@ class AccessTest extends FilamentTestCase
         $this->assertSame(20, $settings->takeaway_prep_minutes);
         $this->assertSame(45, $settings->delivery_minutes);
         $this->assertTrue($settings->print_courier_copy);
+        $this->assertFalse($settings->print_courier_settlement);
     }
 }

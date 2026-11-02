@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\CashMovement;
 use App\Models\Order;
 use App\Models\PrintJob;
+use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketAnnulment;
 use App\Models\User;
@@ -104,6 +105,19 @@ class CourierSettlementTest extends TakeawayTestCase
         $this->assertSame(-3000, $report['cash']['movements']);
         $this->assertSame(0, $report['sales_total']);
         $this->assertSame(1, CashMovement::count());
+    }
+
+    public function test_settlement_receipt_can_be_turned_off_in_admin(): void
+    {
+        Setting::current()->update(['print_courier_settlement' => false]);
+        $this->openCash();
+        $a = $this->outForDelivery($this->javi);
+
+        $this->asWaiter()->postJson("/api/couriers/{$this->javi->id}/settle", ['collected' => [$a => [['method' => 'efectivo', 'amount' => 2150]]]])
+            ->assertCreated();
+
+        $this->assertSame('pagado', $this->ticketOf($a)->payment_status->value, 'Se liquida igual…');
+        $this->assertSame(0, PrintJob::query()->where('kind', 'liquidacion')->count(), '…pero sin imprimir el comprobante.');
     }
 
     public function test_settlement_must_match_ticket_amount(): void

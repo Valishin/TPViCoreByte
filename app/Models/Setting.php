@@ -46,6 +46,7 @@ class Setting extends Model
             'takeaway_prep_minutes' => 'integer',
             'delivery_minutes' => 'integer',
             'print_courier_copy' => 'boolean',
+            'print_courier_settlement' => 'boolean',
             'print_join_notice' => 'boolean',
             'corporate_tax' => 'boolean',
             'admin_pos_link_new_tab' => 'boolean',

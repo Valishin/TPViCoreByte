@@ -184,6 +184,8 @@ class LocalSettings extends Page
                             ->helperText('Normalmente el mismo que la comida (10 %).'),
                         Toggle::make('print_courier_copy')->label('Imprimir copia para el repartidor')->inline(false)
                             ->helperText('Al dar salida a un domicilio, una copia con la dirección y un QR que la abre en Google Maps.'),
+                        Toggle::make('print_courier_settlement')->label('Imprimir la liquidación del repartidor')->inline(false)
+                            ->helperText('Al liquidar, el comprobante con sus pedidos, lo cobrado y el efectivo entregado. Siempre se puede consultar en /admin → Caja.'),
                     ]),
             ]);
     }

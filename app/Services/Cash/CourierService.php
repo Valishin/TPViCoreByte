@@ -17,6 +17,7 @@ use App\Models\CashMovement;
 use App\Models\CashSession;
 use App\Models\CourierSettlement;
 use App\Models\Order;
+use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Orders\TakeawayOrderService;
@@ -250,7 +251,8 @@ class CourierService
             return $settlement;
         });
 
-        if ($printer = PrintJobDispatcher::ticketPrinter()) {
+        // El comprobante solo si el local lo quiere (/admin → Ajustes del local).
+        if (Setting::current()->print_courier_settlement && ($printer = PrintJobDispatcher::ticketPrinter())) {
             $this->printing->dispatch(null, $printer, PrintJobKind::Settlement, $this->formatter->courierSettlement($settlement->load('orders.tickets', 'courier', 'settledBy')), by: $by, session: $session);
         }
         foreach ($settlement->orders as $order) {
