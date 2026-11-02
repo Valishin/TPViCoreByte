@@ -1,5 +1,5 @@
 <template>
-    <div class="c-amount">
+    <div ref="root" class="c-amount">
         <div class="c-amount__display" :aria-label="label">
             <span class="c-amount__label">{{ label }}</span>
             <span class="c-amount__value">{{ text || '0' }} €</span>
@@ -19,6 +19,7 @@
 
 <script setup>
 import { ref, watch } from 'vue';
+import { usePhysicalKeypad } from '@/composables/usePhysicalKeypad';
 import { money } from '@/utils/format';
 
 /**
@@ -70,4 +71,15 @@ function set(cents) {
     text.value = toText(cents);
     emit('update:modelValue', cents);
 }
+
+// También con el teclado físico (USB): cifras, «,» o «.» para los céntimos y Retroceso.
+const root = ref(null);
+usePhysicalKeypad(root, (key) => {
+    if (/^\d$/.test(key)) press(key);
+    else if (key === ',' || key === '.') press(',');
+    else if (key === 'Backspace') back();
+    else if (key === 'Delete') set(0);
+    else return false;
+    return true;
+});
 </script>
