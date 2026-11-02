@@ -1,0 +1,14 @@
+#!/bin/sh
+# Nombre fijo de una impresora USB para la regla udev de install.sh:
+#   impresora-usb-nombre /devices/…/usbmisc/lp0  →  impresora-04b8-0202-x5e8012345
+# Igual que App\Services\Printing\UsbPrinterDetector::linkName() (así /admin
+# sabe el enlace sin preguntarlo): fabricante y modelo en minúsculas y, si la
+# impresora tiene número de serie, solo letras y cifras (máx. 24).
+d="${SYSFS:-/sys}$1"
+while [ "$d" != "${SYSFS:-/sys}" ] && [ "$d" != "/" ] && [ ! -f "$d/idVendor" ]; do d="$(dirname "$d")"; done
+[ -f "$d/idVendor" ] && [ -f "$d/idProduct" ] || exit 1
+v="$(tr 'A-Z' 'a-z' < "$d/idVendor")"
+p="$(tr 'A-Z' 'a-z' < "$d/idProduct")"
+s=""
+[ -f "$d/serial" ] && s="$(tr -cd 'A-Za-z0-9' < "$d/serial" | tr 'A-Z' 'a-z' | cut -c1-24)"
+printf 'impresora-%s-%s%s\n' "$v" "$p" "${s:+-$s}"

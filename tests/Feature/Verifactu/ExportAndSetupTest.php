@@ -10,14 +10,11 @@ use App\Services\Orders\OrderLineBuilder;
 use App\Services\Orders\OrderService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Tickets\TicketIssuer;
-use App\Services\Verifactu\CertificateStore;
-use App\Services\Verifactu\Verifactu;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Queue;
 use Tests\Feature\Pos\InvoiceTestCase;
 use ZipArchive;
 
-/** Registros en la exportación fiscal (RRSIF 8.2.f; OM 7.k) y activación en producción desde tpv:setup (Q5). */
+/** Registros en la exportación fiscal (RRSIF 8.2.f; OM 7.k). */
 class ExportAndSetupTest extends InvoiceTestCase
 {
     protected function setUp(): void
@@ -68,35 +65,5 @@ class ExportAndSetupTest extends InvoiceTestCase
         $files = $this->unzip(app(FiscalExportService::class)->export(today(), today()));
 
         $this->assertArrayNotHasKey('registros_verifactu.csv', $files);
-    }
-
-    public function test_setup_fills_fiscal_data_and_activates_verifactu_in_production_only_with_certificate(): void
-    {
-        Setting::query()->delete();
-        $options = ['--name' => 'Bar', '--admin-email' => 'jefa@bar.cat', '--legal-name' => 'Bar Sant Pol SL', '--tax-id' => 'b12345674', '--vat-regime' => '20'];
-        $this->assertSame(0, Artisan::call('tpv:setup', $options));
-        $settings = Setting::current();
-        $this->assertSame(['B12345674', 'Bar Sant Pol SL', '20'], [$settings->tax_id, $settings->legal_name, $settings->vat_regime_key]);
-        $this->assertFalse((bool) $settings->verifactu_enabled);
-
-        $this->assertSame(1, Artisan::call('tpv:setup', ['--admin-email' => 'jefa@bar.cat', '--verifactu' => true]));
-        $this->assertStringContainsString('certificado', Artisan::output());
-        $this->assertFalse((bool) Setting::current()->verifactu_enabled);
-
-        app(CertificateStore::class)->import(CertificateTest::p12(['organizationIdentifier' => 'VATES-B12345674']), 'secreto');
-        $this->assertSame(0, Artisan::call('tpv:setup', ['--admin-email' => 'jefa@bar.cat', '--verifactu' => true]));
-        $settings = Setting::current();
-        $this->assertTrue(Verifactu::active($settings));
-        $this->assertSame('produccion', $settings->verifactu_environment);
-    }
-
-    public function test_setup_rejects_invalid_nif_and_regime_and_does_not_overwrite_admin_data(): void
-    {
-        $this->assertSame(1, Artisan::call('tpv:setup', ['--admin-email' => 'a@b.cat', '--tax-id' => '12345678A']));
-        $this->assertSame(1, Artisan::call('tpv:setup', ['--admin-email' => 'a@b.cat', '--vat-regime' => '03']));
-
-        $before = Setting::current()->tax_id;
-        Artisan::call('tpv:setup', ['--admin-email' => 'a@b.cat', '--tax-id' => 'B12345674', '--legal-name' => 'Otra SL']);
-        $this->assertSame($before, Setting::current()->tax_id);   // ya tenía datos fiscales
     }
 }

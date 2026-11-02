@@ -119,7 +119,30 @@ class BackupSettings extends Page
                     ->formatStateUsing(fn () => Setting::current()->backup_sftp_public_key)
                     ->helperText('Añádela a ~/.ssh/authorized_keys del usuario en el servidor SFTP.')
                     ->visible(fn (Get $get) => $type($get) === 'sftp'),
+                TextEntry::make('sftp_host_key')->label('Servidor verificado')->columnSpanFull()
+                    ->state(fn () => Setting::current()->backup_sftp_known_hosts
+                        ? 'Sí: rclone solo se conecta a este servidor ('.count(preg_split('/\R/', trim(Setting::current()->backup_sftp_known_hosts))).' claves guardadas).'
+                        : 'No: pulsa «Obtener huella del servidor» y compárala con la del servidor antes de aceptarla.')
+                    ->visible(fn (Get $get) => $type($get) === 'sftp'),
                 Actions::make([
+                    Action::make('scanHostKey')->label('Obtener huella del servidor')->icon(Heroicon::OutlinedFingerPrint)->color('gray')
+                        ->modalHeading('Huella del servidor SFTP')
+                        ->modalDescription('Compárala con la del servidor (en él: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub). Acepta solo si coinciden.')
+                        ->modalSubmitActionLabel('Coinciden: confiar en este servidor')
+                        ->mountUsing(function (Schema $form, Get $get) use ($page) {
+                            $page->saveBackups();
+                            $s = Setting::current();
+                            $scan = BackupDestination::scanSftpHost((string) $s->backup_sftp_host, (int) ($s->backup_sftp_port ?: 22));
+                            $form->fill(['known_hosts' => $scan['known_hosts'], 'fingerprints' => implode("\n", $scan['fingerprints'])]);
+                        })
+                        ->schema([
+                            Textarea::make('fingerprints')->label('Huellas')->readOnly()->rows(3),
+                            Textarea::make('known_hosts')->hidden()->dehydratedWhenHidden(),
+                        ])
+                        ->action(function (array $data) {
+                            Setting::current()->update(['backup_sftp_known_hosts' => $data['known_hosts']]);
+                            Notification::make()->success()->title('Servidor SFTP verificado')->send();
+                        }),
                     Action::make('generateSshKey')->label(fn () => Setting::current()->backup_sftp_public_key ? 'Generar otra clave SSH' : 'Generar clave SSH')
                         ->icon(Heroicon::OutlinedKey)->color('gray')
                         ->requiresConfirmation(fn () => (bool) Setting::current()->backup_sftp_public_key)
@@ -128,7 +151,7 @@ class BackupSettings extends Page
                             $set('sftp_public_key', BackupDestination::generateSftpKey());
                             Notification::make()->success()->title('Clave SSH generada: cópiala en el servidor')->send();
                         }),
-                ])->visible(fn (Get $get) => $type($get) === 'sftp')->columnSpanFull(),
+                ])->key('sftp-actions')->visible(fn (Get $get) => $type($get) === 'sftp')->columnSpanFull(),
             ]),
             Section::make('Comprobar')->schema([
                 TextEntry::make('last_backup')->hiddenLabel()->state(fn () => self::lastRunText()),
@@ -137,7 +160,7 @@ class BackupSettings extends Page
                         ->action(function () use ($page) {
                             $page->saveBackups();
                             if (! BackupDestination::configured()) {
-                                Notification::make()->warning()->title('Guarda primero la clave age y el destino.')->send();
+                                Notification::make()->warning()->title('Guarda primero la clave age y el destino (en SFTP, también la huella del servidor).')->send();
 
                                 return;
                             }

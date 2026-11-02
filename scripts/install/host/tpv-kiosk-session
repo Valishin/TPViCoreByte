@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Sesión de escritorio del usuario kiosk (la lanza ~/.config/autostart/tpv-kiosk.desktop):
+# deja la sesión «blindada» para una caja táctil y arranca el kiosko de Chromium.
+#   sin bloqueo de pantalla, salvapantallas ni apagado de pantalla, sin suspensión,
+#   sin notificaciones ni avisos de actualizaciones, sin teclado en pantalla del escritorio
+#   (el TPV tiene el suyo).
+set -u
+desktop="${XDG_CURRENT_DESKTOP:-}"
+
+case "$desktop" in
+    *GNOME*)
+        g() { gsettings set "$@" 2>/dev/null || true; }
+        g org.gnome.desktop.screensaver lock-enabled false
+        g org.gnome.desktop.screensaver idle-activation-enabled false
+        g org.gnome.desktop.lockdown disable-lock-screen true
+        g org.gnome.desktop.session idle-delay 0
+        g org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+        g org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
+        g org.gnome.settings-daemon.plugins.power idle-dim false
+        g org.gnome.desktop.notifications show-banners false
+        g org.gnome.desktop.notifications show-in-lock-screen false
+        g org.gnome.desktop.a11y.applications screen-keyboard-enabled false
+        g org.gnome.software download-updates false
+        g org.gnome.software allow-updates false
+        g org.gnome.desktop.interface enable-hot-corners false
+        ;;
+    *XFCE*)
+        x() { xfconf-query --create "$@" 2>/dev/null || true; }
+        x -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -t bool -s false
+        x -c xfce4-power-manager -p /xfce4-power-manager/blank-on-ac -t int -s 0
+        x -c xfce4-power-manager -p /xfce4-power-manager/inactivity-on-ac -t int -s 0
+        x -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -t bool -s false
+        x -c xfce4-screensaver -p /saver/enabled -t bool -s false
+        x -c xfce4-screensaver -p /lock/enabled -t bool -s false
+        x -c xfce4-notifyd -p /do-not-disturb -t bool -s true
+        pkill -x xfce4-screensaver 2>/dev/null || true
+        ;;
+    *KDE*)
+        k() { (command -v kwriteconfig6 >/dev/null && kwriteconfig6 "$@") || kwriteconfig5 "$@" 2>/dev/null || true; }
+        k --file kscreenlockerrc --group Daemon --key Autolock false
+        k --file kscreenlockerrc --group Daemon --key LockOnResume false
+        k --file powerdevilrc --group AC --group SuspendAndShutdown --key AutoSuspendAction 0
+        k --file powerdevilrc --group AC --group Display --key TurnOffDisplayWhenIdle false
+        k --file powerdevilrc --group AC --group Display --key DimDisplayWhenIdle false
+        k --file plasmanotifyrc --group DoNotDisturb --key Until 2099,1,1,0,0,0
+        k --file kwinrc --group Wayland --key InputMethod ''
+        ;;
+esac
+# X11 (cualquier escritorio): sin salvapantallas ni DPMS.
+[ -n "${DISPLAY:-}" ] && command -v xset >/dev/null && { xset s off; xset -dpms; xset s noblank; } 2>/dev/null
+
+exec /usr/local/bin/tpv-kiosk --desktop

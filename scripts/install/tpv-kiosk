@@ -6,10 +6,15 @@
 # una pequeña espera (más larga si falla seguido, para no entrar en un bucle
 # rápido). "Colgado": la página no responde a /api/health durante 2 minutos.
 #
-#   tpv-kiosk               bucle del kiosko (tty1)
-#   tpv-kiosk --screen off  apagar la pantalla (cron de horario, opcional)
+#   tpv-kiosk               bucle del kiosko (tty1, con cage; equipo sin escritorio)
+#   tpv-kiosk --desktop     bucle del kiosko dentro de la sesión de escritorio del usuario kiosk
+#   tpv-kiosk --screen off  apagar la pantalla (cron de horario, opcional; sin escritorio)
 #   tpv-kiosk --screen on   encenderla
+#
+# Con /etc/tpv/mantenimiento (sudo tpv-mantenimiento on) no arranca ni se relanza.
 set -u
+DESKTOP=0
+[ "${1:-}" = "--desktop" ] && DESKTOP=1
 
 URL="${TPV_KIOSK_URL:-http://localhost/?kiosk=1}"
 PROFILE="$HOME/.config/chromium"
@@ -26,7 +31,6 @@ fi
 # shellcheck disable=SC2054  # las comas de --disable-features son de Chromium
 flags=(
     --kiosk "$URL"
-    --ozone-platform=wayland
     --noerrdialogs --disable-infobars --no-first-run --disable-session-crashed-bubble
     --disable-translate --disable-features=Translate,TranslateUI,HardwareMediaKeyHandling
     --disable-pinch --overscroll-history-navigation=0 --disable-gesture-typing
@@ -54,8 +58,11 @@ watchdog() {
     done
 }
 
+# Sin escritorio: Wayland de cage. Con escritorio: lo que use la sesión (X11 o Wayland).
+if [ "$DESKTOP" = 1 ]; then flags+=(--ozone-platform-hint=auto); else flags+=(--ozone-platform=wayland); fi
+
 backoff=3
-while true; do
+while [ ! -e /etc/tpv/mantenimiento ]; do
     started=$(date +%s)
     wait_tpv
     # Cierre limpio a ojos de Chromium: sin "¿Restaurar páginas?".
@@ -63,7 +70,7 @@ while true; do
         sed -i -e 's/"exited_cleanly":false/"exited_cleanly":true/' -e 's/"exit_type":"[^"]*"/"exit_type":"Normal"/' "$PROFILE/Default/Preferences"
     fi
     watchdog & wd=$!
-    cage -s -- chromium "${flags[@]}"
+    if [ "$DESKTOP" = 1 ]; then chromium "${flags[@]}"; else cage -s -- chromium "${flags[@]}"; fi
     kill "$wd" 2>/dev/null
     # Si ha durado poco, esperar más la próxima vez (máximo 60 s).
     if [ $(( $(date +%s) - started )) -lt 30 ]; then backoff=$(( backoff * 2 > 60 ? 60 : backoff * 2 )); else backoff=3; fi

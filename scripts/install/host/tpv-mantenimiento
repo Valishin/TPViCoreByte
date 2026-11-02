@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Mantenimiento del mini PC: salir del kiosko para entrar con el usuario administrador.
+#
+#   sudo tpv-mantenimiento on    el kiosko no arranca, se quita el inicio automático y se
+#                                cierra la sesión del kiosko: aparece la pantalla de inicio
+#                                de sesión (o la consola) para entrar con tu usuario.
+#   sudo tpv-mantenimiento off   vuelve el inicio automático y el kiosko.
+#   tpv-mantenimiento            estado
+#
+# Desde la caja: Ctrl+Alt+F3 → entra con tu usuario → sudo tpv-mantenimiento on
+# (o por SSH / Tailscale). Un camarero no puede: hace falta tu contraseña.
+set -eu
+FLAG=/etc/tpv/mantenimiento
+. /etc/tpv/kiosk.env 2>/dev/null || { echo "No hay kiosko configurado (/etc/tpv/kiosk.env)." >&2; exit 1; }
+
+autologin() { # autologin on|off
+    case "${KIOSK_MODE:-}:${KIOSK_DM:-}" in
+        desktop:gdm3)
+            sed -i -E "s/^#?[[:space:]]*AutomaticLoginEnable[[:space:]]*=.*/AutomaticLoginEnable = $([ "$1" = on ] && echo true || echo false)/" /etc/gdm3/daemon.conf ;;
+        desktop:lightdm) toggle /etc/lightdm/lightdm.conf.d/50-tpv-kiosk.conf "$1" ;;
+        desktop:sddm) toggle /etc/sddm.conf.d/50-tpv-kiosk.conf "$1" ;;
+        console:*) toggle /etc/systemd/system/getty@tty1.service.d/autologin.conf "$1"; systemctl daemon-reload ;;
+    esac
+}
+toggle() { # toggle fichero on|off  (fichero ↔ fichero.off)
+    if [ "$2" = on ]; then [ -f "$1.off" ] && mv -f "$1.off" "$1"; else [ -f "$1" ] && mv -f "$1" "$1.off"; fi
+    return 0
+}
+
+case "${1:-estado}" in
+    on)
+        [ "$(id -u)" = 0 ] || { echo "Con sudo." >&2; exit 1; }
+        mkdir -p /etc/tpv && touch "$FLAG"
+        autologin off
+        pkill -f tpv-kiosk 2>/dev/null || true
+        pkill -f 'chromium.*--kiosk' 2>/dev/null || true
+        loginctl terminate-user kiosk 2>/dev/null || true
+        [ "$KIOSK_MODE" = console ] && systemctl restart getty@tty1 || true
+        echo "Mantenimiento activado: entra con tu usuario (pantalla de inicio de sesión o Ctrl+Alt+F1)."
+        echo "Al terminar: sudo tpv-mantenimiento off"
+        ;;
+    off)
+        [ "$(id -u)" = 0 ] || { echo "Con sudo." >&2; exit 1; }
+        rm -f "$FLAG"
+        autologin on
+        if [ "$KIOSK_MODE" = desktop ]; then
+            echo "Kiosko reactivado: cierra tu sesión (o reinicia) y arrancará solo."
+        else
+            systemctl restart getty@tty1
+            echo "Kiosko reactivado en tty1."
+        fi
+        ;;
+    *)
+        echo "Kiosko: ${KIOSK_MODE:-?} ${KIOSK_DM:+(${KIOSK_DM}, ${KIOSK_DE:-?})} · mantenimiento: $([ -e "$FLAG" ] && echo SÍ || echo no)"
+        ;;
+esac

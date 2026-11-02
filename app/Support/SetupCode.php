@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 /**
  * Código de configuración de un solo uso para crear el primer administrador
  * en /admin (la contraseña nunca pasa por la terminal). Lo genera install.sh
- * (tpv:setup-code) y lo guarda en /root/tpv-credenciales.txt; aquí solo se
+ * (tpv:setup) y lo guarda en /root/tpv-credenciales.txt; aquí solo se
  * guarda su hash. Al crear el primer administrador se borra.
  */
 final class SetupCode

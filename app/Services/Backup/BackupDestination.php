@@ -3,6 +3,7 @@
 namespace App\Services\Backup;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
 /**
@@ -52,6 +53,8 @@ final class BackupDestination
                 "{$p}USER" => $s->backup_sftp_user,
                 // rclone: PEM en una sola línea con «\n» (documentación de --sftp-key-pem).
                 "{$p}KEY_PEM" => $s->backup_sftp_private_key ? str_replace("\n", '\n', trim($s->backup_sftp_private_key)) : null,
+                // Solo el servidor cuya clave confirmó el admin (sin esto, rclone aceptaría cualquiera).
+                "{$p}KNOWN_HOSTS_FILE" => self::knownHostsFile($s),
             ], fn ($v) => $v !== null && $v !== ''),
             default => [],
         };
@@ -59,7 +62,44 @@ final class BackupDestination
 
     public static function configured(?Setting $s = null): bool
     {
-        return str_starts_with((string) self::recipient($s), 'age1') && self::remote($s) !== null;
+        $s ??= Setting::query()->first();
+
+        return str_starts_with((string) self::recipient($s), 'age1') && self::remote($s) !== null
+            && ($s?->backup_remote_type !== 'sftp' || filled($s->backup_sftp_known_hosts));
+    }
+
+    /** Fichero known_hosts para rclone con la clave confirmada del servidor SFTP. */
+    public static function knownHostsFile(Setting $s): ?string
+    {
+        if (blank($s->backup_sftp_known_hosts)) {
+            return null;
+        }
+        $file = storage_path('app/private/backup-known-hosts');
+        @mkdir(dirname($file), 0700, true);
+        file_put_contents($file, trim($s->backup_sftp_known_hosts)."\n");
+        @chmod($file, 0600);
+
+        return $file;
+    }
+
+    /**
+     * Claves del servidor SFTP (ssh-keyscan) y sus huellas, para que el admin
+     * las compare con las del servidor antes de confiar en él.
+     *
+     * @return array{known_hosts: string, fingerprints: list<string>}
+     */
+    public static function scanSftpHost(string $host, int $port = 22): array
+    {
+        $scan = Process::timeout(20)->run(['ssh-keyscan', '-T', '10', '-p', (string) $port, '-t', 'ed25519,ecdsa,rsa', $host]);
+        $lines = collect(preg_split('/\R/', $scan->output()))->map(fn ($l) => trim($l))->filter(fn ($l) => $l !== '' && ! str_starts_with($l, '#'))->values();
+        if ($lines->isEmpty()) {
+            throw new RuntimeException("No se ha podido leer la clave de {$host}:{$port}. ".trim($scan->errorOutput()));
+        }
+        $known = $lines->implode("\n");
+        $prints = Process::timeout(10)->input($known."\n")->run(['ssh-keygen', '-lf', '-']);
+        $fingerprints = collect(preg_split('/\R/', trim($prints->output())))->filter()->values()->all();
+
+        return ['known_hosts' => $known, 'fingerprints' => $fingerprints];
     }
 
     /**

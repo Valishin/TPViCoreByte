@@ -2,61 +2,51 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UserRole;
 use App\Models\Setting;
 use App\Models\TicketSeries;
 use App\Models\User;
+use App\Support\SetupCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
+/** tpv:setup: series y ajustes por rellenar; el administrador se crea en /admin con el código. */
 class SetupCommandTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function runSetup(array $options): array
+    private function runSetup(array $options = []): array
     {
         Artisan::call('tpv:setup', $options + ['--json' => true]);
 
         return json_decode(trim(Artisan::output()), true);
     }
 
-    public function test_creates_local_series_and_admin_without_demo_data(): void
+    public function test_creates_series_and_pending_settings_without_users(): void
     {
-        $result = $this->runSetup(['--name' => 'Bar Sant Pol', '--admin-email' => 'jefa@barsantpol.cat', '--types' => 'mesa,barra,para_llevar']);
+        $result = $this->runSetup(['--name' => 'Bar Sant Pol']);
 
         $this->assertTrue($result['settings_created']);
-        $this->assertSame(16, strlen($result['admin_password']));
-        $this->assertMatchesRegularExpression('/^\d{4}$/', $result['admin_pin']);
+        $this->assertTrue(SetupCode::check($result['setup_code']));
         $this->assertSame('Bar Sant Pol', Setting::current()->trade_name);
-        $this->assertSame(['mesa', 'barra', 'para_llevar'], Setting::current()->enabled_order_types->map->value->all());
+        $this->assertSame('PENDIENTE', Setting::current()->tax_id);
         $this->assertEqualsCanonicalizing(['T', 'R', 'F', 'FR'], TicketSeries::pluck('code')->all());
-        $this->assertSame('F', Setting::current()->invoiceSeries->code);
-        $this->assertSame('FR', Setting::current()->invoiceRectifyingSeries->code);
-        $admin = User::where('email', 'jefa@barsantpol.cat')->sole();
-        $this->assertTrue(password_verify($result['admin_password'], $admin->password));
-        $this->assertTrue($admin->checkPin($result['admin_pin']));
-        $this->assertSame(1, User::count()); // nada de demo
+        $this->assertSame(0, User::count());
     }
 
-    public function test_is_idempotent(): void
+    public function test_is_idempotent_and_renews_the_code_until_there_is_an_admin(): void
     {
-        $first = $this->runSetup(['--name' => 'Bar', '--admin-email' => 'a@b.cat']);
+        $first = $this->runSetup();
         Setting::current()->update(['trade_name' => 'Cambiado en /admin']);
 
-        $again = $this->runSetup(['--name' => 'Otro', '--admin-email' => 'a@b.cat']);
-
+        $again = $this->runSetup(['--name' => 'Otro']);
         $this->assertFalse($again['settings_created']);
-        $this->assertNull($again['admin_password']);
         $this->assertSame('Cambiado en /admin', Setting::current()->trade_name);
-        $this->assertTrue(password_verify($first['admin_password'], User::sole()->password));
-        $this->assertSame(4, TicketSeries::count());
+        $this->assertFalse(SetupCode::check($first['setup_code']), 'Relanzar el instalador renueva el código.');
+        $this->assertTrue(SetupCode::check($again['setup_code']));
 
-        $reset = $this->runSetup(['--admin-email' => 'a@b.cat', '--reset-password' => true]);
-        $this->assertNotSame($first['admin_password'], $reset['admin_password']);
-    }
-
-    public function test_requires_a_valid_email(): void
-    {
-        $this->assertSame(1, Artisan::call('tpv:setup', ['--admin-email' => 'no-es-email']));
+        User::factory()->role(UserRole::Admin)->create();
+        $this->assertNull($this->runSetup()['setup_code']);
     }
 }

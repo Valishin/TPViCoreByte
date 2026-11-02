@@ -45,10 +45,10 @@ ENV APP_ENV=production \
 RUN install-php-extensions pdo_pgsql pcntl intl zip gd bcmath opcache sockets
 
 # Herramientas: cliente de PostgreSQL 18 (pg_dump de las copias), age (cifrado),
-# rclone (subida remota), procps (healthcheck de los workers), curl.
+# rclone (subida remota), openssh-client (huella del servidor SFTP), procps (healthcheck de los workers), curl.
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates curl gnupg procps age rclone openssl; \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg procps age rclone openssl openssh-client; \
     install -d /usr/share/keyrings; \
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg; \
     echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list; \

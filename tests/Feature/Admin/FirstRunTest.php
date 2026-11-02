@@ -22,8 +22,8 @@ class FirstRunTest extends TestCase
     {
         parent::setUp();
         $this->createSettings();
-        Artisan::call('tpv:setup-code', ['--json' => true]);
-        $this->code = json_decode(trim(Artisan::output()), true)['code'];
+        Artisan::call('tpv:setup', ['--json' => true]);
+        $this->code = json_decode(trim(Artisan::output()), true)['setup_code'];
     }
 
     private function form(array $overrides = []): array
@@ -88,8 +88,8 @@ class FirstRunTest extends TestCase
     public function test_no_code_when_users_already_exist(): void
     {
         User::factory()->role(UserRole::Admin)->create();
-        Artisan::call('tpv:setup-code', ['--json' => true]);
-        $this->assertNull(json_decode(trim(Artisan::output()), true)['code']);
+        Artisan::call('tpv:setup', ['--json' => true]);
+        $this->assertNull(json_decode(trim(Artisan::output()), true)['setup_code']);
         $this->get('/admin/primer-acceso')->assertNotFound();
     }
 }

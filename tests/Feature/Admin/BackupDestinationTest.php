@@ -22,6 +22,8 @@ class BackupDestinationTest extends FilamentTestCase
 {
     private const AGE = 'age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p';
 
+    private const KNOWN = 'copias.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl';
+
     public function test_s3_destination_is_passed_to_rclone_by_environment(): void
     {
         Livewire::test(BackupSettings::class)
@@ -62,13 +64,15 @@ class BackupDestinationTest extends FilamentTestCase
     public function test_upload_uses_the_admin_destination(): void
     {
         Process::fake();
-        Setting::current()->update(['backup_age_recipient' => self::AGE, 'backup_remote_type' => 'sftp', 'backup_sftp_host' => 'h', 'backup_sftp_user' => 'u']);
+        Setting::current()->update(['backup_age_recipient' => self::AGE, 'backup_remote_type' => 'sftp', 'backup_sftp_host' => 'h', 'backup_sftp_user' => 'u',
+            'backup_sftp_known_hosts' => self::KNOWN]);
         BackupRun::create(['reason' => 'prueba', 'file' => 'tpv-20261102-100000-prueba.dump.age', 'status' => 'ok', 'remote_status' => 'pendiente']);
 
         $this->assertTrue(app(BackupService::class)->upload());
 
         Process::assertRan(fn (PendingProcess $p) => $p->command[0] === 'rclone' && $p->command[3] === 'tpvcopias:tpv-copias'
-            && ($p->environment['RCLONE_CONFIG_TPVCOPIAS_HOST'] ?? null) === 'h');
+            && ($p->environment['RCLONE_CONFIG_TPVCOPIAS_HOST'] ?? null) === 'h'
+            && file_get_contents($p->environment['RCLONE_CONFIG_TPVCOPIAS_KNOWN_HOSTS_FILE']) === self::KNOWN."\n");
         $this->assertSame('subida', BackupRun::query()->sole()->remote_status);
         $this->assertTrue(SetupProgress::steps()['copias']['complete']);
     }
@@ -76,6 +80,7 @@ class BackupDestinationTest extends FilamentTestCase
     public function test_probar_copia_saves_and_runs_a_backup(): void
     {
         Queue::fake();
+        Setting::current()->update(['backup_sftp_known_hosts' => self::KNOWN]);
         Livewire::test(BackupSettings::class)
             ->fillForm(['backup_age_recipient' => self::AGE, 'backup_remote_type' => 'sftp', 'backup_sftp_host' => 'h', 'backup_sftp_user' => 'u'])
             ->callAction(TestAction::make('testBackup')->schemaComponent('backup-test', 'form'))
@@ -98,5 +103,32 @@ class BackupDestinationTest extends FilamentTestCase
     {
         Livewire::test(BackupSettings::class)->fillForm(['backup_age_recipient' => 'ssh-rsa AAAA', 'backup_remote_type' => 'sftp', 'backup_sftp_host' => 'h', 'backup_sftp_user' => 'u'])
             ->call('save')->assertHasFormErrors(['backup_age_recipient']);
+    }
+
+    public function test_sftp_needs_the_confirmed_server_key(): void
+    {
+        Process::fake([
+            '*ssh-keyscan*' => Process::result(self::KNOWN."\n", '# copias.example.com:22 SSH-2.0-OpenSSH_9.6'),
+            '*ssh-keygen*' => Process::result('256 SHA256:Xm5c0bxrSmDzyKdoTfV1J3OJ6ObKz8NnGPyRCv1Q2ok copias.example.com (ED25519)'),
+        ]);
+        Setting::current()->update(['backup_age_recipient' => self::AGE, 'backup_remote_type' => 'sftp', 'backup_sftp_host' => 'copias.example.com', 'backup_sftp_user' => 'u']);
+        $this->assertFalse(BackupDestination::configured(), 'Sin la clave del servidor no se usa SFTP.');
+
+        $scan = BackupDestination::scanSftpHost('copias.example.com', 2222);
+        $this->assertSame(self::KNOWN, $scan['known_hosts']);
+        $this->assertSame(['256 SHA256:Xm5c0bxrSmDzyKdoTfV1J3OJ6ObKz8NnGPyRCv1Q2ok copias.example.com (ED25519)'], $scan['fingerprints']);
+        Process::assertRan(fn (PendingProcess $p) => $p->command === ['ssh-keyscan', '-T', '10', '-p', '2222', '-t', 'ed25519,ecdsa,rsa', 'copias.example.com']);
+
+        Livewire::test(BackupSettings::class)
+            ->callAction(TestAction::make('scanHostKey')->schemaComponent('sftp-actions', 'form'));
+        $this->assertSame(self::KNOWN, Setting::current()->backup_sftp_known_hosts);
+        $this->assertTrue(BackupDestination::configured());
+    }
+
+    public function test_unreachable_sftp_server_says_so(): void
+    {
+        Process::fake(['*ssh-keyscan*' => Process::result('', 'getaddrinfo copias.example.com: Name or service not known', 1)]);
+        $this->expectExceptionMessage('No se ha podido leer la clave de copias.example.com:22');
+        BackupDestination::scanSftpHost('copias.example.com');
     }
 }

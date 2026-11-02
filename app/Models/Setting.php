@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Unguarded]
 class Setting extends Model
 {
-    protected $hidden = ['smtp_password', 'verifactu_certificate', 'verifactu_certificate_password', 'setup_code_hash', 'backup_s3_secret_key', 'backup_sftp_private_key'];
+    protected $hidden = ['smtp_password', 'verifactu_certificate', 'verifactu_certificate_password', 'setup_code_hash', 'backup_s3_secret_key', 'backup_sftp_private_key', 'backup_sftp_known_hosts'];
 
     use HasFactory;
 
