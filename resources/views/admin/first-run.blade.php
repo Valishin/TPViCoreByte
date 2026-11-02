@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Crear administrador · TPV</title>
     <style>
-        :root { color-scheme: light dark; --bg: #f3f4f6; --card: #fff; --text: #111827; --muted: #4b5563; --line: #d1d5db; --accent: #ea580c; --err: #b91c1c; }
-        @media (prefers-color-scheme: dark) { :root { --bg: #0b0d12; --card: #161a22; --text: #f3f4f6; --muted: #9ca3af; --line: #374151; --err: #f87171; } }
+        :root { color-scheme: light dark; --bg: #f8fafc; --card: #fff; --text: #0f172a; --muted: #475569; --line: #cbd5e1; --accent: #2563eb; --on-accent: #fff; --err: #b91c1c; }
+        @media (prefers-color-scheme: dark) { :root { --bg: #0d111b; --card: #171e2b; --text: #f1f5f9; --muted: #a6b2c4; --line: #3b475d; --accent: #5b91ff; --on-accent: #0d111b; --err: #f87171; } }
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, sans-serif; }
         main { width: min(560px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
@@ -18,7 +18,7 @@
         input:focus { outline: none; border-color: var(--accent); }
         .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .error { margin-top: 4px; color: var(--err); font-weight: 600; }
-        button { width: 100%; min-height: 56px; margin-top: 24px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 800; cursor: pointer; }
+        button { width: 100%; min-height: 56px; margin-top: 24px; border: 0; border-radius: 12px; background: var(--accent); color: var(--on-accent); font-size: 1.1rem; font-weight: 800; cursor: pointer; }
     </style>
 </head>
 <body>

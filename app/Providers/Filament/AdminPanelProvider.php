@@ -44,7 +44,9 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(PanelsRenderHook::FOOTER, fn (): string => '<div style="padding:1rem;text-align:center;font-size:.75rem;opacity:.6">TPV '
                 .e(config('app.version')).(config('app.commit') ? ' · '.e(config('app.commit')) : '').'</div>')
             ->colors([
-                'primary' => Color::Orange,
+                // Paleta iCOREBYTE: azul principal y grises «slate» (los mismos tonos de fondo y texto que la TPV).
+                'primary' => Color::hex('#2563EB'),
+                'gray' => Color::Slate,
             ])
             ->navigationGroups([
                 'Carta',
