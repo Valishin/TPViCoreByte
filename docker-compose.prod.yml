@@ -25,6 +25,8 @@ x-app: &app
         - 'backups:/backups'           # copias cifradas (rotación local)
         # Clave de Tailscale para el servicio del equipo (700, usuario de la app; ver TailscaleBridge).
         - '/opt/tpv/host/tailscale:/var/tpv/host/tailscale'
+        # Discos USB para las copias (los monta el equipo, tpv-disco): rslave para ver los que se conectan después.
+        - '/opt/tpv/host/discos:/var/tpv/discos:rslave'
     networks: [tpv]
     depends_on:
         pgsql:

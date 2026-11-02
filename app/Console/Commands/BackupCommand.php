@@ -10,12 +10,24 @@ use Illuminate\Console\Command;
 #[Signature('tpv:backup
     {--reason=manual : diaria | cierre_z | arranque | actualizacion | manual}
     {--if-older= : Solo si la última copia correcta tiene más de estas horas}
-    {--upload-only : Solo reintentar la subida remota pendiente}')]
+    {--upload-only : Solo reintentar la subida remota pendiente}
+    {--disk-only : Solo copiar al disco aparte lo que le falte (p. ej. al conectarlo)}')]
 #[Description('Copia de seguridad cifrada de la base de datos (con rotación y subida remota)')]
 class BackupCommand extends Command
 {
     public function handle(BackupService $backups): int
     {
+        if ($this->option('disk-only')) {
+            $ok = $backups->copyToDisk();
+            $this->line(match ($ok) {
+                null => 'Sin disco aparte elegido.',
+                true => 'Disco aparte al día.',
+                false => 'El disco aparte no está conectado o ha fallado la copia (se reintentará).',
+            });
+
+            return self::SUCCESS;
+        }
+
         if ($this->option('upload-only')) {
             $ok = $backups->upload();
             $this->line($ok ? 'Subida al destino remoto al día.' : 'Sin destino remoto o subida fallida (se reintentará).');

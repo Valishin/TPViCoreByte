@@ -83,7 +83,9 @@ final class SetupProgress
             'fiscal' => FiscalSetup::missingFiscal($s) === [],
             'pedidos' => ($marks['pedidos'] ?? null) === 'done' && ! empty($s->enabled_order_types),
             'impresoras' => Printer::query()->where('type', PrinterType::Ticket)->where('is_active', true)->exists(),
-            'copias' => BackupDestination::configured($s) && BackupRun::query()->where('remote_status', 'subida')->exists(),
+            // Destino remoto con alguna copia subida, o disco aparte con alguna copia guardada.
+            'copias' => (BackupDestination::configured($s) && BackupRun::query()->where('remote_status', 'subida')->exists())
+                || (filled($s->backup_disk_uuid) && BackupRun::query()->where('disk_status', 'copiada')->exists()),
             'remoto' => TailscaleBridge::connected(),
             // En demo no aplica; en cliente: certificado válido y VERI*FACTU activo o programado.
             'verifactu' => InstallMode::isDemo()

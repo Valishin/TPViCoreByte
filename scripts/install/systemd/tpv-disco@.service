@@ -1,0 +1,16 @@
+# Disco USB para las copias de seguridad (ver /usr/local/sbin/tpv-disco): se monta al
+# conectarlo (regla udev 99-tpv-discos.rules) y se desmonta al quitarlo (BindsTo).
+# Sin ProtectSystem/PrivateTmp/ReadWritePaths: crearían un espacio de montajes propio
+# y el disco montado no se vería en el equipo ni en los contenedores.
+[Unit]
+Description=TPV: disco USB %i para las copias de seguridad
+BindsTo=dev-%i.device
+After=dev-%i.device
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/tpv-disco add %i
+ExecStop=/usr/local/sbin/tpv-disco remove %i
+TimeoutSec=60
+NoNewPrivileges=yes

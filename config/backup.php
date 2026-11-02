@@ -18,6 +18,13 @@ return [
         'monthly' => (int) env('BACKUP_KEEP_MONTHLY', 6),
     ],
 
+    // Discos USB para la copia en un disco aparte: los monta el equipo (tpv-disco) en
+    // /opt/tpv/host/discos/<UUID>; la app los ve aquí (ficha de cada uno en .info/<UUID>.json).
+    'disks_path' => env('BACKUP_DISKS_PATH', '/var/tpv/discos'),
+
+    // Aviso en /admin si la última copia en el disco aparte es más antigua.
+    'disk_max_age_hours' => (int) env('BACKUP_DISK_MAX_AGE_HOURS', 48),
+
     // Aviso en /admin si la última copia remota es más antigua.
     'remote_max_age_hours' => (int) env('BACKUP_REMOTE_MAX_AGE_HOURS', 48),
 ];

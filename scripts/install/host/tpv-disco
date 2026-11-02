@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Disco USB para las copias de seguridad del TPV. Lo lanza systemd como root
+# (tpv-disco@<sdXN>.service, por la regla udev 99-tpv-discos.rules) al conectar
+# un disco y al quitarlo:
+#
+#   tpv-disco add sdb1       monta la partición en /opt/tpv/host/discos/<UUID>
+#   tpv-disco remove sdb1    la desmonta
+#
+# La app (contenedor, uid 1000) ve /var/tpv/discos/<UUID>/tpv-copias y la ficha
+# .info/<UUID>.json (nombre, formato y tamaño) para elegir el disco en /admin.
+# Formatos: ext4/ext3/ext2, btrfs, xfs, exFAT, FAT32 (vfat) y NTFS (ntfs3).
+# Siempre nosuid,nodev,noexec: un disco ajeno no ejecuta nada en el equipo.
+set -u
+umask 022
+DIR="${TPV_DISCOS_DIR:-/opt/tpv/host/discos}"
+APP_UID="${TPV_APP_UID:-1000}"
+BLKID="${BLKID_BIN:-blkid}"
+MOUNT="${MOUNT_BIN:-mount}"
+UMOUNT="${UMOUNT_BIN:-umount}"
+MOUNTPOINT="${MOUNTPOINT_BIN:-mountpoint}"
+DF="${DF_BIN:-df}"
+
+action="${1:-}"
+dev="${2:-}"
+# Solo nombres de dispositivo del kernel (sdb1, sdc…): nada de rutas.
+if ! [[ "$dev" =~ ^[a-z][a-z0-9]*$ ]] || { [ "$action" != add ] && [ "$action" != remove ]; }; then
+    echo "Uso: tpv-disco add|remove <sdXN>" >&2
+    exit 2
+fi
+INFO="$DIR/.info"
+mkdir -p "$INFO"
+chmod 755 "$DIR" "$INFO"
+
+prop() { printf '%s\n' "$props" | sed -n "s/^$1=//p" | head -1; }
+# Texto del disco (etiqueta): viene de fuera, se limpia para el JSON.
+clean() { printf '%s' "$1" | tr -d '"\\' | tr -cd '[:print:]' | cut -c1-60; }
+
+if [ "$action" = remove ]; then
+    uuid="$(cat "$INFO/$dev.dev" 2>/dev/null || true)"
+    [ -n "$uuid" ] || exit 0
+    "$UMOUNT" -l "$DIR/$uuid" 2>/dev/null || true
+    rmdir "$DIR/$uuid" 2>/dev/null || true
+    rm -f "$INFO/$uuid.json" "$INFO/$dev.dev"
+    echo "Disco $uuid desmontado"
+    exit 0
+fi
+
+props="$("$BLKID" -o export "/dev/$dev" 2>/dev/null || true)"
+uuid="$(prop UUID | tr -cd 'A-Za-z0-9-')"
+fstype="$(prop TYPE)"
+label="$(clean "$(prop LABEL)")"
+[ -n "$uuid" ] || { echo "/dev/$dev sin sistema de archivos: no se monta"; exit 0; }
+
+posix=0
+case "$fstype" in
+    ext2|ext3|ext4|btrfs|xfs) opts="nosuid,nodev,noexec"; posix=1 ;;
+    vfat|exfat) opts="nosuid,nodev,noexec,uid=$APP_UID,gid=$APP_UID,umask=077" ;;
+    ntfs|ntfs3) fstype=ntfs3; opts="nosuid,nodev,noexec,uid=$APP_UID,gid=$APP_UID,umask=077" ;;
+    *) echo "/dev/$dev ($fstype): formato no admitido para las copias"; exit 0 ;;
+esac
+
+mnt="$DIR/$uuid"
+mkdir -p "$mnt"
+if ! "$MOUNTPOINT" -q "$mnt"; then
+    if ! "$MOUNT" -t "$fstype" -o "$opts" "/dev/$dev" "$mnt"; then
+        rmdir "$mnt" 2>/dev/null || true
+        echo "No se ha podido montar /dev/$dev ($fstype)" >&2
+        exit 1
+    fi
+fi
+# Carpeta de las copias en el disco: del usuario de la app (en FAT/exFAT/NTFS ya lo es por uid=).
+mkdir -p "$mnt/tpv-copias"
+if [ "$posix" = 1 ]; then
+    chown "$APP_UID:$APP_UID" "$mnt/tpv-copias"
+    chmod 700 "$mnt/tpv-copias"
+fi
+
+size="$("$DF" -B1 --output=size "$mnt" 2>/dev/null | tail -1 | tr -cd '0-9')"
+printf '{"uuid":"%s","label":"%s","fstype":"%s","size":%s,"device":"%s","at":"%s"}\n' \
+    "$uuid" "$label" "$fstype" "${size:-0}" "$dev" "$(date -Iseconds)" > "$INFO/.$uuid.tmp"
+chmod 644 "$INFO/.$uuid.tmp"
+mv -f "$INFO/.$uuid.tmp" "$INFO/$uuid.json"
+printf '%s\n' "$uuid" > "$INFO/$dev.dev"
+echo "Disco ${label:-$uuid} ($fstype) montado en $mnt"

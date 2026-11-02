@@ -136,6 +136,42 @@ check "el propio TPV en el 80 (relanzar): sigue" '[ "$CODE" = 0 ] && ! grep -q "
 port80 '' ''
 check "puerto 80 libre: sigue" '[ "$CODE" = 0 ]'
 
+echo "▸ Disco USB para las copias (tpv-disco, con blkid/mount simulados)"
+check "el instalador deja la regla udev, el servicio y la carpeta" 'grep -q "tpv-disco@%k.service" "$R/etc/udev/rules.d/99-tpv-discos.rules" && grep -q "UDISKS_IGNORE" "$R/etc/udev/rules.d/99-tpv-discos.rules" && [ -x "$R/usr/local/sbin/tpv-disco" ] && grep -q "BindsTo=dev-%i.device" "$R/etc/systemd/system/tpv-disco@.service"'
+check "el servicio no crea su propio espacio de montajes" '! grep -qE "^(ProtectSystem|PrivateTmp|ReadWritePaths|ProtectHome|PrivateMounts)" "$R/etc/systemd/system/tpv-disco@.service"'
+check "los contenedores ven los discos que se conectan después (rslave)" 'grep -q "/opt/tpv/host/discos:/var/tpv/discos:rslave" "$SRC/docker-compose.prod.yml"'
+D=/tmp/discos; rm -rf "$D" /tmp/fakedisk; mkdir -p /tmp/fakedisk
+cat > /tmp/fakedisk/blkid <<'X'
+#!/bin/sh
+printf 'DEVNAME=%s\nUUID=%s\nTYPE=%s\nLABEL=%s\n' "$3" "$FAKE_UUID" "$FAKE_TYPE" "$FAKE_LABEL"
+X
+printf '#!/bin/sh\necho "$@" > /tmp/fakedisk/mount-args\n' > /tmp/fakedisk/mount
+printf '#!/bin/sh\necho "$@" > /tmp/fakedisk/umount-args\n' > /tmp/fakedisk/umount
+printf '#!/bin/sh\nexit 1\n' > /tmp/fakedisk/mountpoint
+printf '#!/bin/sh\nprintf "  1B-blocks\\n1000000000000\\n"\n' > /tmp/fakedisk/df
+chmod +x /tmp/fakedisk/*
+disco() { # disco add|remove sdb1
+    FAKE_UUID="${FAKE_UUID:-1A2B-3C4D}" FAKE_TYPE="${FAKE_TYPE:-exfat}" FAKE_LABEL="${FAKE_LABEL:-COPIAS}" TPV_DISCOS_DIR="$D" TPV_APP_UID=1000 \
+        BLKID_BIN=/tmp/fakedisk/blkid MOUNT_BIN=/tmp/fakedisk/mount UMOUNT_BIN=/tmp/fakedisk/umount MOUNTPOINT_BIN=/tmp/fakedisk/mountpoint DF_BIN=/tmp/fakedisk/df \
+        bash "$SRC/scripts/install/host/tpv-disco" "$@" >/dev/null 2>&1
+}
+disco add sdb1
+check "exFAT: montado sin ejecutar nada y del usuario de la app" 'grep -q -- "-t exfat -o nosuid,nodev,noexec,uid=1000,gid=1000,umask=077 /dev/sdb1 $D/1A2B-3C4D" /tmp/fakedisk/mount-args'
+check "ficha para /admin (nombre, formato y tamaño) y carpeta tpv-copias" 'grep -q "\"label\":\"COPIAS\",\"fstype\":\"exfat\",\"size\":1000000000000" "$D/.info/1A2B-3C4D.json" && [ -d "$D/1A2B-3C4D/tpv-copias" ]'
+disco remove sdb1
+check "al quitarlo: desmontado y sin ficha" 'grep -q -- "-l $D/1A2B-3C4D" /tmp/fakedisk/umount-args && [ ! -e "$D/.info/1A2B-3C4D.json" ] && [ ! -e "$D/.info/sdb1.dev" ]'
+FAKE_TYPE=ntfs FAKE_UUID=AB12CD34 disco add sdc1
+check "NTFS: con el controlador del kernel (ntfs3)" 'grep -q -- "-t ntfs3 -o nosuid,nodev,noexec,uid=1000" /tmp/fakedisk/mount-args'
+FAKE_TYPE=ext4 FAKE_UUID=0f0e-ext4 disco add sdd1
+check "ext4: montado y la carpeta de copias del usuario de la app (700)" 'grep -q -- "-t ext4 -o nosuid,nodev,noexec /dev/sdd1" /tmp/fakedisk/mount-args && [ "$(stat -c "%u %a" "$D/0f0e-ext4/tpv-copias")" = "1000 700" ]'
+rm -f /tmp/fakedisk/mount-args
+FAKE_TYPE=swap FAKE_UUID=dead-beef disco add sde1
+check "formato no admitido (swap…): no se monta" '[ ! -e /tmp/fakedisk/mount-args ] && [ ! -e "$D/.info/dead-beef.json" ]'
+FAKE_LABEL='x"; rm -rf / #' FAKE_UUID='../../etc' disco add sdf1
+check "nombre o UUID raros: limpios, sin salir de la carpeta" '[ -d "$D/etc/tpv-copias" ] && [ ! -e /etc/tpv-copias ] && grep -qF "\"label\":\"x; rm -rf / #\"," "$D/.info/etc.json"'
+disco add "../sda"; code=$?
+check "dispositivo con ruta: se rechaza" '[ "$code" = 2 ]'
+
 echo "▸ Nombre de las impresoras USB (igual que /admin)"
 S=/tmp/sys; rm -rf "$S"; mkdir -p "$S/devices/usb1/1-1/1-1:1.0/usbmisc/lp0"
 printf '04B8\n' > "$S/devices/usb1/1-1/idVendor"; printf '0202\n' > "$S/devices/usb1/1-1/idProduct"; printf 'X5E8-012345\n' > "$S/devices/usb1/1-1/serial"

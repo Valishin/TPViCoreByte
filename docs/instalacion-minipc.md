@@ -258,13 +258,42 @@ Sin abrir puertos en el router del cliente.
 
 **Qué se copia:** la base de datos completa (ventas, tickets, clientes…), con
 `pg_dump`, cifrada con **age**, con rotación **7 diarias, 4 semanales y 6
-mensuales** en el propio equipo y, si hay destino, subida con rclone.
+mensuales** en el propio equipo y, si hay destino, subida con rclone. Con cada
+copia van también, cifrados y con la última versión, `tpv-claves.env.age` (la
+APP_KEY y demás claves de la instalación: sin ellas no se leen los datos
+cifrados) y `tpv-archivos.tar.age` (logo y demás archivos de la app).
 
 **Cuándo:** justo después de **cada cierre Z**, **al arrancar** el equipo si la
 última copia correcta tiene más de 24 h (para los locales que lo apagan por la
 noche) y a las **05:00** (para los que no lo apagan). Antes de cada actualización.
 Sin internet, la subida se reintenta cada hora. **/admin avisa** si la última
 copia falla o si la del destino remoto tiene más de 48 h.
+
+### Copia en un disco aparte (USB)
+
+Por si se estropea el disco del mini PC o el equipo entero: un disco USB
+conectado siempre al mini PC (ext4, exFAT, NTFS o FAT32; mejor uno dedicado).
+
+1. Conéctalo: el equipo lo monta solo (`tpv-disco`, sin ejecutar nada de él) y
+   el escritorio no lo toca.
+2. /admin → **Copias de seguridad** (o el paso 5 de la Puesta en marcha) →
+   **Copia en un disco aparte** → elígelo («Buscar discos» si aún no sale) →
+   Guardar → **Copiar ahora al disco**.
+3. Desde entonces, en cada cierre Z (y en cada copia) el disco recibe un espejo
+   de las copias: base de datos, claves y archivos, todo cifrado, en
+   `tpv-copias/<local>-<instalación>/` con un `LEEME.txt`.
+
+Si un día no está conectado, las copias quedan pendientes, **/admin avisa** y se
+copian solas en cuanto se vuelve a conectar (cada 15 min). Basta el disco aparte
+para completar el paso de copias; lo ideal es disco aparte **y** destino remoto.
+
+**Restaurar desde el disco en un equipo nuevo:** instala el TPV, conecta el
+disco y, con la clave privada age en un USB:
+`age -d -i clave.txt tpv-claves.env.age` → copia esas claves en `/opt/tpv/.env`
+(sustituyendo las nuevas) y `sudo docker compose -f /opt/tpv/compose.yaml up -d`;
+después `sudo tpv-restore <copia>.dump.age --identity clave.txt`. Los archivos:
+`age -d -i clave.txt tpv-archivos.tar.age | tar -x` dentro del volumen de
+almacenamiento. (age: `sudo apt install age`, o en el Mac con Homebrew.)
 
 ### Generar las claves (una vez, en tu Mac)
 

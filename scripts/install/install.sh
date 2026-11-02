@@ -415,8 +415,8 @@ CONF
 run chown -R "$KIOSK_USER:$KIOSK_USER" "$KIOSK_HOME"
 ok "Mantenimiento: sudo tpv-mantenimiento on|off (Ctrl+Alt+F3 o SSH)"
 
-# --- 5. Impresoras USB ----------------------------------------------------------------------
-step "Impresoras USB: enlace fijo para cualquier impresora"
+# --- 5. Impresoras y discos USB -------------------------------------------------------------
+step "Impresoras y discos USB: impresoras con enlace fijo y discos para las copias"
 install_file "$HERE/host/impresora-usb-nombre" /usr/local/lib/tpv/impresora-usb-nombre 755
 LP_GID="$(getent group lp | cut -d: -f3 || echo 7)"
 put /etc/udev/rules.d/99-impresoras-tpv.rules 644 <<'CONF'
@@ -428,6 +428,21 @@ echo usblp | put /etc/modules-load.d/usblp.conf 644
 run udevadm control --reload-rules
 run udevadm trigger --subsystem-match=usbmisc
 ok "Regla udev genérica: se dan de alta en /admin → Impresoras (Detectar)"
+# Discos USB para las copias (/admin → Copias de seguridad → «Copia en un disco aparte»): se montan
+# solos en /opt/tpv/host/discos/<UUID> (la app los ve en /var/tpv/discos). El escritorio no los toca.
+run install -d -m 755 "${ROOT}/opt/tpv/host/discos"
+install_file "$HERE/host/tpv-disco" /usr/local/sbin/tpv-disco 755
+install_file "$HERE/systemd/tpv-disco@.service" "/etc/systemd/system/tpv-disco@.service" 644
+put /etc/udev/rules.d/99-tpv-discos.rules 644 <<'CONF'
+# TPV: disco USB con sistema de archivos → montado para las copias de seguridad (tpv-disco@.service).
+# UDISKS_IGNORE: el escritorio no lo monta por su cuenta (un solo montaje, el del TPV).
+ACTION!="remove", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", ENV{UDISKS_IGNORE}="1"
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tpv-disco@%k.service"
+CONF
+run systemctl daemon-reload
+run udevadm control --reload-rules
+run udevadm trigger --subsystem-match=block --property-match=ID_BUS=usb --action=add
+ok "Discos USB: se montan solos para las copias (se eligen en /admin → Copias de seguridad)"
 
 # --- 6. Tailscale ---------------------------------------------------------------------------
 step "Tailscale (se une desde /admin)"

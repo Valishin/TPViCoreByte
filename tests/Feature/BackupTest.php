@@ -47,6 +47,12 @@ class BackupTest extends TestCase
 
                 return $ok ? Process::result('') : Process::result('', 'pg_dump: error: connection refused', 1);
             }
+            // Claves (age -r … -o fichero) y archivos (tar | age … -o 'fichero'): también cifrados.
+            if (! str_contains($command, 'rclone') && (preg_match("/-o '([^']+)'/", $command, $m) || preg_match('/-o (\S+)/', $command, $m))) {
+                file_put_contents($m[1], 'cifrado');
+
+                return Process::result('');
+            }
 
             return $uploadOk ? Process::result('') : Process::result('', 'rclone: no network', 1);
         });
