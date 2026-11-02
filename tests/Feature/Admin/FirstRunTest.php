@@ -3,33 +3,28 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
-use App\Models\Setting;
 use App\Models\User;
-use App\Support\SetupCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
-/** Primer acceso a /admin: crear administrador y encargado con el código de un solo uso. */
+/** Primer acceso a /admin: crear administrador y encargado (sin código, solo sin usuarios y desde la red local). */
 class FirstRunTest extends TestCase
 {
     use RefreshDatabase;
-
-    private string $code;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->createSettings();
         Artisan::call('tpv:setup', ['--json' => true]);
-        $this->code = json_decode(trim(Artisan::output()), true)['setup_code'];
     }
 
     private function form(array $overrides = []): array
     {
         return $overrides + [
-            'code' => $this->code, 'name' => 'Alex', 'email' => 'alex@local.cat',
+            'name' => 'Alex', 'email' => 'alex@local.cat',
             'password' => 'una-clave-larga', 'password_confirmation' => 'una-clave-larga',
             'manager_name' => 'Marta', 'manager_email' => 'marta@local.cat', 'manager_pin' => '4321', 'manager_pin_confirmation' => '4321',
         ];
@@ -37,22 +32,13 @@ class FirstRunTest extends TestCase
 
     public function test_admin_without_users_goes_to_create_administrator(): void
     {
-        $this->assertMatchesRegularExpression('/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/', $this->code);
         $this->get('/admin/login')->assertRedirect(route('admin.first-run'));
-        $this->get('/admin/primer-acceso')->assertOk()->assertSee('Código de configuración');
+        $this->get('/admin/primer-acceso')->assertOk()->assertSee('Crear administrador')->assertDontSee('Código de configuración');
     }
 
-    public function test_wrong_code_is_rejected_and_creates_nothing(): void
+    public function test_creates_admin_and_manager_then_the_page_is_gone(): void
     {
-        $this->from('/admin/primer-acceso')->post('/admin/primer-acceso', $this->form(['code' => 'AAAA-BBBB-CCCC']))
-            ->assertRedirect('/admin/primer-acceso')->assertSessionHasErrors('code');
-        $this->assertSame(0, User::count());
-        $this->assertTrue(SetupCode::available());
-    }
-
-    public function test_creates_admin_and_manager_then_the_code_and_page_are_gone(): void
-    {
-        $this->post('/admin/primer-acceso', $this->form(['code' => strtolower(str_replace('-', ' ', $this->code))]))
+        $this->post('/admin/primer-acceso', $this->form())
             ->assertRedirect(route('filament.admin.pages.puesta-en-marcha'));
 
         $admin = User::where('email', 'alex@local.cat')->sole();
@@ -64,7 +50,6 @@ class FirstRunTest extends TestCase
         $this->assertTrue($manager->checkPin('4321'));
         $this->assertNull($admin->pin, 'El PIN del admin no se usa en la caja.');
 
-        $this->assertNull(Setting::query()->value('setup_code_hash'));
         $this->get('/admin/primer-acceso')->assertNotFound();
         $this->post('/admin/primer-acceso', $this->form(['email' => 'otro@local.cat']))->assertNotFound();
         $this->assertSame(2, User::count());
@@ -85,11 +70,10 @@ class FirstRunTest extends TestCase
         $this->assertSame(0, User::count());
     }
 
-    public function test_no_code_when_users_already_exist(): void
+    public function test_not_available_when_users_already_exist(): void
     {
         User::factory()->role(UserRole::Admin)->create();
-        Artisan::call('tpv:setup', ['--json' => true]);
-        $this->assertNull(json_decode(trim(Artisan::output()), true)['setup_code']);
         $this->get('/admin/primer-acceso')->assertNotFound();
+        $this->post('/admin/primer-acceso', $this->form())->assertNotFound();
     }
 }

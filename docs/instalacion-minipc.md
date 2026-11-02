@@ -157,8 +157,20 @@ Qué hace (se puede volver a lanzar sin perder datos ni cambiar claves):
    por rellenar (o los datos de demo). Una **versión nueva** sobre una instalación
    con datos pasa por `tpv-update` (copia y vuelta atrás automática).
 7. **Credenciales** en `/root/tpv-credenciales.txt` (600): APP_KEY, claves de la
-   base de datos y de Reverb y el código de configuración. En la consola solo
-   salen las URL, la ruta de ese fichero y el **código de configuración**.
+   base de datos y de Reverb y número de instalación. Se escriben en cuanto se
+   crea el `.env`, antes de construir o arrancar nada (si algo falla después,
+   las claves ya están guardadas). En la consola solo salen las URL y la ruta
+   de ese fichero.
+
+> **Reinstalar tras borrar `/opt/tpv`:** la base de datos vive en un volumen de
+> Docker que no se borra con la carpeta. `install.sh` recupera las mismas claves
+> de `/root/tpv-credenciales.txt` y pone la contraseña del `.env` en la base de
+> datos, así que vuelve a funcionar con los datos de antes. Si tampoco están las
+> credenciales, genera claves nuevas y avisa si la base de datos ya tenía datos
+> (lo cifrado con la APP_KEY anterior no se podrá leer). Si las credenciales
+> tenían otra APP_KEY, el fichero anterior se guarda como
+> `tpv-credenciales.txt.anterior-<fecha>`. Para empezar de cero de verdad:
+> `docker compose -f /opt/tpv/compose.yaml down -v` antes de borrar la carpeta.
 
 > **Demo → cliente real en el mismo equipo:** `sudo bash install.sh` (sin
 > `--demo`) pide escribir **BORRAR**: se borran los datos de demo y la numeración
@@ -167,10 +179,10 @@ Qué hace (se puede volver a lanzar sin perder datos ni cambiar claves):
 ## 5. Primer acceso y Puesta en marcha (/admin)
 
 1. Abre `http://<IP>/admin` desde la caja, la red local o Tailscale: sale
-   **Crear administrador**. Escribe el **código de configuración** (lo mostró el
-   instalador; está en `/root/tpv-credenciales.txt`), tu email y contraseña, y el
-   **encargado** con su email y PIN (autoriza en la caja). El código vale una vez:
-   después la pantalla desaparece.
+   **Crear administrador**: tu email y contraseña, y el **encargado** con su
+   email y PIN (autoriza en la caja). Hazlo nada más instalar: mientras no hay
+   ningún usuario, cualquiera de la red local o de Tailscale podría crearlo.
+   Después la pantalla desaparece.
 2. Se abre **Puesta en marcha** (7 pasos; cada uno se guarda al pulsar
    «Siguiente» y se puede dejar a medias; el panel muestra «X de 7 pasos»):
    1. **Datos de la empresa**: nombre comercial, razón social, NIF, dirección, logo y pie de ticket.

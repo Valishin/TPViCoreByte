@@ -3,7 +3,7 @@
 Local: ____________________  Fecha: __________  Versión: ________  Técnico: __________
 
 **El día de la instalación:** copiar la carpeta → `sudo bash install.sh` → esperar →
-abrir `/admin` (código de configuración) → **Puesta en marcha**.
+abrir `/admin` (**Crear administrador**) → **Puesta en marcha**.
 
 ## Antes de ir
 - [ ] Carpeta del proyecto en el pendrive (`scripts/make-install-bundle.sh` → `dist/tpv-<versión>.tar.gz`) + USB de Debian 13 (trixie)
@@ -25,7 +25,8 @@ abrir `/admin` (código de configuración) → **Puesta en marcha**.
 
 ## Instalación
 - [ ] `sudo bash install.sh` (o `--demo`, `--ghcr TOKEN`) terminado sin errores
-- [ ] Apuntado el **código de configuración** (también en `/root/tpv-credenciales.txt`)
+- [ ] Copiadas las claves de `/root/tpv-credenciales.txt` al gestor de contraseñas
+- [ ] **Enseguida**: abrir `/admin` y crear el administrador (hasta entonces, cualquiera de la red local podría hacerlo)
 - [ ] Revisados los **avisos** del resumen (p. ej. escritorio no soportado)
 - [ ] `systemctl is-enabled fstrim.timer` → enabled · `docker compose -f /opt/tpv/compose.yaml ps`: todos **healthy**
 - [ ] Reinicio: el kiosko arranca solo en la pantalla táctil, sin barras ni avisos (con escritorio: sin bloqueo ni notificaciones)

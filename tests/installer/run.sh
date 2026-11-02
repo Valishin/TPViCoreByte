@@ -43,6 +43,23 @@ check "no pide datos de empresa ni certificado" '! grep -qiE "NIF|certificado|r�
 key1="$(grep ^APP_KEY= "$R/opt/tpv/.env")"
 install "$R"
 check "relanzar no cambia las claves" '[ "$(grep ^APP_KEY= "$R/opt/tpv/.env")" = "$key1" ]'
+check "sin código de configuración" '! grep -qi "código de configuración" <<<"$OUT" && ! grep -qi "código" "$R/root/tpv-credenciales.txt" && grep -q "crea el administrador" <<<"$OUT"'
+
+echo "▸ Reinstalar tras borrar /opt/tpv (la base de datos sigue en el volumen de Docker)"
+db1="$(grep ^DB_PASSWORD= "$R/opt/tpv/.env")"
+rm -rf "$R/opt/tpv"
+install "$R"
+check "recupera las mismas claves de las credenciales" '[ "$CODE" = 0 ] && grep -q "Claves recuperadas" <<<"$OUT" && [ "$(grep ^APP_KEY= "$R/opt/tpv/.env")" = "$key1" ] && [ "$(grep ^DB_PASSWORD= "$R/opt/tpv/.env")" = "$db1" ]'
+check "las credenciales siguen con esa APP_KEY" 'grep -qxF "$key1" "$R/root/tpv-credenciales.txt" && [ -z "$(ls "$R"/root/tpv-credenciales.txt.anterior-* 2>/dev/null)" ]'
+check "pone la contraseña del .env en la base de datos" 'grep -q "ALTER USER CURRENT_USER PASSWORD" "$SRC/scripts/install/install.sh"'
+check "credenciales guardadas antes de construir o arrancar nada" '[ "$(grep -n "^write_credentials$" "$SRC/scripts/install/install.sh" | head -1 | cut -d: -f1)" -lt "$(grep -n "docker build" "$SRC/scripts/install/install.sh" | head -1 | cut -d: -f1)" ]'
+sed -i 's/^APP_KEY=.*/APP_KEY=base64:otra-clave-de-antes/' "$R/root/tpv-credenciales.txt"
+install "$R"
+check "otra APP_KEY en las credenciales: se guarda aparte, no se pierde" 'grep -q "otra-clave-de-antes" "$R"/root/tpv-credenciales.txt.anterior-* && grep -qxF "$key1" "$R/root/tpv-credenciales.txt" && grep -q "tenían otra APP_KEY" <<<"$OUT"'
+rm -f "$R"/root/tpv-credenciales.txt.anterior-*
+R2=/tmp/r-sin-nada; rm -rf "$R2"
+install "$R2"
+check "sin .env ni credenciales: claves nuevas" '[ "$CODE" = 0 ] && ! grep -q "Claves recuperadas" <<<"$OUT" && grep -qE "^APP_KEY=base64:.{40,}" "$R2/opt/tpv/.env" && [ "$(grep ^APP_KEY= "$R2/opt/tpv/.env")" != "$key1" ] && grep -qE "^DB_PASSWORD=.{20,}" "$R2/root/tpv-credenciales.txt"'
 
 echo "▸ Versión nueva y --config"
 sed -i 's/^TPV_VERSION=.*/TPV_VERSION=0.9.0/' "$R/opt/tpv/.env"
@@ -90,6 +107,9 @@ install "$R" --demo=bar
 check "demo con datos bar" '[ "$CODE" = 0 ] && grep -q "instalación «demo» (datos: bar)" <<<"$OUT" && grep -q "^TPV_INSTALL_MODE=demo" "$R/opt/tpv/.env"'
 install "$R"
 check "demo → cliente pide BORRAR" 'grep -q "pediría escribir BORRAR" <<<"$OUT"'
+rm -rf "$R"; install "$R" --demo=bar; rm -rf "$R/opt/tpv"
+install "$R"
+check "…también si se borró /opt/tpv (el modo sale de las credenciales)" 'grep -q "pediría escribir BORRAR" <<<"$OUT"'
 R=/tmp/r-consola
 install "$R" --demo
 check "cliente → demo no se permite" '[ "$CODE" != 0 ] && grep -q "no se convierte en demo" <<<"$OUT"'

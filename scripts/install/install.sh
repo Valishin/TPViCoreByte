@@ -9,8 +9,9 @@
 #
 # Sin preguntas: solo instala. La empresa, el NIF, el régimen, las impresoras,
 # las copias, Tailscale y VERI*FACTU se configuran después en /admin
-# (primer acceso con el código de configuración → «Puesta en marcha»).
-# Se puede volver a lanzar sin perder datos ni cambiar claves.
+# (primer acceso: «Crear administrador» → «Puesta en marcha»).
+# Se puede volver a lanzar sin perder datos ni cambiar claves; si se borró
+# /opt/tpv, recupera las claves de /root/tpv-credenciales.txt.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +26,7 @@ TPV_DIR="${ROOT}/opt/tpv"
 KIOSK_USER=kiosk
 APP_UID=1000                                # usuario de la app dentro de la imagen
 
-usage() { sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 while [ $# -gt 0 ]; do
     case "$1" in
         --demo) MODE=demo; shift ;;
@@ -72,6 +73,32 @@ envforce() { # envforce <fichero> CLAVE valor — siempre
     if grep -qE "^${key}=" "$file"; then sed -i "s|^${key}=.*|${key}=${value//|/\\|}|" "$file"; else echo "${key}=${value}" >> "$file"; fi
 }
 compose() { (cd "$TPV_DIR" && docker compose "$@"); }
+# /root/tpv-credenciales.txt (600) con las claves del .env. Si el fichero anterior tenía
+# otra APP_KEY, se guarda aparte (nunca se pierde una clave).
+write_credentials() {
+    if [ "$DRY_RUN" = 1 ] && [ -z "$ROOT" ]; then echo "  [dry-run] escribiría /root/tpv-credenciales.txt"; return; fi
+    [ -f "$ENV" ] || return 0
+    mkdir -p "$(dirname "$CRED_FILE")"
+    local old_key k
+    old_key="$(envget "$CRED_FILE" APP_KEY)"
+    if [ -n "$old_key" ] && [ "$old_key" != "$(envget "$ENV" APP_KEY)" ]; then
+        cp -p "$CRED_FILE" "$CRED_FILE.anterior-$(date +%Y%m%d%H%M%S)"
+        warn "Las credenciales anteriores tenían otra APP_KEY: guardadas en $(basename "$CRED_FILE").anterior-* (en /root)."
+    fi
+    {
+        echo "TPV · $(date '+%F %T') · instalación $MODE"
+        echo "Caja:   http://${LAN_IP}/"
+        echo "Admin:  http://${LAN_IP}/admin"
+        [ "$MODE" = demo ] && echo "Usuarios de demo: ver README (Datos de demo)."
+        echo
+        echo "Guárdalo en el gestor de contraseñas (sin la APP_KEY no se leen los datos cifrados de las copias)."
+        echo "Si se borra /opt/tpv, install.sh recupera estas claves de aquí."
+        for k in $CRED_KEYS TPV_INSTALL_MODE; do
+            echo "$k=$(envget "$ENV" "$k")"
+        done
+    } > "$CRED_FILE.tmp"
+    chmod 600 "$CRED_FILE.tmp" && mv "$CRED_FILE.tmp" "$CRED_FILE"
+}
 artisan() { compose run --rm --no-deps -T app php artisan "$@"; }
 has() { [ -e "${ROOT}$1" ]; }
 
@@ -112,9 +139,19 @@ detect_ip() {
 LAN_IP="${LAN_IP:-$(detect_ip)}"
 LOCAL_NAME="${LOCAL_NAME:-Mi local}"
 
+ENV="$TPV_DIR/.env"
+CRED_FILE="${ROOT}/root/tpv-credenciales.txt"
+CRED_KEYS="APP_KEY DB_PASSWORD REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET VERIFACTU_INSTALLATION_NUMBER"
+# Se borró /opt/tpv (o solo el .env) pero quedan las credenciales: se recuperan las mismas
+# claves. La base de datos vive en un volumen de Docker que NO se borra con la carpeta, y
+# sin la APP_KEY ni la contraseña de antes no se podría usar.
+RECOVER_KEYS=0
+if [ ! -f "$ENV" ] && grep -qE '^APP_KEY=base64:.+' "$CRED_FILE" 2>/dev/null; then RECOVER_KEYS=1; fi
+
 # Instalación anterior: el modo no cambia sin querer; una versión nueva pasa por tpv-update.
-PREV_MODE="$(envget "$TPV_DIR/.env" TPV_INSTALL_MODE)"
-PREV_VERSION="$(envget "$TPV_DIR/.env" TPV_VERSION)"
+PREV_MODE="$(envget "$ENV" TPV_INSTALL_MODE)"
+[ -n "$PREV_MODE" ] || [ "$RECOVER_KEYS" = 0 ] || PREV_MODE="$(envget "$CRED_FILE" TPV_INSTALL_MODE)"
+PREV_VERSION="$(envget "$ENV" TPV_VERSION)"
 WIPE_DEMO=0
 if [ "$PREV_MODE" = demo ] && [ "$MODE" = cliente ]; then
     echo
@@ -385,11 +422,19 @@ services:
 CONF
 run mkdir -p "${ROOT}/dev/usb" 2>/dev/null || true
 
-ENV="$TPV_DIR/.env"
 if [ ! -f "$ENV" ]; then
     if [ "$DRY_RUN" = 1 ] && [ -z "$ROOT" ]; then echo "  [dry-run] crearía $ENV"; else cp "$REPO/docker/production/env.example" "$ENV"; chmod 600 "$ENV"; fi
 fi
+NEW_APP_KEY=0
 if [ -f "$ENV" ]; then
+    if [ "$RECOVER_KEYS" = 1 ]; then
+        for k in $CRED_KEYS; do
+            v="$(envget "$CRED_FILE" "$k")"
+            [ -z "$v" ] || envforce "$ENV" "$k" "$v"
+        done
+        ok "Claves recuperadas de /root/tpv-credenciales.txt (las mismas de antes)"
+    fi
+    grep -qE '^APP_KEY=.+' "$ENV" || NEW_APP_KEY=1
     # Claves propias de esta instalación: solo se generan si faltan (relanzar no las cambia).
     envset "$ENV" APP_KEY "base64:$(rand64 32)"
     envset "$ENV" DB_PASSWORD "$(rand 24)"
@@ -406,6 +451,8 @@ if [ -f "$ENV" ]; then
     chmod 600 "$ENV"
     ok ".env con claves propias (600), modo $MODE"
 fi
+# Ya, antes de construir o arrancar nada: si algo falla después, las claves están guardadas.
+write_credentials
 
 if [ "$DRY_RUN" = 1 ]; then
     if [ "$UPGRADE" = 1 ]; then
@@ -413,7 +460,6 @@ if [ "$DRY_RUN" = 1 ]; then
     else
         echo "  [dry-run] imagen, base de datos, migraciones y $([ "$MODE" = demo ] && echo "datos de demo ($DEMO_DATASET)" || echo "ajustes por rellenar"): omitido"
     fi
-    SETUP_CODE="XXXX-XXXX-XXXX"
 else
     if [ "$SOURCE" = build ]; then
         docker build -q -f "$REPO/docker/production/Dockerfile" \
@@ -425,7 +471,6 @@ else
         compose pull -q
         ok "Imagen descargada: $TPV_IMAGE:$TPV_VERSION"
     fi
-    SETUP_CODE=""
     if [ "$UPGRADE" = 1 ]; then
         # De $PREV_VERSION a $TPV_VERSION: copia cifrada, migraciones y vuelta atrás si algo falla.
         if [ "$SOURCE" = build ]; then /usr/local/bin/tpv-update --local "$TPV_VERSION"; else /usr/local/bin/tpv-update "$TPV_VERSION"; fi
@@ -435,6 +480,13 @@ fi
 if [ "$DRY_RUN" = 0 ] && [ "$UPGRADE" = 0 ]; then
     compose up -d pgsql
     until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(compose ps -q pgsql)")" = healthy ]; do sleep 2; done
+    # La base de datos puede venir de una instalación anterior (el volumen sobrevive a borrar
+    # /opt/tpv) con otra contraseña: se pone la de este .env (dentro del contenedor, sin red).
+    compose exec -T pgsql psql -q -v ON_ERROR_STOP=1 -U "$(envget "$ENV" DB_USERNAME)" -d postgres \
+        -v pw="$(envget "$ENV" DB_PASSWORD)" >/dev/null <<'SQL'
+ALTER USER CURRENT_USER PASSWORD :'pw';
+SQL
+    ok "Base de datos con la contraseña de este .env"
     if [ "$WIPE_DEMO" = 1 ]; then
         artisan migrate:fresh --force
         ok "Datos de demo borrados: numeración desde cero"
@@ -442,6 +494,9 @@ if [ "$DRY_RUN" = 0 ] && [ "$UPGRADE" = 0 ]; then
         artisan migrate --force
     fi
     HAS_SETTINGS="$(artisan tinker --execute='echo App\Models\Setting::query()->exists() ? 1 : 0;' 2>/dev/null | tail -1)"
+    if [ "$HAS_SETTINGS" = 1 ] && [ "$NEW_APP_KEY" = 1 ] && [ "$WIPE_DEMO" = 0 ]; then
+        warn "La base de datos ya tenía datos y la APP_KEY es NUEVA: los datos cifrados (certificado, contraseñas de correo y copias) no se podrán leer. Si tienes la APP_KEY anterior, ponla en /opt/tpv/.env y en /root/tpv-credenciales.txt y relanza."
+    fi
     if [ "$MODE" = demo ]; then
         if [ "$HAS_SETTINGS" != 1 ]; then
             compose run --rm --no-deps -T -e "DEMO_DATASET=$DEMO_DATASET" app php artisan db:seed --force
@@ -450,9 +505,8 @@ if [ "$DRY_RUN" = 0 ] && [ "$UPGRADE" = 0 ]; then
             ok "Datos de demo ya cargados: sin cambios"
         fi
     else
-        SETUP_JSON="$(artisan tpv:setup --name="$LOCAL_NAME" --json | tail -1)"
-        SETUP_CODE="$(printf '%s' "$SETUP_JSON" | sed -nE 's/.*"setup_code":"([^"]+)".*/\1/p')"
-        ok "$([ -n "$SETUP_CODE" ] && echo "Ajustes preparados; el administrador se crea en /admin" || echo "El administrador ya existe")"
+        artisan tpv:setup --name="$LOCAL_NAME" --json >/dev/null
+        ok "Ajustes preparados; el administrador se crea en /admin (primer acceso)"
     fi
     compose up -d
     ok "Servicios en marcha (arrancan solos con el equipo)"
@@ -485,28 +539,7 @@ fi
 
 # --- 8. Credenciales ------------------------------------------------------------------------
 step "Credenciales en /root/tpv-credenciales.txt (solo root)"
-CRED_FILE="${ROOT}/root/tpv-credenciales.txt"
-if [ "$DRY_RUN" = 1 ] && [ -z "$ROOT" ]; then
-    echo "  [dry-run] escribiría /root/tpv-credenciales.txt"
-else
-    mkdir -p "$(dirname "$CRED_FILE")"
-    {
-        echo "TPV · $(date '+%F %T') · instalación $MODE"
-        echo "Caja:   http://${LAN_IP}/"
-        echo "Admin:  http://${LAN_IP}/admin"
-        if [ -n "${SETUP_CODE:-}" ]; then
-            echo "Código de configuración (crear el administrador en /admin, un solo uso): $SETUP_CODE"
-        elif [ "$MODE" = demo ]; then
-            echo "Usuarios de demo: ver README (Datos de demo)."
-        fi
-        echo
-        echo "Guárdalo en el gestor de contraseñas (sin la APP_KEY no se leen los datos cifrados de las copias):"
-        for k in APP_KEY DB_PASSWORD REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET VERIFACTU_INSTALLATION_NUMBER; do
-            echo "$k=$(envget "$ENV" "$k")"
-        done
-    } > "$CRED_FILE.tmp"
-    chmod 600 "$CRED_FILE.tmp" && mv "$CRED_FILE.tmp" "$CRED_FILE"
-fi
+write_credentials
 ok "Guardadas (600)"
 
 # --- 9. Resumen -----------------------------------------------------------------------------
@@ -514,11 +547,7 @@ step "Listo"
 echo "  Caja:          http://${LAN_IP}/"
 echo "  Administración: http://${LAN_IP}/admin"
 echo "  Credenciales:  /root/tpv-credenciales.txt (APP_KEY y claves: guárdalas en el gestor de contraseñas)"
-if [ -n "${SETUP_CODE:-}" ]; then
-    echo
-    printf '  \033[1mCódigo de configuración: %s\033[0m\n' "$SETUP_CODE"
-    echo "  Abre /admin, escríbelo y crea el administrador y el encargado; después, «Puesta en marcha»."
-fi
+[ "$MODE" = demo ] || echo "  Primer acceso:  abre /admin y crea el administrador y el encargado; después, «Puesta en marcha»."
 echo "  Kiosko:        $([ "$KIOSK_MODE" = desktop ] && echo "escritorio ${KIOSK_DE:-?} (${KIOSK_DM:-sin gestor})" || echo "cage en tty1") · reinicia para que arranque"
 if [ "${#NOTES[@]}" -gt 0 ]; then
     echo

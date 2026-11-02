@@ -19,23 +19,18 @@
         .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .error { margin-top: 4px; color: var(--err); font-weight: 600; }
         button { width: 100%; min-height: 56px; margin-top: 24px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 800; cursor: pointer; }
-        code { font-weight: 700; }
     </style>
 </head>
 <body>
 <main>
     <h1>Crear administrador</h1>
-    <p>Primer acceso a la administración del TPV. Escribe el <strong>código de configuración</strong> que mostró el instalador
-        (también está en <code>/root/tpv-credenciales.txt</code> del equipo). Solo sirve una vez.</p>
+    <p>Primer acceso a la administración del TPV: crea el administrador y el encargado. Esta pantalla solo aparece
+        mientras no hay ningún usuario.</p>
     <form method="post" action="{{ route('admin.first-run.store') }}" autocomplete="off">
         @csrf
-        <label for="code">Código de configuración</label>
-        <input id="code" name="code" value="{{ old('code') }}" required autofocus placeholder="XXXX-XXXX-XXXX" autocapitalize="characters">
-        @error('code')<div class="error" role="alert">{{ $message }}</div>@enderror
-
         <h2>Administrador (entra en /admin)</h2>
         <label for="name">Nombre</label>
-        <input id="name" name="name" value="{{ old('name') }}" required>
+        <input id="name" name="name" value="{{ old('name') }}" required autofocus>
         @error('name')<div class="error" role="alert">{{ $message }}</div>@enderror
         <label for="email">Email</label>
         <input id="email" name="email" type="email" value="{{ old('email') }}" required>

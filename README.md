@@ -406,7 +406,7 @@ para cada cliente. SAI: [docs/sai-nut.md](docs/sai-nut.md).
 - **Instalación**: copiar la carpeta del proyecto (`scripts/make-install-bundle.sh`
   → `dist/tpv-<versión>.tar.gz`) y `sudo bash install.sh` en el mini PC, sin
   preguntas (`--demo`, `--ghcr TOKEN`, `--config`, `--dry-run`). Después, `/admin`:
-  **Crear administrador** con el código de configuración y **Puesta en marcha**
+  **Crear administrador** (solo mientras no hay usuarios) y **Puesta en marcha**
   (empresa, fiscal, pedidos, impresoras, copias, Tailscale y VERI\*FACTU).
 - **Tipo de instalación** (`TPV_INSTALL_MODE`): `cliente` (no emite sin datos
   fiscales; aplica las fechas de VERI\*FACTU) o `demo` (datos de ejemplo,
