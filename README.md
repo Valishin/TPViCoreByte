@@ -411,7 +411,8 @@ para cada cliente. SAI: [docs/sai-nut.md](docs/sai-nut.md).
 - **Tipo de instalación** (`TPV_INSTALL_MODE`): `cliente` (no emite sin datos
   fiscales; aplica las fechas de VERI\*FACTU) o `demo` (datos de ejemplo,
   VERI\*FACTU apagado). Pruebas del instalador: `scripts/test-installer.sh`
-  (debian:13, con y sin escritorio).
+  (debian:13, con y sin escritorio) y `scripts/test-systemd-units.sh` (servicio
+  de Tailscale con systemd y tailscale reales).
 - **Servicios** (`docker-compose.prod.yml`): app (puerto 80; FrankenPHP pasa
   `/app` a Reverb), reverb, queue, printing, scheduler y postgres 18.
 - **En el mini PC**: `install.sh`, `tpv-update <versión>` (con vuelta atrás

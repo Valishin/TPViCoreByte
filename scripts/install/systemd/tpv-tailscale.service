@@ -4,9 +4,9 @@
 Description=TPV: unir el equipo a Tailscale con la clave de /admin
 After=network-online.target tailscaled.service
 Wants=network-online.target
-# Si la clave no se pudiera borrar, no reintentar en bucle.
-StartLimitIntervalSec=300
-StartLimitBurst=5
+# Sin límite de arranques: si se alcanzara, tpv-tailscale.path quedaría «failed» y ya no
+# recogería más claves hasta reiniciar. No hay bucle: la clave se borra siempre al empezar.
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
@@ -16,11 +16,30 @@ RuntimeDirectory=tpv-tailscale
 RuntimeDirectoryMode=0700
 UMask=0077
 TimeoutStartSec=150
-NoNewPrivileges=yes
-PrivateTmp=yes
+# Endurecimiento (systemd-analyze security): sistema de solo lectura salvo la carpeta
+# compartida; root solo conserva lo que necesita setpriv para bajar al usuario de la app.
+ProtectSystem=strict
+ReadWritePaths=/opt/tpv/host/tailscale
 ProtectHome=yes
-ProtectSystem=full
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
-RestrictSUIDSGID=yes
+ProtectProc=invisible
+SystemCallArchitectures=native
+# @system-service incluye lo que usa setpriv para bajar al usuario de la app.
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM

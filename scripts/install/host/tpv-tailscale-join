@@ -59,6 +59,9 @@ ssh_state() {
 take() { # take nombre → contenido por la salida
     as_app sh -c 'f="$1/$2"; [ -f "$f" ] && [ ! -L "$f" ] && timeout 5 head -c 4096 "$f"' sh "$DIR" "$1" 2>/dev/null || true
     as_app rm -f "$DIR/$1"
+    # Si no se pudo como la app (p. ej. setpriv falla), se borra igual: borrar un enlace no
+    # toca su destino, y así la clave nunca se queda ni el servicio se relanza en bucle.
+    rm -f -- "$DIR/$1" 2>/dev/null || true
 }
 
 [ -d "$DIR" ] && [ ! -L "$DIR" ] || exit 0
