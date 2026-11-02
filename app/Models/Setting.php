@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Unguarded]
 class Setting extends Model
 {
-    protected $hidden = ['smtp_password', 'verifactu_certificate', 'verifactu_certificate_password', 'setup_code_hash'];
+    protected $hidden = ['smtp_password', 'verifactu_certificate', 'verifactu_certificate_password', 'setup_code_hash', 'backup_s3_secret_key', 'backup_sftp_private_key'];
 
     use HasFactory;
 
@@ -47,6 +47,9 @@ class Setting extends Model
             'print_join_notice' => 'boolean',
             'corporate_tax' => 'boolean',
             'setup_steps' => 'array',
+            'backup_s3_secret_key' => 'encrypted',
+            'backup_sftp_private_key' => 'encrypted',
+            'backup_sftp_port' => 'integer',
             'setup_seen_at' => 'datetime',
             'invoice_require_address' => 'boolean',
             'smtp_password' => 'encrypted', // con APP_KEY: guárdala con la clave age (docs/instalacion-minipc.md)

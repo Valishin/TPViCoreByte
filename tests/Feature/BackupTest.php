@@ -74,7 +74,7 @@ class BackupTest extends TestCase
         $run = app(BackupService::class)->run('diaria');
 
         $this->assertSame('error', $run->status);
-        $this->assertStringContainsString('BACKUP_AGE_RECIPIENT', $run->error);
+        $this->assertStringContainsString('clave pública age', $run->error);
         Process::assertNothingRan();
     }
 

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\BackupRun;
+use App\Services\Backup\BackupDestination;
 
 /** Estado de las copias para el aviso de /admin. */
 final class BackupStatus
@@ -14,9 +15,9 @@ final class BackupStatus
         if ($lastLocal && $lastLocal->status !== 'ok') {
             return 'La última copia de seguridad ha fallado: '.$lastLocal->error;
         }
-        if (! config('backup.remote')) {
+        if (! BackupDestination::remote()) {
             return app()->isProduction()
-                ? 'Las copias de seguridad solo se guardan en este equipo: configura un destino remoto (BACKUP_REMOTE).'
+                ? 'Las copias de seguridad solo se guardan en este equipo: configura un destino remoto (/admin → Copias de seguridad).'
                 : null;
         }
 

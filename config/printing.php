@@ -19,6 +19,9 @@ return [
         'device_path' => env('PRINTER_DEVICE', '/dev/usb/lp0'),
     ],
 
+    // sysfs del equipo para detectar las impresoras USB (UsbPrinterDetector).
+    'sysfs' => env('PRINTER_SYSFS', '/sys'),
+
     'network' => [
         'host' => env('PRINTER_HOST', '192.168.1.200'),
         'port' => (int) env('PRINTER_PORT', 9100),

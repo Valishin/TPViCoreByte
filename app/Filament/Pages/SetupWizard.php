@@ -4,7 +4,9 @@ namespace App\Filament\Pages;
 
 use App\Enums\OrderType;
 use App\Filament\Resources\Printers\PrinterResource;
+use App\Models\Printer;
 use App\Models\Setting;
+use App\Services\Printing\UsbPrinterDetector;
 use App\Support\InstallMode;
 use App\Support\SetupProgress;
 use App\Support\TaxId;
@@ -16,6 +18,7 @@ use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\EmbeddedSchema;
@@ -131,16 +134,26 @@ class SetupWizard extends Page
                             SetupProgress::mark('pedidos');
                         }),
 
-                    $this->step('impresoras', Heroicon::OutlinedPrinter)
+                    $this->step('impresoras', Heroicon::OutlinedPrinter, 'Al menos la de tickets.')
                         ->schema([
-                            Text::make(new HtmlString('Da de alta al menos la impresora de tickets (de red o USB) y pulsa «Imprimir prueba» en cada una: '
+                            TextEntry::make('usb_detected')->label('Impresoras USB conectadas ahora')
+                                ->state(fn () => collect((new UsbPrinterDetector)->detect())
+                                    ->map(fn ($p) => "{$p['label']} → {$p['path']}".($p['configured'] ? ' (ya dada de alta)' : ''))
+                                    ->whenEmpty(fn ($c) => $c->push('Ninguna (si es USB, conéctala y enciéndela).'))->all())
+                                ->listWithLineBreaks(),
+                            TextEntry::make('printers_configured')->label('Dadas de alta')
+                                ->state(fn () => Printer::query()->orderBy('name')->get()
+                                    ->map(fn (Printer $p) => "{$p->name} · {$p->type->getLabel()} · {$p->address()}".($p->is_active ? '' : ' (inactiva)'))
+                                    ->whenEmpty(fn ($c) => $c->push('Ninguna todavía.'))->all())
+                                ->listWithLineBreaks(),
+                            Text::make(new HtmlString('Dalas de alta en <a class="underline" href="'.e(PrinterResource::getUrl('create')).'">Nueva impresora</a> '
+                                .'(las USB se eligen de la lista de conectadas) y pulsa «Imprimir prueba» en '
                                 .'<a class="underline" href="'.e(PrinterResource::getUrl()).'">Impresoras</a>.')),
                         ]),
 
-                    $this->step('copias', Heroicon::OutlinedCloudArrowUp)
-                        ->schema([
-                            Text::make('Clave pública age y destino remoto de las copias, y «Probar copia» para comprobarlo.'),
-                        ]),
+                    $this->step('copias', Heroicon::OutlinedCloudArrowUp, 'Cifradas con age y subidas fuera del local.')
+                        ->schema(BackupSettings::fields($this))
+                        ->afterValidation(fn () => $this->saveBackups()),
 
                     $this->step('remoto', Heroicon::OutlinedGlobeAlt, 'Soporte a distancia con Tailscale.')
                         ->schema([
@@ -179,6 +192,13 @@ class SetupWizard extends Page
             ->icon($icon)
             ->completedIcon(Heroicon::OutlinedCheck)
             ->description(($complete ? '✓ Completo' : 'Pendiente').($description ? " · {$description}" : ''));
+    }
+
+    /** Paso 5: guarda la clave age y el destino (también antes de «Probar copia»). */
+    public function saveBackups(): void
+    {
+        $data = collect($this->data)->only([...BackupSettings::FIELDS, 'backup_s3_secret_key'])->filter(fn ($v, $k) => $k !== 'backup_s3_secret_key' || filled($v));
+        Setting::current()->update($data->all());
     }
 
     /** Guarda los campos del paso (también el logo subido) al pulsar «Siguiente». */

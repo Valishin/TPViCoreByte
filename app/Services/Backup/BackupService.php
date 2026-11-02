@@ -21,14 +21,14 @@ class BackupService
 
     public function run(string $reason): BackupRun
     {
-        $recipient = config('backup.age_recipient');
+        $recipient = BackupDestination::recipient();
         $dir = config('backup.path');
         $file = 'tpv-'.now()->format('Ymd-His')."-{$reason}.dump.age";
         $run = BackupRun::create(['reason' => $reason, 'file' => $file, 'status' => 'error', 'remote_status' => 'pendiente']);
 
         try {
             if (! $recipient || ! str_starts_with($recipient, 'age1')) {
-                throw new RuntimeException('Falta BACKUP_AGE_RECIPIENT (clave pública age): las copias no se guardan sin cifrar.');
+                throw new RuntimeException('Falta la clave pública age (/admin → Copias de seguridad): las copias no se guardan sin cifrar.');
             }
             File::ensureDirectoryExists($dir);
             $db = config('database.connections.pgsql');
@@ -48,7 +48,7 @@ class BackupService
                 throw new RuntimeException(trim($result->errorOutput()) ?: 'pg_dump o age han fallado.');
             }
 
-            $run->update(['status' => 'ok', 'size' => File::size($target), 'remote_status' => config('backup.remote') ? 'pendiente' : 'sin_destino']);
+            $run->update(['status' => 'ok', 'size' => File::size($target), 'remote_status' => BackupDestination::remote() ? 'pendiente' : 'sin_destino']);
             $this->rotate();
         } catch (Throwable $e) {
             $run->update(['error' => $e->getMessage()]);
@@ -75,7 +75,7 @@ class BackupService
      */
     public function upload(): bool
     {
-        $remote = config('backup.remote');
+        $remote = BackupDestination::remote();
         if (! $remote) {
             return false;
         }
@@ -84,7 +84,7 @@ class BackupService
             return true;
         }
 
-        $result = Process::timeout(1800)->run([
+        $result = Process::timeout(1800)->env(BackupDestination::env())->run([
             'rclone', 'sync', config('backup.path'), $remote,
             '--include', 'tpv-*.dump.age', '--retries', '3', '--low-level-retries', '5', '--contimeout', '20s',
         ]);

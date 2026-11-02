@@ -6,6 +6,7 @@ use App\Enums\PrinterType;
 use App\Models\BackupRun;
 use App\Models\Printer;
 use App\Models\Setting;
+use App\Services\Backup\BackupDestination;
 use App\Services\Verifactu\EmissionGuard;
 use App\Services\Verifactu\Verifactu;
 
@@ -82,8 +83,7 @@ final class SetupProgress
             'fiscal' => FiscalSetup::missingFiscal($s) === [],
             'pedidos' => ($marks['pedidos'] ?? null) === 'done' && ! empty($s->enabled_order_types),
             'impresoras' => Printer::query()->where('type', PrinterType::Ticket)->where('is_active', true)->exists(),
-            'copias' => filled(config('backup.age_recipient')) && filled(config('backup.remote'))
-                && BackupRun::query()->where('remote_status', 'subida')->exists(),
+            'copias' => BackupDestination::configured($s) && BackupRun::query()->where('remote_status', 'subida')->exists(),
             'remoto' => ($marks['remoto'] ?? null) === 'done',
             // En demo no aplica; en cliente: certificado válido y VERI*FACTU activo o programado.
             'verifactu' => InstallMode::isDemo()
