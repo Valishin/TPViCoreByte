@@ -114,7 +114,13 @@ class StatusAndAboutTest extends InvoiceTestCase
         $about->assertJsonPath('obliged.nif', 'B12345674')
             ->assertJsonPath('system.name', 'iCOREBYTE TPV')
             ->assertJsonPath('system.id', 'IC')
-            ->assertJsonPath('system.only_verifactu', true);
+            ->assertJsonPath('system.only_verifactu', true)
+            ->assertJsonPath('system.producer', 'Alex Valishin Abubekirov')
+            ->assertJsonPath('system.producer_nif', '49298273G')
+            ->assertJsonPath('system.producer_address', 'Carretera de Palamós 57, bajos. 17220 Sant Feliu de Guíxols (Girona). España')
+            ->assertJsonPath('support.phone', '678 758 210')
+            ->assertJsonPath('support.email', 'info@icorebyte.com')
+            ->assertJsonPath('support.web', 'icorebyte.com');
         $html = $about->json('declaration_html');
         $this->assertStringContainsString('49298273G', $html);
         $this->assertStringNotContainsString('{{version}}', $html);
@@ -140,5 +146,17 @@ class StatusAndAboutTest extends InvoiceTestCase
             ->callTableAction('detail', $record)->assertHasNoErrors()
             ->callTableAction('retry', $record);
         $this->assertSame(FiscalRecordState::PENDING, $record->state()->first()->status);
+    }
+
+    /** Soporte técnico abajo en la entrada de la TPV (meta de la página) y en el login de /admin. */
+    public function test_support_contact_on_both_login_pages(): void
+    {
+        $this->app['auth']->forgetGuards();
+        $this->get('/entrar')->assertOk()
+            ->assertSee('name="tpv-support"', false)->assertSee('info@icorebyte.com', false);
+        $this->get('/admin/login')->assertOk()
+            ->assertSee('Soporte técnico · iCOREBYTE')
+            ->assertSee('tel:+34678758210', false)->assertSee('https://wa.me/34678758210', false)
+            ->assertSee('https://icorebyte.com', false)->assertSee('mailto:info@icorebyte.com', false);
     }
 }

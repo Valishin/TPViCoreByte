@@ -67,6 +67,7 @@ final class Verifactu
         return [
             'producer_name' => (string) config('verifactu.producer.name'),
             'producer_nif' => strtoupper((string) config('verifactu.producer.nif')),
+            'producer_address' => (string) config('verifactu.producer.address'),
             'name' => mb_substr((string) config('verifactu.system.name'), 0, 30),
             'id' => (string) config('verifactu.system.id'),
             'version' => mb_substr((string) config('verifactu.system.version'), 0, 50),

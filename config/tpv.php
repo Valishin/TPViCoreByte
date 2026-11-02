@@ -16,4 +16,12 @@ return [
     'tailscale_bridge' => env('TPV_TAILSCALE_BRIDGE', '/var/tpv/host/tailscale'),
 
     'install_mode' => env('TPV_INSTALL_MODE', 'cliente') === 'demo' ? 'demo' : 'cliente',
+
+    // Soporte técnico (iCOREBYTE): sale abajo en la entrada de la TPV y de /admin, y en «Acerca de».
+    'support' => [
+        'name' => 'iCOREBYTE',
+        'phone' => env('TPV_SUPPORT_PHONE', '678 758 210'),       // también WhatsApp
+        'email' => env('TPV_SUPPORT_EMAIL', 'info@icorebyte.com'),
+        'web' => env('TPV_SUPPORT_WEB', 'icorebyte.com'),
+    ],
 ];

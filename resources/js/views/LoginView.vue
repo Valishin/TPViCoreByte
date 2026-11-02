@@ -44,6 +44,8 @@
             <NumericKeypad v-model="pin" masked :length="4" :error="!!error" @complete="submit" />
             <p class="v-login__error" role="alert">{{ error }}</p>
         </div>
+
+        <footer class="v-login__support"><SupportContact /></footer>
     </main>
 </template>
 
@@ -51,6 +53,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NumericKeypad from '@/components/NumericKeypad.vue';
+import SupportContact from '@/components/SupportContact.vue';
 import TpvButton from '@/components/TpvButton.vue';
 import pos, { errorMessage } from '@/services/pos';
 import { useSessionStore } from '@/stores/session';

@@ -31,9 +31,11 @@ final class SystemDeclaration
             'system' => [
                 'name' => $system['name'], 'id' => $system['id'], 'version' => $system['version'],
                 'installation' => $system['installation'], 'producer' => $system['producer_name'], 'producer_nif' => $system['producer_nif'],
+                'producer_address' => $system['producer_address'],
                 'only_verifactu' => true,
             ],
             'verifactu' => ['active' => Verifactu::active($s), 'environment' => Verifactu::environment($s)],
+            'support' => config('tpv.support'),
             'declaration_html' => self::html(),
         ];
     }

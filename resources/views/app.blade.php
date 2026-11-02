@@ -7,6 +7,8 @@
     <meta name="theme-color" content="#c2410c">
     {{-- Tiempo real: la clave de Reverb es de cada instalación (los assets van compilados en la imagen). --}}
     <meta name="reverb-key" content="{{ config('broadcasting.connections.reverb.key') }}">
+    {{-- Soporte técnico (abajo en la pantalla de entrada). --}}
+    <meta name="tpv-support" content="{{ json_encode(config('tpv.support')) }}">
     <meta name="app-version" content="{{ config('app.version') }}{{ config('app.commit') ? ' · '.config('app.commit') : '' }}">
     <title>{{ config('app.name') }}</title>
     @vite(['resources/scss/app.scss', 'resources/js/app.js'])
