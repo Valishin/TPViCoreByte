@@ -1,7 +1,6 @@
 <template>
     <main class="v-login">
-        <img class="v-login__logo" src="/images/icorebyte-logo.png" alt="iCOREBYTE" width="320" height="48" />
-        <h1 class="v-login__brand">{{ locked ? 'Pantalla bloqueada' : 'TPV' }}</h1>
+        <h1 class="v-login__logo"><BrandMark :height="44" /></h1>
 
         <!-- Primero el usuario; al elegirlo, el teclado del PIN sustituye a la lista (caja y móvil) -->
         <h2 v-if="!selected" class="v-login__title">Seleccione el usuario</h2>
@@ -53,6 +52,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import BrandMark from '@/components/BrandMark.vue';
 import NumericKeypad from '@/components/NumericKeypad.vue';
 import SupportContact from '@/components/SupportContact.vue';
 import TpvButton from '@/components/TpvButton.vue';
@@ -70,7 +70,6 @@ const loaded = ref(false);
 const selected = ref(null);
 const pin = ref('');
 const error = ref('');
-const locked = computed(() => !!session.lockedBy);
 const floorStaff = computed(() => staff.value.filter((p) => p.role !== 'repartidor'));
 const couriers = computed(() => staff.value.filter((p) => p.role === 'repartidor'));
 

@@ -23,7 +23,7 @@
 </head>
 <body>
 <main>
-    <img src="{{ asset('images/icorebyte-logo.png') }}" alt="iCOREBYTE" width="240" height="36" style="display:block;margin:0 auto 16px;max-width:60%;height:auto">
+    <div style="text-align:center;margin:0 0 16px">@include('partials.brand-mark', ['height' => 32])</div>
     <h1>Crear administrador</h1>
     <p>Primer acceso a la administración del TPV: crea el administrador y el encargado. Esta pantalla solo aparece
         mientras no hay ningún usuario.</p>

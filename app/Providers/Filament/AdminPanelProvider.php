@@ -17,6 +17,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -30,7 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->brandName('TPV · Backoffice')
             // En la pantalla de entrada, el logo de iCOREBYTE; dentro, el nombre en texto.
-            ->brandLogo(fn () => request()->routeIs('filament.admin.auth.*') ? asset('images/icorebyte-logo.png') : null)
+            ->brandLogo(fn () => request()->routeIs('filament.admin.auth.*') ? new HtmlString(view('partials.brand-mark', ['height' => 36])->render()) : null)
             ->brandLogoHeight('2.75rem')
             // Aviso si las copias de seguridad no están al día.
             ->renderHook(PanelsRenderHook::PAGE_START, fn () => view('filament.backup-warning'))

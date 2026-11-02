@@ -247,3 +247,37 @@
         text-decoration: none;
     }
 }
+
+// Marca «iCOREBYTE | TPV» (pantalla de entrada): «TPV» en el azul del logo y a la altura de sus letras.
+.c-brand {
+    --brand-h: 40px;
+    --brand-blue: #016be2;
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--brand-h) * 0.32);
+    line-height: 1;
+    vertical-align: middle;
+
+    &__logo {
+        display: block;
+        height: var(--brand-h);
+        width: auto;
+    }
+
+    &__divider {
+        width: 2px;
+        height: calc(var(--brand-h) * 0.78);
+        border-radius: 1px;
+        background: var(--brand-blue);
+        opacity: 0.35;
+    }
+
+    &__tpv {
+        font-family: 'Arial Black', 'Helvetica Neue', Arial, system-ui, sans-serif;
+        font-weight: 900;
+        font-size: calc(var(--brand-h) * 1.18);
+        letter-spacing: 0.04em;
+        line-height: 0.8;
+        color: var(--brand-blue);
+    }
+}
