@@ -308,10 +308,38 @@
     }
 
     &__customer,
-    &__recent {
+    &__recent,
+    &__addresses {
         display: flex;
         flex-direction: column;
         gap: $space-2;
+    }
+
+    // Direcciones del cliente: una por fila, el texto se parte en líneas y nunca se corta.
+    &__address {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 2px;
+        min-width: 0;
+        overflow-wrap: anywhere;
+
+        .c-option__extra {
+            white-space: normal;
+        }
+    }
+
+    &__address-new {
+        justify-content: center;
+    }
+
+    // Últimos pedidos: el resumen de productos también puede ser largo.
+    &__recent .c-option {
+        flex-wrap: wrap;
+
+        .c-option__extra {
+            white-space: normal;
+        }
     }
 
     &__phone-line {

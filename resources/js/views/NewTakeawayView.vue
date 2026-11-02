@@ -44,18 +44,20 @@
 
                 <template v-if="type === 'domicilio' && customer">
                     <p class="v-config__question">Dirección</p>
-                    <div class="c-options">
+                    <!-- Una dirección por fila, a todo lo ancho: calle · CP y municipio · zona -->
+                    <div class="v-new-order__addresses">
                         <button
                             v-for="addr in customer.addresses"
                             :key="addr.id"
                             type="button"
-                            :class="['c-option', { 'c-option--selected': addressId === addr.id }]"
+                            :class="['c-option', 'v-new-order__address', { 'c-option--selected': addressId === addr.id }]"
                             @click="addressId = addr.id; newAddress = null"
                         >
-                            {{ addressText(addr) }}
+                            <strong>{{ streetText(addr) }}</strong>
+                            <span v-if="addr.postal_code || addr.city">{{ [addr.postal_code, addr.city].filter(Boolean).join(' ') }}</span>
                             <span class="c-option__extra">{{ addr.zone ? `${addr.zone.name} · envío ${money(addr.zone.delivery_fee)}` : 'Sin zona' }}</span>
                         </button>
-                        <button type="button" :class="['c-option', { 'c-option--selected': newAddress }]" @click="startNewAddress">+ Otra dirección</button>
+                        <button type="button" :class="['c-option', 'v-new-order__address-new', { 'c-option--selected': newAddress }]" @click="startNewAddress">+ Otra dirección</button>
                     </div>
                     <AddressForm v-if="newAddress" v-model="newAddress" />
                 </template>
@@ -243,8 +245,8 @@ async function saveCustomer() {
     }
 }
 
-function addressText(a) {
-    return [`${a.street} ${a.number ?? ''}`.trim(), a.floor_door, [a.postal_code, a.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+function streetText(a) {
+    return [`${a.street} ${a.number ?? ''}`.trim(), a.floor_door].filter(Boolean).join(', ');
 }
 function dateLabel(iso) {
     return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
