@@ -37,6 +37,9 @@ class CheckoutController extends Controller
         $empty = Order::query()->where('status', OrderStatus::Open)->where('type', OrderType::Bar)
             ->where('opened_by', $request->user()->id)->whereDoesntHave('lines')->oldest('id')->first();
         $order = $empty ?? $this->orders->open(OrderType::Bar, $request->user());
+        if (! $empty) {
+            event(new OrderUpdated($order->fresh(), $request->user()->id));   // los demás aparatos: «Otros pedidos abiertos»
+        }
 
         return response()->json(['data' => (new OrderResource($order))->resolve($request)], $empty ? 200 : 201);
     }

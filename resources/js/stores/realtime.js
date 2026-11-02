@@ -12,7 +12,8 @@ import { useSessionStore } from './session';
  * completo, por si se perdió algún evento mientras no había conexión.
  */
 export const useRealtimeStore = defineStore('realtime', {
-    state: () => ({ state: 'connecting', subscribed: false }),
+    // cashVersion: sube con cada cambio de caja (la pantalla Caja la vigila y se recarga).
+    state: () => ({ state: 'connecting', subscribed: false, cashVersion: 0 }),
     getters: {
         connected: (s) => s.state === 'connected',
     },
@@ -51,6 +52,8 @@ export const useRealtimeStore = defineStore('realtime', {
                     if (order.order?.id === e.orderId) order.reload().catch(() => {});
                 })
                 .listen('.table.status', () => floor.refresh())
+                .listen('.floor.changed', () => floor.refresh())
+                .listen('.cash.changed', () => this.cashVersion++)
                 .listen('.order.updated', (e) => {
                     floor.refresh();
                     if (!e.tableId) takeaway.refresh();
@@ -82,6 +85,7 @@ export const useRealtimeStore = defineStore('realtime', {
             useNoticesStore().loadPrinting().catch(() => {});
             useCatalogStore().load().catch(() => {});
             useTakeawayStore().refresh();
+            this.cashVersion++;
         },
     },
 });

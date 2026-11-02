@@ -137,6 +137,7 @@ import { useSessionStore } from '@/stores/session';
 import { useAmountGuardStore } from '@/stores/amountGuard';
 import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
+import { useRealtimeStore } from '@/stores/realtime';
 import { emailStatus, money, time } from '@/utils/format';
 
 const router = useRouter();
@@ -144,6 +145,7 @@ const session = useSessionStore();
 const notices = useNoticesStore();
 const authorize = useAuthorizeStore();
 const guard = useAmountGuardStore();
+const realtime = useRealtimeStore();
 
 const cash = ref(null);
 const tickets = ref([]);
@@ -182,6 +184,12 @@ async function load() {
     }
 }
 onMounted(load);
+// Otro aparato cobra, anula, abre o cierra la caja: se recarga sola (con un pequeño debounce).
+let reloadTimer = null;
+watch(() => realtime.cashVersion, () => {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(load, 300);
+});
 watch(closeOpen, (open) => {
     if (open) {
         counted.value = 0;
