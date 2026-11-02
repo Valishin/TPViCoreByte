@@ -98,7 +98,7 @@
                     </div>
 
                     <template v-if="method === 'efectivo'">
-                        <AmountKeypad v-model="tendered" label="Entregado" :quick="[500, 1000, 2000, 5000]" :exact="due" />
+                        <AmountKeypad v-model="tendered" label="Entregado" />
                         <p v-if="!tendered && parts <= 1" class="v-checkout__hint">Si paga solo una parte en efectivo, escribe lo que entrega: el resto se cobra después.</p>
                         <p class="v-checkout__change" :class="{ 'v-checkout__change--short': tendered && tendered < due }">
                             <template v-if="tendered >= due">Cambio <strong>{{ money(tendered - due) }}</strong></template>
@@ -106,7 +106,7 @@
                         </p>
                     </template>
                     <template v-else-if="method">
-                        <AmountKeypad v-model="amount" :label="`Importe ${methodLabel(method).toLowerCase()}`" :exact="due" />
+                        <AmountKeypad v-model="amount" :label="`Importe ${methodLabel(method).toLowerCase()}`" />
                         <div v-if="method === 'tarjeta'" class="v-checkout__tip">
                             <span>Propina (no entra en el ticket)</span>
                             <span class="c-chips">
@@ -119,10 +119,6 @@
                             Cobra en el datáfono y confirma.<template v-if="parts <= 1"> Para pagar solo una parte, escribe el importe: el resto se cobra después, con lo que sea.</template>
                         </p>
                     </template>
-
-                    <TpvButton v-if="method" variant="secondary" size="lg" block :disabled="!canAdd" @click="addPayment">
-                        Añadir pago {{ money(paymentAmount) }}
-                    </TpvButton>
                 </template>
 
                 <div v-if="recipient" class="c-recipient__chosen">
@@ -139,9 +135,21 @@
                     <input v-model="receipts" type="checkbox" /> Justificante de pago para cada parte
                 </label>
 
-                <TpvButton variant="success" size="lg" block :disabled="remaining !== 0 || busy" :loading="busy" @click="charge">
-                    {{ recipient ? 'Cobrar y facturar' : 'Cobrar' }} {{ money(o.total) }}
-                </TpvButton>
+                <!-- Fijos abajo: «Añadir pago» e «Importe exacto»; cuando ya está todo cubierto, «Cobrar». -->
+                <div class="v-checkout__actions">
+                    <template v-if="remaining">
+                        <template v-if="method">
+                            <TpvButton variant="primary" size="lg" class="v-checkout__add" :disabled="!canAdd" @click="addPayment">
+                                Añadir pago {{ money(paymentAmount) }}
+                            </TpvButton>
+                            <TpvButton variant="secondary" size="lg" class="v-checkout__exact" @click="setExact">Importe exacto</TpvButton>
+                        </template>
+                        <p v-else class="v-checkout__hint">Elige cómo paga: efectivo, tarjeta, Bizum u otro.</p>
+                    </template>
+                    <TpvButton v-else variant="success" size="lg" block :disabled="busy" :loading="busy" @click="charge">
+                        {{ recipient ? 'Cobrar y facturar' : 'Cobrar' }} {{ money(o.total) }}
+                    </TpvButton>
+                </div>
             </section>
         </div>
 
@@ -255,6 +263,11 @@ function selectMethod(value) {
     tendered.value = 0;
     amount.value = value === 'efectivo' ? 0 : due.value; // tarjeta/Bizum: se propone lo pendiente
     tip.value = 0;
+}
+/** «Importe exacto»: lo que falta (o la parte que toca). */
+function setExact() {
+    if (method.value === 'efectivo') tendered.value = due.value;
+    else amount.value = due.value;
 }
 function resetEntry() {
     method.value = null;

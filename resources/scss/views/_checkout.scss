@@ -184,6 +184,33 @@
         overflow-y: auto;
     }
 
+    // Botones importantes siempre a la vista, abajo de la columna de pago.
+    &__actions {
+        position: sticky;
+        bottom: calc(-1 * #{$space-3});
+        z-index: 1;
+        display: flex;
+        gap: $space-2;
+        margin: auto calc(-1 * #{$space-3}) calc(-1 * #{$space-3});
+        padding: $space-3;
+        border-top: 1px solid $color-border;
+        background: $color-surface;
+
+        .v-checkout__hint {
+            margin: 0;
+            flex: 1;
+            text-align: center;
+        }
+    }
+
+    &__add {
+        flex: 1;
+    }
+
+    &__exact {
+        flex: 0 0 auto;
+    }
+
     &__other {
         align-self: center;
         padding: $space-2 $space-4;
