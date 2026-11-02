@@ -7,36 +7,38 @@ usa además [checklist-instalacion.md](checklist-instalacion.md).
 NVMe; no eMMC ni HDD: la base de datos escribe a menudo), pantalla táctil
 (HDMI + USB), impresoras de red y/o USB, SAI opcional ([sai-nut.md](sai-nut.md)).
 
-**Paquetes de Debian 13 que usa:** cage, chromium, wlr-randr, nut (SAI),
-ufw, unattended-upgrades, systemd-timesyncd; Docker CE del repositorio de
-Docker; Tailscale de su repositorio. age y rclone van dentro de la imagen del
-TPV (en el host solo hacen falta para descifrar una copia: `apt install age`).
+**El día de la instalación:** copiar la carpeta del proyecto al mini PC,
+`sudo bash install.sh`, esperar, y abrir `/admin`. El instalador no pregunta
+nada: la empresa, el NIF, el régimen, las impresoras, las copias, Tailscale y
+VERI\*FACTU se configuran después en /admin con el asistente **Puesta en marcha**.
 
-**Qué se instala:** Debian 13 (trixie) sin escritorio · Docker · el TPV en contenedores
-(`/opt/tpv`) · kiosko (usuario `kiosk`: cage + Chromium a pantalla completa) ·
-Tailscale para el soporte remoto · copias de seguridad cifradas.
+**Paquetes de Debian 13 que usa:** chromium, ufw, unattended-upgrades,
+systemd-timesyncd; cage y wlr-randr solo sin escritorio; nut (SAI); Docker CE
+del repositorio de Docker; Tailscale de su repositorio. age, rclone y ssh-keyscan
+van dentro de la imagen del TPV.
+
+**Qué se instala:** Debian 13 (trixie), **con o sin escritorio** · Docker · el
+TPV en contenedores (`/opt/tpv`) · kiosko (usuario `kiosk`: Chromium a pantalla
+completa; sin escritorio con cage en tty1, con escritorio con inicio de sesión
+automático) · Tailscale (se une desde /admin) · copias de seguridad cifradas.
 
 ---
 
 ## 0. Antes de ir al local (en tu Mac)
 
-1. **Imagen** de la versión que vas a instalar:
-   ```bash
-   TPV_IMAGE=ghcr.io/<usuario>/tpv-hosteleria scripts/build-image.sh --push   # a GHCR
-   # o, sin internet en el local / sin GHCR:
-   TPV_IMAGE=ghcr.io/<usuario>/tpv-hosteleria scripts/build-image.sh --tar    # dist/tpv-<versión>.tar.gz
-   ```
-2. **Paquete del instalador** (`dist/tpv-instalador-<versión>.tar.gz`):
-   ```bash
-   scripts/make-install-bundle.sh                # o --with-image para incluir el .tar
-   ```
-3. **Token de GHCR de solo lectura** para el mini PC (ver [Tokens de GitHub](#tokens-de-github-y-ghcr)).
-4. **Claves de las copias (age)** — una vez, en tu Mac (ver [§9](#9-copias-de-seguridad)).
-5. **Clave de Tailscale** de un solo uso: admin.tailscale.com → Settings → Keys
+1. **Carpeta del proyecto** en un pendrive: `scripts/make-install-bundle.sh` →
+   `dist/tpv-<versión>.tar.gz` (el código tal cual está en git; la imagen se
+   construye en el mini PC). También vale copiar la carpeta del repositorio.
+2. (Opcional) **Imagen en GHCR** si prefieres descargarla en vez de construirla:
+   `TPV_IMAGE=ghcr.io/<usuario>/tpv-hosteleria scripts/build-image.sh --push` y un
+   **token de solo lectura** para el mini PC (ver [Tokens de GitHub](#tokens-de-github-y-ghcr)).
+3. **Claves de las copias (age)** — una vez, en tu Mac (ver [§9](#9-copias-de-seguridad)).
+4. (Opcional) **Clave de Tailscale** de un solo uso: admin.tailscale.com → Settings → Keys
    → *Generate auth key* (reusable: no; ephemeral: no; con *tag* `tag:tpv`).
-6. Copia el paquete a un USB junto con el **USB de instalación de Debian 13**
-   (`debian-13.x.x-amd64-netinst.iso` de debian.org, grabada con balenaEtcher
-   o `dd`). Debian 12 ya no tiene soporte de seguridad normal (julio de 2026).
+5. El **certificado electrónico** del cliente (`.p12`/`.pfx`) si ya lo tiene: se
+   sube en /admin cuando quieras (no hace falta para instalar).
+6. **USB de instalación de Debian 13** (`debian-13.x.x-amd64-netinst.iso` de
+   debian.org, grabada con balenaEtcher o `dd`).
 
 ### Tokens de GitHub y GHCR
 
@@ -48,7 +50,7 @@ access tokens → **Tokens (classic)** → *Generate new token (classic)*.
 | Para qué | Dónde | Permisos (scopes) | Caducidad |
 |---|---|---|---|
 | **Subir la imagen** desde el Mac | tu Mac (`docker login`) | `write:packages` (incluye `read:packages`) | 90 días, y renovar |
-| **Descargar la imagen** en el mini PC | `GHCR_TOKEN` del `.conf` | **solo `read:packages`** | sin caducidad o 1 año; **uno por cliente** |
+| **Descargar la imagen** en el mini PC | `sudo bash install.sh --ghcr TOKEN` | **solo `read:packages`** | sin caducidad o 1 año; **uno por cliente** |
 
 ```bash
 # En el Mac, una vez (y al renovar el token):
@@ -87,8 +89,10 @@ gráfica):
 - **Usuario root**: pon contraseña (guárdala en tu gestor de contraseñas).
 - Usuario normal: `soporte`.
 - Disco: *guiado, todo el disco* (una sola partición).
-- **Selección de programas**: desmarca todo el escritorio; deja solo
-  **servidor SSH** y **utilidades estándar**.
+- **Selección de programas**: **servidor SSH** y **utilidades estándar**. El
+  escritorio es opcional: sin él, el kiosko va con cage en tty1; si el equipo
+  ya tiene escritorio (GNOME, XFCE o KDE) se queda como está y el kiosko arranca
+  con inicio de sesión automático del usuario `kiosk`.
 - GRUB en el disco interno. Reinicia y quita el USB.
 - Comprueba que el disco es un SSD: `lsblk -d -o NAME,ROTA,TRAN,SIZE` → `ROTA 0`
   y `TRAN sata` o `nvme` (un `mmcblk0` es eMMC: no sirve). El instalador activa
@@ -112,92 +116,97 @@ la usan):
 
 ## 4. Lanzar el instalador
 
-Desde tu Mac (o copiando del USB): `scp dist/tpv-instalador-1.0.0.tar.gz soporte@192.168.1.10:`
+Copia la carpeta al mini PC (pendrive o `scp dist/tpv-1.0.0.tar.gz soporte@192.168.1.10:`) y:
 
 ```bash
-ssh soporte@192.168.1.10
-su -                                    # root
-tar xzf /home/soporte/tpv-instalador-1.0.0.tar.gz && cd tpv-instalador-1.0.0
-cp tpv-install.conf.example tpv-install.conf && nano tpv-install.conf
-./install.sh --config tpv-install.conf  # (--dry-run para ver antes lo que haría)
+ssh soporte@192.168.1.10          # o en el propio equipo
+tar xzf tpv-1.0.0.tar.gz && cd tpv-1.0.0
+sudo bash install.sh              # funciona aunque haya perdido el permiso de ejecución
 ```
 
-`tpv-install.conf` lleva: nombre del local, IP, email del admin, tipos de
-pedido, imagen y versión, usuario y token de GHCR (o `IMAGE_TAR` con el `.tar.gz`),
-impresoras USB (`nombre:idVendor:idProduct[:serie]`, ver `lsusb`), tu clave
-pública age, el destino de las copias, la clave de Tailscale y, si se quiere,
-horario de pantalla y actualización automática (vacíos = nunca).
+**Sin preguntas.** Por defecto: cliente real, imagen construida con el código
+copiado, IP detectada y kiosko detectado. Opciones:
 
-**VERI\*FACTU (obligatorio en producción).** También lleva la razón social y el
-**NIF** del titular, el **régimen de IVA** (`01` general, `20` simplificado —
-**confírmalo con el cliente o su gestor**), si declara el **Impuesto sobre
-Sociedades** (sí → obligado desde el 01/01/2027; no → desde el 01/07/2027) y
-el **certificado electrónico** (`.p12`/`.pfx`) con su modo (`obligado` o
-`representante`) y tipo (`personal` o `sello`). La contraseña del certificado
-se pide al instalar (mejor no dejarla en el fichero). Sin certificado el
-instalador se para. Con todo ello instala el certificado y **activa
-VERI\*FACTU en el entorno de producción de la AEAT antes de la primera
-factura**: cada ticket y factura lleva su QR y se envía a Hacienda.
+| Opción | Para qué |
+|---|---|
+| `--demo[=bar\|pizzeria\|pizzeria_mixta]` | demo con datos de ejemplo (por defecto `pizzeria_mixta`); VERI\*FACTU apagado |
+| `--ghcr TOKEN` | descargar la imagen de GHCR en vez de construirla |
+| `--config FICHERO` | valores de un fichero (instalaciones automáticas; ver `scripts/install/tpv-install.conf.example`: IP, nombre provisional, horario de pantalla, actualización automática…) |
+| `--dry-run` | solo enseña lo que haría |
 
-El instalador (se puede volver a lanzar sin perder nada):
+Qué hace (se puede volver a lanzar sin perder datos ni cambiar claves):
 
-1. Zona horaria **Europe/Madrid**, NTP, actualizaciones de seguridad
-   automáticas (sin reinicios), TRIM semanal del SSD (`fstrim.timer`) y
-   cortafuegos **ufw** (SSH, 80 y Tailscale).
-2. **Docker CE** (repositorio oficial para trixie) con logs rotados.
-3. **Kiosko**: usuario `kiosk` sin contraseña ni sudo, autologin en tty1, cage
-   + Chromium en `http://localhost/?kiosk=1` sin barras, menús, traducción ni
-   "restaurar páginas", sin pellizcar para hacer zoom. Si Chromium se cierra o
-   se cuelga, vuelve a arrancar solo (con espera creciente para no entrar en
-   bucle). El cursor se oculta a los 3 s sin mover el ratón. La pantalla no se
-   apaga (o se apaga y enciende a las horas de `SCREEN_OFF`/`SCREEN_ON`).
-4. **Impresoras USB**: regla udev → `/dev/usb/impresora-<nombre>` (ver
-   [impresoras-usb.md](impresoras-usb.md)).
-5. **Tailscale** con SSH.
-6. **TPV** en `/opt/tpv`: `.env` con **claves y contraseñas nuevas** (APP_KEY,
-   base de datos, Reverb), imagen, migraciones y el **admin real** (sin datos
-   de demo). Contraseña, PIN y **APP_KEY** en `/root/tpv-credenciales.txt` (solo root).
-   Número de instalación de VERI\*FACTU (`VERIFACTU_INSTALLATION_NUMBER`, uno por
-   equipo) y fecha de obligación (`VERIFACTU_OBLIGATION_DATE`) en el `.env`;
-   certificado instalado (cifrado con la APP_KEY) y VERI\*FACTU activo.
-7. Resumen con la URL, la IP y los siguientes pasos.
+1. **Sistema**: Europe/Madrid con NTP, actualizaciones de seguridad automáticas
+   (sin reinicios), TRIM semanal, sin suspensión; cortafuegos **ufw** (SSH, 80 y Tailscale).
+2. **Docker CE** con arranque automático y logs rotados.
+3. **Kiosko** (usuario `kiosk` sin contraseña ni sudo; Chromium en
+   `http://localhost/?kiosk=1` sin barras, traducción, «restaurar páginas» ni
+   pellizcar; si se cierra o se cuelga, vuelve a abrirse):
+   - **Sin escritorio**: cage + Chromium en tty1 con autologin.
+   - **Con escritorio** (detecta GDM, LightDM o SDDM y GNOME, XFCE o KDE): no
+     instala cage ni toca tty1; inicio de sesión automático de `kiosk`, Chromium
+     desde `~/.config/autostart` y sesión **blindada**: sin bloqueo de pantalla,
+     salvapantallas, apagado de pantalla, suspensión, notificaciones, avisos de
+     actualizaciones ni teclado en pantalla del escritorio (el TPV tiene el suyo).
+     Un escritorio que no sabe blindar lo dice en el resumen (no falla).
+4. **Impresoras USB**: regla udev para cualquier impresora →
+   `/dev/usb/impresora-<fabricante>-<modelo>[-<serie>]` (se eligen en /admin).
+5. **Tailscale** instalado (sin unir) y el servicio que recoge la clave desde /admin.
+6. **TPV** en `/opt/tpv`: `.env` con claves nuevas (APP_KEY, base de datos,
+   Reverb, número de instalación de VERI\*FACTU), imagen, migraciones y ajustes
+   por rellenar (o los datos de demo). Una **versión nueva** sobre una instalación
+   con datos pasa por `tpv-update` (copia y vuelta atrás automática).
+7. **Credenciales** en `/root/tpv-credenciales.txt` (600): APP_KEY, claves de la
+   base de datos y de Reverb y el código de configuración. En la consola solo
+   salen las URL, la ruta de ese fichero y el **código de configuración**.
 
-Reinicia (`reboot`): la pantalla debe mostrar la pantalla de PIN del TPV.
+> **Demo → cliente real en el mismo equipo:** `sudo bash install.sh` (sin
+> `--demo`) pide escribir **BORRAR**: se borran los datos de demo y la numeración
+> empieza de cero. Un cliente real no se convierte en demo.
 
-## 5. Primeros pasos en /admin
+## 5. Primer acceso y Puesta en marcha (/admin)
 
-Desde cualquier equipo de la red: `http://192.168.1.10/admin` con el email del
-admin y la contraseña de `/root/tpv-credenciales.txt`.
+1. Abre `http://<IP>/admin` desde la caja, la red local o Tailscale: sale
+   **Crear administrador**. Escribe el **código de configuración** (lo mostró el
+   instalador; está en `/root/tpv-credenciales.txt`), tu email y contraseña, y el
+   **encargado** con su email y PIN (autoriza en la caja). El código vale una vez:
+   después la pantalla desaparece.
+2. Se abre **Puesta en marcha** (7 pasos; cada uno se guarda al pulsar
+   «Siguiente» y se puede dejar a medias; el panel muestra «X de 7 pasos»):
+   1. **Datos de la empresa**: nombre comercial, razón social, NIF, dirección, logo y pie de ticket.
+   2. **Fiscal**: régimen de IVA (**confírmalo con el cliente o su gestor**) y si
+      declara Sociedades → VERI\*FACTU obligatorio el 01/01/2027 (sí) o el 01/07/2027 (no).
+   3. **Tipos de pedido** activos.
+   4. **Impresoras**: las USB conectadas aparecen solas; da de alta al menos la de
+      tickets y pulsa «Imprimir prueba».
+   5. **Copias de seguridad**: clave pública age y destino (S3 compatible o SFTP;
+      en SFTP, «Generar clave SSH», «Obtener huella del servidor») y «Probar copia».
+   6. **Acceso remoto** (opcional): clave de Tailscale o «Omitir».
+   7. **Certificado y VERI\*FACTU**: sube el `.p12`/`.pfx` en /admin → VERI\*FACTU
+      y elige «Activar ahora» o «Activar automáticamente en la fecha de obligación».
+3. **En «cliente», sin los pasos 1 y 2 no se emiten tickets ni facturas** (la caja
+   lo avisa). Sin certificado: aviso en /admin siempre y en la caja desde 30 días
+   antes de la fecha; desde la fecha, sin certificado o sin VERI\*FACTU activo, no
+   se emite. En demo se vende con los datos de ejemplo.
+4. **Usuarios** (camareros con PIN), **carta** y **sala** en /admin como siempre.
+5. **Guarda en el gestor de contraseñas**, por cliente: la APP_KEY (con ella se
+   descifran en las copias el certificado, la contraseña SMTP y las claves de las
+   copias), la clave privada age y el certificado con su contraseña. Después:
+   `sudo shred -u /root/tpv-credenciales.txt`.
+6. **VERI\*FACTU activo**: venta de prueba (un café): el ticket sale con el QR y en
+   la tabla de registros pasa a «Correcto» en un minuto; escanea el QR con el móvil.
 
-1. **Ajustes del local**: razón social, **NIF**, dirección (salen en todos los
-   tickets), tipos de pedido, logo, pie del ticket.
-2. **Impresoras**: red (`IP` y `9100`) o USB (`/dev/usb/impresora-ticket`) →
-   **Imprimir prueba** en cada una (acentos, ñ y €).
-3. **Usuarios**: camareros y encargados con su PIN (y repartidores si hay reparto).
-4. **Carta**: categorías (con su impresora), productos, modificadores.
-5. **Sala**: salas y mesas.
-6. **Guarda la `APP_KEY` de este cliente en el gestor de contraseñas, junto con
-   la clave privada age** y el certificado digital (`.p12`) con su contraseña.
-   La base de datos guarda cifrados con ella algunos datos (la contraseña SMTP
-   de Ajustes y el **certificado de VERI\*FACTU** con su contraseña). Las copias de seguridad los llevan cifrados: si se pierde la
-   `APP_KEY`, esos campos son ilegibles al restaurar en otro equipo y hay que
-   volver a introducirlos. Al restaurar en un equipo nuevo, pon la misma
-   `APP_KEY` en su `/opt/tpv/.env` antes de `tpv-restore`.
-7. **VERI\*FACTU**: /admin → VERI\*FACTU muestra «Activo», entorno
-   «Producción» y el certificado con su caducidad (aviso 30 días antes). Haz
-   una venta real de prueba (por ejemplo, un café): el ticket sale con el QR
-   y la leyenda, y en la tabla de registros pasa a «Correcto» en un minuto.
-   Escanea el QR con el móvil: la sede de la AEAT debe encontrar la factura.
-   Para anularla, «Anular por error» (genera el registro de anulación).
-8. Borra el fichero de credenciales cuando lo hayas guardado todo:
-   `shred -u /root/tpv-credenciales.txt`.
+TPV ↔ /admin: en la caja, **⚙ → Administración** lleva al login de /admin; en
+/admin, **Ir a la TPV** (cabecera) vuelve a la caja. Cada uno tiene su sesión:
+salir de uno no cierra el otro.
 
 ## 6. Impresoras
 
 - **De red**: IP fija, puerto 9100. Prueba desde el mini PC:
   `printf 'Prueba\n\n\n\x1dV\x00' | nc -w 3 192.168.1.203 9100`.
-- **USB**: `lsusb` para los IDs → `PRINTERS_USB` en el `.conf` → volver a lanzar
-  `install.sh`. Detalles y problemas típicos en [impresoras-usb.md](impresoras-usb.md).
+- **USB**: enchúfala y enciéndela → /admin → Impresoras → Nueva → Conexión USB →
+  elígela en «Impresoras USB conectadas». El enlace no cambia aunque reinicies o la
+  cambies de puerto. Problemas típicos en [impresoras-usb.md](impresoras-usb.md).
 
 ## 7. Móviles de los camareros
 
@@ -208,15 +217,14 @@ a la derecha en la caja). En Android/iOS: *Añadir a pantalla de inicio*.
 
 Sin abrir puertos en el router del cliente.
 
-- Si pusiste `TAILSCALE_AUTHKEY`, el equipo ya está en tu red Tailscale como
-  `tpv-<local>`. Si no: `sudo tailscale up --ssh --hostname tpv-<local>` y abre
-  el enlace que muestra.
+- **Unir el equipo**: /admin → Puesta en marcha → Acceso remoto → pega una clave
+  de un solo uso. La app la deja en `/opt/tpv/host/tailscale` (700, solo el
+  usuario de la app y root); un servicio de root la recoge, **la borra** (también
+  si falla), ejecuta `tailscale up --ssh` y /admin muestra «Conectado como …».
+  A mano también vale: `sudo tailscale up --ssh --hostname tpv-<local>`.
 - **SSH**: `ssh soporte@tpv-<local>` (o `tailscale ssh`).
 - **/admin con HTTPS** (solo por Tailscale; en la red local es HTTP):
-  ```bash
-  sudo tailscale serve --bg http://localhost:80
-  ```
-  → `https://tpv-<local>.<tu-tailnet>.ts.net/admin`.
+  `sudo tailscale serve --bg http://localhost:80` → `https://tpv-<local>.<tu-tailnet>.ts.net/admin`.
 - En la consola de Tailscale, desactiva la caducidad de la clave del equipo
   (*Disable key expiry*) para que no se desconecte a los 180 días.
 
@@ -240,8 +248,8 @@ age-keygen -o tpv-copias-age.txt
 #   Public key: age1qyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqs…
 ```
 
-- La línea **`Public key: age1…`** es la que va en `BACKUP_AGE_RECIPIENT` del
-  `.conf` (puede ser la misma para todos tus clientes, o una por cliente).
+- La línea **`Public key: age1…`** es la que va en /admin → Copias de seguridad
+  (puede ser la misma para todos tus clientes, o una por cliente).
 - **El fichero `tpv-copias-age.txt` es la clave PRIVADA.** No va nunca al mini
   PC. Guárdala en **dos sitios seguros distintos** fuera de él (p. ej. tu gestor
   de contraseñas como nota segura + un USB cifrado guardado en otro lugar).
@@ -252,35 +260,22 @@ age-keygen -o tpv-copias-age.txt
 
 Las copias contienen **datos personales de clientes** (nombres, teléfonos,
 direcciones): el destino debe estar **en la UE** (RGPD) y con contrato de
-encargado del tratamiento si es un proveedor. Opciones:
+encargado del tratamiento si es un proveedor. Se configura en **/admin → Copias
+de seguridad** (o en el paso 5 de Puesta en marcha):
 
-- **S3 compatible** (proveedor europeo, o un MinIO tuyo). En `/opt/tpv/.env`:
-  ```ini
-  BACKUP_REMOTE=copias:tpv-copias/bella-napoli
-  RCLONE_CONFIG_COPIAS_TYPE=s3
-  RCLONE_CONFIG_COPIAS_PROVIDER=Other
-  RCLONE_CONFIG_COPIAS_ENDPOINT=https://s3.eu-central-1.ejemplo.com
-  RCLONE_CONFIG_COPIAS_ACCESS_KEY_ID=…
-  RCLONE_CONFIG_COPIAS_SECRET_ACCESS_KEY=…
-  ```
-  Usa credenciales que solo puedan escribir en ese bucket/carpeta.
-- **Tu servidor por SSH/SFTP**:
-  ```ini
-  BACKUP_REMOTE=copias:/srv/copias/bella-napoli
-  RCLONE_CONFIG_COPIAS_TYPE=sftp
-  RCLONE_CONFIG_COPIAS_HOST=copias.ejemplo.com
-  RCLONE_CONFIG_COPIAS_USER=tpv-bella-napoli
-  RCLONE_CONFIG_COPIAS_KEY_FILE=/app/storage/app/private/ssh/id_ed25519
-  ```
-  (la clave SSH: `docker compose cp id_ed25519 app:/app/storage/app/private/ssh/`).
+- **S3 compatible** (proveedor europeo o un MinIO tuyo): endpoint, región, bucket,
+  access key y secret key (cifrada en la base de datos). Usa credenciales que solo
+  puedan escribir en ese bucket/carpeta.
+- **Servidor SFTP**: servidor, puerto y usuario. **Generar clave SSH** crea la
+  clave del equipo y enseña la pública para añadirla a `~/.ssh/authorized_keys`
+  del servidor. **Obtener huella del servidor** lee su clave (ssh-keyscan) y la
+  enseña para compararla con la del servidor
+  (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`): al confirmarla, rclone
+  **solo** se conecta a ese servidor.
 
-Tras cambiar el `.env`: `cd /opt/tpv && docker compose up -d`. Probar:
-
-```bash
-cd /opt/tpv
-docker compose exec app php artisan tpv:backup            # copia + subida ahora
-docker compose exec app sh -c 'ls -lh /backups; rclone ls "$BACKUP_REMOTE"'
-```
+**Probar copia** hace una copia real y la sube; el resultado aparece en la misma
+pantalla. (Las instalaciones antiguas con `BACKUP_AGE_RECIPIENT`, `BACKUP_REMOTE`
+y `RCLONE_CONFIG_*` en el `.env` siguen funcionando mientras /admin esté vacío.)
 
 > **Qué hay que guardar fuera del mini PC, por cliente** (gestor de contraseñas):
 > la clave privada age (dos sitios), la **APP_KEY** (`/opt/tpv/.env`) y, con
@@ -329,7 +324,10 @@ Fuera del horario del local, con la caja cerrada (cierre Z hecho), sin pedidos
 abiertos ni domicilios pendientes de liquidar (si los hay, no hace nada):
 
 ```bash
-sudo tpv-update 1.1.0                     # desde GHCR
+# Imagen construida en el equipo: copia la carpeta de la versión nueva y
+sudo bash install.sh                      # construye la imagen y pasa por tpv-update
+# Imagen de GHCR:
+sudo tpv-update 1.1.0
 sudo tpv-update --tar tpv-1.1.0.tar.gz    # imagen copiada a mano (scp por Tailscale)
 ```
 
@@ -337,9 +335,8 @@ Hace copia cifrada + volcado de vuelta atrás, cambia de imagen, migra y espera
 al healthcheck; **si algo falla, vuelve a la versión anterior y a los datos de
 antes** automáticamente. Registro: `/var/log/tpv-update.log` (si es automática).
 
-Actualización automática (opcional): `AUTO_UPDATE_AT="04:30"` en el `.conf` y
-volver a lanzar `install.sh` → cada noche `tpv-update latest` (no hace nada si
-ya está al día o la caja está abierta).
+Actualización automática (opcional, solo con GHCR): `AUTO_UPDATE_AT="04:30"` en el
+fichero de `--config` y volver a lanzar `install.sh`.
 
 ## 11. Comandos útiles
 
@@ -348,10 +345,25 @@ cd /opt/tpv
 docker compose ps                       # estado (todos "healthy")
 docker compose logs -f app printing     # logs
 docker compose restart printing         # tras cambiar una impresora USB
-docker compose exec app php artisan tpv:print-test
 cat /opt/tpv/.env | grep TPV_VERSION    # versión instalada (también al pie de /admin)
-sudo systemctl restart getty@tty1       # reiniciar el kiosko
+sudo tpv-mantenimiento                  # estado del kiosko
 ```
+
+### Salir del kiosko para mantenimiento
+
+El kiosko no tiene barras ni menús y se vuelve a abrir solo. Para entrar con tu
+usuario (p. ej. `alex`):
+
+1. En la caja: **Ctrl+Alt+F3** → consola de texto → entra con tu usuario (o
+   conéctate por SSH / Tailscale).
+2. `sudo tpv-mantenimiento on`: el kiosko deja de arrancar, se quita el inicio
+   automático y se cierra su sesión; aparece la pantalla de inicio de sesión (con
+   escritorio) o la consola (sin escritorio) para entrar con tu usuario.
+3. Al terminar: `sudo tpv-mantenimiento off` y cierra tu sesión (o reinicia): el
+   kiosko vuelve solo.
+
+Un camarero no puede hacerlo por accidente: hace falta tu contraseña (y el
+usuario `kiosk` no tiene sudo).
 
 ## 12. SAI
 

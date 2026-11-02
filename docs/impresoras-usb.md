@@ -6,10 +6,10 @@ kernel (`/dev/usb/lp0`, `/dev/usb/lp1`…), que crea el driver **usblp**.
 
 El problema de `/dev/usb/lp0` es que **el número puede cambiar** al reiniciar
 o al reenchufar (la de cocina pasa a ser `lp0` y la de tickets `lp1`). Por eso
-se crea con **udev** un enlace fijo con un nombre propio dentro de `/dev/usb/`,
-p. ej. `/dev/usb/impresora-ticket`, que es el que se configura en /admin →
-Impresoras. **El instalador (`install.sh`) crea la regla solo** con los IDs de
-`PRINTERS_USB`; lo de abajo es para entenderlo o hacerlo a mano.
+se crea con **udev** un enlace fijo dentro de `/dev/usb/`, p. ej.
+`/dev/usb/impresora-04b8-0202-x5e8012345`, que es el que se elige en /admin →
+Impresoras. **El instalador (`install.sh`) instala la regla genérica** para
+cualquier impresora USB; lo de abajo es para entenderlo o comprobarlo a mano.
 
 > En desarrollo, en el Mac, **no se pueden pasar dispositivos USB a Docker
 > Desktop**. Allí se prueba en modo simulado (`PRINTER_MODE=simulated`).
@@ -71,30 +71,23 @@ verás en la misma salida) y no cambies la impresora de puerto USB.
 
 ## 3. Regla udev con enlace fijo
 
-Crea `/etc/udev/rules.d/99-impresoras-tpv.rules` (ajusta los IDs):
+`install.sh` instala una regla genérica para **cualquier** impresora USB (driver
+usblp): no hace falta apuntar IDs ni volver a lanzar el instalador al cambiar de
+impresora.
 
-```udev
-# Impresora de tickets (Epson TM-T20): /dev/usb/impresora-ticket
-SUBSYSTEM=="usbmisc", KERNEL=="lp*", ATTRS{idVendor}=="04b8", ATTRS{idProduct}=="0202", \
-    SYMLINK+="usb/impresora-ticket", GROUP="lp", MODE="0660"
-
-# Impresora de cocina (otro modelo): /dev/usb/impresora-cocina
-SUBSYSTEM=="usbmisc", KERNEL=="lp*", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="5011", \
-    SYMLINK+="usb/impresora-cocina", GROUP="lp", MODE="0660"
-
-# Dos iguales: añade el número de serie a cada regla
-#   ATTRS{serial}=="J2BF123456"
+```
+# /etc/udev/rules.d/99-impresoras-tpv.rules
+SUBSYSTEM=="usbmisc", KERNEL=="lp*", GROUP="lp", MODE="0660", PROGRAM="/usr/local/lib/tpv/impresora-usb-nombre %p", SYMLINK+="usb/%c"
 ```
 
-Aplica y comprueba:
+El enlace es `/dev/usb/impresora-<fabricante>-<modelo>[-<serie>]`, p. ej.
+`/dev/usb/impresora-04b8-0202-x5e8012345` (Epson TM-T20III con su número de
+serie). Con el número de serie, **dos impresoras del mismo modelo** tienen
+enlaces distintos; sin él (algunas no lo tienen), solo fabricante y modelo.
+/admin calcula el mismo nombre leyendo `/sys`: en **Impresoras → Nueva → USB →
+«Impresoras USB conectadas»** aparecen las enchufadas para elegirlas.
 
-```bash
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-ls -l /dev/usb/                # impresora-ticket -> lp0
-```
-
-Desenchufa y vuelve a enchufar: el enlace debe reaparecer.
+Comprobar: `ls -l /dev/usb/` → `impresora-04b8-0202-x5e8012345 -> lp0`.
 
 ## 4. Permisos
 
@@ -112,7 +105,7 @@ en él debe estar en ese grupo:
   ```
 
 Si el TPV muestra *"Impresora no conectada o sin permiso de escritura en
-/dev/usb/impresora-ticket"*, casi siempre es esto.
+/dev/usb/impresora-04b8-0202"*, casi siempre es esto.
 
 ## 5. Docker
 
@@ -140,7 +133,7 @@ así que funciona igual dentro del contenedor.
 En **/admin → Configuración → Impresoras**:
 
 - **Conexión:** USB
-- **Dispositivo USB:** `/dev/usb/impresora-ticket`
+- **Dispositivo USB:** elígelo en «Impresoras USB conectadas» (rellena `/dev/usb/impresora-…`)
 - **Ancho del papel:** 80 mm (48 caracteres) o 58 mm (32)
 - **Página de códigos:** 16 (WPC1252) para acentos, ñ y €
 

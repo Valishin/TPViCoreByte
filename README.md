@@ -403,20 +403,26 @@ para cada cliente. SAI: [docs/sai-nut.md](docs/sai-nut.md).
   `TPV_IMAGE=ghcr.io/<usuario>/tpv-hosteleria scripts/build-image.sh --push`
   (o `--tar`). La versión sale de `VERSION` (semver a mano) más el commit, y se
   ve al pie de /admin, en /estado y en `/api/health`.
-- **Paquete del instalador** para el USB: `scripts/make-install-bundle.sh`
-  (`--with-image` para incluir la imagen).
+- **Instalación**: copiar la carpeta del proyecto (`scripts/make-install-bundle.sh`
+  → `dist/tpv-<versión>.tar.gz`) y `sudo bash install.sh` en el mini PC, sin
+  preguntas (`--demo`, `--ghcr TOKEN`, `--config`, `--dry-run`). Después, `/admin`:
+  **Crear administrador** con el código de configuración y **Puesta en marcha**
+  (empresa, fiscal, pedidos, impresoras, copias, Tailscale y VERI\*FACTU).
+- **Tipo de instalación** (`TPV_INSTALL_MODE`): `cliente` (no emite sin datos
+  fiscales; aplica las fechas de VERI\*FACTU) o `demo` (datos de ejemplo,
+  VERI\*FACTU apagado). Pruebas del instalador: `scripts/test-installer.sh`
+  (debian:13, con y sin escritorio).
 - **Servicios** (`docker-compose.prod.yml`): app (puerto 80; FrankenPHP pasa
   `/app` a Reverb), reverb, queue, printing, scheduler y postgres 18.
-- **En el mini PC**: `install.sh` (una vez), `tpv-update <versión>` (con vuelta
-  atrás automática), `tpv-restore <copia>`.
+- **En el mini PC**: `install.sh`, `tpv-update <versión>` (con vuelta atrás
+  automática), `tpv-restore <copia>`, `tpv-mantenimiento on|off` (salir del kiosko).
 - **Copias**: `tpv:backup` cifrado con age, tras cada Z, al arrancar si hace
   más de 24 h de la última y a las 05:00; rotación 7/4/6 y subida con rclone.
 
 Probar la producción en el Mac: `scripts/build-image.sh` y levantar
 `docker-compose.prod.yml` con un `.env` sacado de `docker/production/env.example`
-(`APP_HTTP_PORT=8090`, `PRINTER_MODE=simulated`). La imagen no incluye Faker:
-los datos de demo se cargan con un volcado de la base de datos de desarrollo y
-`tpv-restore`.
+(`APP_HTTP_PORT=8090`, `PRINTER_MODE=simulated`). La imagen incluye Faker para
+poder cargar los datos de demo (`install.sh --demo`).
 
 ## Problemas típicos
 

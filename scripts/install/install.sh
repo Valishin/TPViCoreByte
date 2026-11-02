@@ -112,8 +112,9 @@ detect_ip() {
 LAN_IP="${LAN_IP:-$(detect_ip)}"
 LOCAL_NAME="${LOCAL_NAME:-Mi local}"
 
-# Instalación anterior: el modo no cambia sin querer.
+# Instalación anterior: el modo no cambia sin querer; una versión nueva pasa por tpv-update.
 PREV_MODE="$(envget "$TPV_DIR/.env" TPV_INSTALL_MODE)"
+PREV_VERSION="$(envget "$TPV_DIR/.env" TPV_VERSION)"
 WIPE_DEMO=0
 if [ "$PREV_MODE" = demo ] && [ "$MODE" = cliente ]; then
     echo
@@ -131,6 +132,10 @@ if [ "$PREV_MODE" = demo ] && [ "$MODE" = cliente ]; then
 elif [ "$PREV_MODE" = cliente ] && [ "$MODE" = demo ]; then
     die "Este equipo es una instalación de cliente real: no se convierte en demo."
 fi
+
+# Versión nueva sobre una instalación con datos: copia y vuelta atrás automática (tpv-update).
+UPGRADE=0
+if [ -n "$PREV_VERSION" ] && [ "$PREV_VERSION" != "$TPV_VERSION" ] && [ "$WIPE_DEMO" = 0 ]; then UPGRADE=1; fi
 
 # Escritorio: gestor de inicio de sesión y entorno (TPV_DESKTOP=si|no fuerza la detección).
 detect_dm() {
@@ -397,13 +402,17 @@ if [ -f "$ENV" ]; then
     envforce "$ENV" APP_URL "http://${LAN_IP}"
     envforce "$ENV" APP_LAN_IP "$LAN_IP"
     envforce "$ENV" TPV_IMAGE "$TPV_IMAGE"
-    envforce "$ENV" TPV_VERSION "$TPV_VERSION"
+    [ "$UPGRADE" = 1 ] || envforce "$ENV" TPV_VERSION "$TPV_VERSION"   # al actualizar la cambia tpv-update
     chmod 600 "$ENV"
     ok ".env con claves propias (600), modo $MODE"
 fi
 
 if [ "$DRY_RUN" = 1 ]; then
-    echo "  [dry-run] imagen, base de datos, migraciones y $([ "$MODE" = demo ] && echo "datos de demo ($DEMO_DATASET)" || echo "ajustes por rellenar"): omitido"
+    if [ "$UPGRADE" = 1 ]; then
+        echo "  [dry-run] imagen $TPV_VERSION y tpv-update de $PREV_VERSION a $TPV_VERSION (copia y vuelta atrás): omitido"
+    else
+        echo "  [dry-run] imagen, base de datos, migraciones y $([ "$MODE" = demo ] && echo "datos de demo ($DEMO_DATASET)" || echo "ajustes por rellenar"): omitido"
+    fi
     SETUP_CODE="XXXX-XXXX-XXXX"
 else
     if [ "$SOURCE" = build ]; then
@@ -416,6 +425,14 @@ else
         compose pull -q
         ok "Imagen descargada: $TPV_IMAGE:$TPV_VERSION"
     fi
+    SETUP_CODE=""
+    if [ "$UPGRADE" = 1 ]; then
+        # De $PREV_VERSION a $TPV_VERSION: copia cifrada, migraciones y vuelta atrás si algo falla.
+        if [ "$SOURCE" = build ]; then /usr/local/bin/tpv-update --local "$TPV_VERSION"; else /usr/local/bin/tpv-update "$TPV_VERSION"; fi
+        ok "Actualizado de $PREV_VERSION a $TPV_VERSION"
+    fi
+fi
+if [ "$DRY_RUN" = 0 ] && [ "$UPGRADE" = 0 ]; then
     compose up -d pgsql
     until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(compose ps -q pgsql)")" = healthy ]; do sleep 2; done
     if [ "$WIPE_DEMO" = 1 ]; then
@@ -425,7 +442,6 @@ else
         artisan migrate --force
     fi
     HAS_SETTINGS="$(artisan tinker --execute='echo App\Models\Setting::query()->exists() ? 1 : 0;' 2>/dev/null | tail -1)"
-    SETUP_CODE=""
     if [ "$MODE" = demo ]; then
         if [ "$HAS_SETTINGS" != 1 ]; then
             compose run --rm --no-deps -T -e "DEMO_DATASET=$DEMO_DATASET" app php artisan db:seed --force
@@ -440,6 +456,31 @@ else
     fi
     compose up -d
     ok "Servicios en marcha (arrancan solos con el equipo)"
+fi
+
+# Opcional (--config): apagar la pantalla de noche y actualizar solo.
+if [ -n "${SCREEN_OFF:-}" ] && [ -n "${SCREEN_ON:-}" ]; then
+    if [ "$KIOSK_MODE" = console ]; then
+        put /etc/cron.d/tpv-pantalla 644 <<CONF
+# Apagar y encender la pantalla del kiosko fuera del horario del local.
+${SCREEN_OFF#*:} ${SCREEN_OFF%%:*} * * * $KIOSK_USER /usr/local/bin/tpv-kiosk --screen off
+${SCREEN_ON#*:} ${SCREEN_ON%%:*} * * * $KIOSK_USER /usr/local/bin/tpv-kiosk --screen on
+CONF
+        ok "Pantalla: se apaga a las $SCREEN_OFF y se enciende a las $SCREEN_ON"
+    else
+        warn "SCREEN_OFF/SCREEN_ON solo funciona sin escritorio: con escritorio la pantalla queda siempre encendida."
+    fi
+else
+    run rm -f "${ROOT}/etc/cron.d/tpv-pantalla"
+fi
+if [ -n "${AUTO_UPDATE_AT:-}" ] && [ "$SOURCE" = ghcr ]; then
+    put /etc/cron.d/tpv-update 644 <<CONF
+${AUTO_UPDATE_AT#*:} ${AUTO_UPDATE_AT%%:*} * * * root /usr/local/bin/tpv-update latest >> /var/log/tpv-update.log 2>&1
+CONF
+    ok "Actualización automática a las $AUTO_UPDATE_AT (solo si la caja está cerrada)"
+else
+    [ -n "${AUTO_UPDATE_AT:-}" ] && warn "AUTO_UPDATE_AT solo funciona con la imagen de GHCR (--ghcr)."
+    run rm -f "${ROOT}/etc/cron.d/tpv-update"
 fi
 
 # --- 8. Credenciales ------------------------------------------------------------------------
