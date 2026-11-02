@@ -1,0 +1,10 @@
+# Une el equipo a Tailscale en cuanto /admin deja la clave (ver tpv-tailscale-join).
+[Unit]
+Description=TPV: clave de Tailscale pendiente
+
+[Path]
+PathExists=/opt/tpv/host/tailscale/authkey
+Unit=tpv-tailscale.service
+
+[Install]
+WantedBy=multi-user.target

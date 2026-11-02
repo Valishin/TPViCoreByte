@@ -1,0 +1,6 @@
+[Unit]
+Description=TPV: estado de Tailscale para /admin
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tpv-tailscale-join --status

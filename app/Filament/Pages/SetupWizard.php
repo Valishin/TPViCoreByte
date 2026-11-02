@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Services\Printing\UsbPrinterDetector;
 use App\Support\InstallMode;
 use App\Support\SetupProgress;
+use App\Support\TailscaleBridge;
 use App\Support\TaxId;
 use BackedEnum;
 use Closure;
@@ -29,6 +30,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 /**
@@ -157,10 +159,27 @@ class SetupWizard extends Page
 
                     $this->step('remoto', Heroicon::OutlinedGlobeAlt, 'Soporte a distancia con Tailscale.')
                         ->schema([
-                            Toggle::make('skip_remote')->label('No usar acceso remoto por ahora'),
+                            TextEntry::make('tailscale_status')->label('Estado')->state(fn () => TailscaleBridge::describe()),
+                            TextInput::make('tailscale_authkey')->label('Clave de Tailscale (de un solo uso)')->password()->revealable()
+                                ->placeholder('tskey-auth-…')->dehydrated(false)
+                                ->helperText('Panel de Tailscale → Settings → Keys → «Generate auth key» (de un solo uso). No se guarda: el equipo la usa y la borra.')
+                                ->hidden(fn () => TailscaleBridge::connected()),
+                            Toggle::make('skip_remote')->label('No usar acceso remoto por ahora')
+                                ->hidden(fn () => TailscaleBridge::connected()),
                         ])
                         ->afterValidation(function () {
-                            if ($this->data['skip_remote'] ?? false) {
+                            $key = trim((string) ($this->data['tailscale_authkey'] ?? ''));
+                            if ($key !== '') {
+                                try {
+                                    TailscaleBridge::submit($key, 'tpv-'.Setting::current()->trade_name);
+                                } catch (\InvalidArgumentException|\RuntimeException $e) {
+                                    throw ValidationException::withMessages(['data.tailscale_authkey' => $e->getMessage()]);
+                                } finally {
+                                    $this->data['tailscale_authkey'] = null;
+                                }
+                                SetupProgress::mark('remoto', 'done');
+                                Notification::make()->success()->title('Clave enviada: el equipo se une a Tailscale en unos segundos')->send();
+                            } elseif ($this->data['skip_remote'] ?? false) {
                                 SetupProgress::mark('remoto', 'skipped');
                             }
                         }),

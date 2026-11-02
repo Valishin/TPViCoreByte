@@ -12,5 +12,8 @@ return [
     // Tipo de instalación (lo pone install.sh): «cliente» (por defecto) emite
     // documentos reales y aplica los bloqueos (datos fiscales, VERI*FACTU);
     // «demo» vende con datos de ejemplo, con VERI*FACTU apagado y sin avisos.
+    // Carpeta compartida con el equipo para unirlo a Tailscale (App\Support\TailscaleBridge).
+    'tailscale_bridge' => env('TPV_TAILSCALE_BRIDGE', '/var/tpv/host/tailscale'),
+
     'install_mode' => env('TPV_INSTALL_MODE', 'cliente') === 'demo' ? 'demo' : 'cliente',
 ];

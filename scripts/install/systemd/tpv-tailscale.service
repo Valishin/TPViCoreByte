@@ -1,0 +1,8 @@
+[Unit]
+Description=TPV: unir el equipo a Tailscale con la clave de /admin
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tpv-tailscale-join

@@ -77,6 +77,7 @@ class SetupWizardTest extends FilamentTestCase
 
     public function test_remote_access_can_be_skipped(): void
     {
+        config(['tpv.tailscale_bridge' => '/no/existe']);
         Livewire::test(SetupWizard::class)->fillForm(['skip_remote' => true])->goToWizardStep(7);
         $this->assertTrue(SetupProgress::steps()['remoto']['skipped']);
         $this->assertTrue(SetupProgress::steps()['remoto']['complete']);

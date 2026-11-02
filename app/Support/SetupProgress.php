@@ -84,7 +84,7 @@ final class SetupProgress
             'pedidos' => ($marks['pedidos'] ?? null) === 'done' && ! empty($s->enabled_order_types),
             'impresoras' => Printer::query()->where('type', PrinterType::Ticket)->where('is_active', true)->exists(),
             'copias' => BackupDestination::configured($s) && BackupRun::query()->where('remote_status', 'subida')->exists(),
-            'remoto' => ($marks['remoto'] ?? null) === 'done',
+            'remoto' => TailscaleBridge::connected(),
             // En demo no aplica; en cliente: certificado válido y VERI*FACTU activo o programado.
             'verifactu' => InstallMode::isDemo()
                 || (EmissionGuard::certificateValid($s) && $s->verifactu_enabled && $s->verifactu_started_at !== null),

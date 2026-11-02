@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Une el equipo a Tailscale con la clave que deja /admin (Puesta en marcha →
+# Acceso remoto). Lo lanza systemd como root (tpv-tailscale.path) en cuanto
+# aparece la clave, y cada 5 minutos con --status para refrescar el estado.
+#
+#   /opt/tpv/host/tailscale/authkey      {"authkey":"tskey-auth-…","hostname":"tpv-…"} (lo escribe la app)
+#   /opt/tpv/host/tailscale/status.json  estado para /admin (lo escribe este script)
+#
+# La clave se BORRA antes de usarla (también si algo falla): nunca queda en disco.
+set -u
+DIR="${TPV_TAILSCALE_DIR:-/opt/tpv/host/tailscale}"
+TS="${TAILSCALE_BIN:-tailscale}"
+APP_UID="${TPV_APP_UID:-1000}"
+
+# status.json con permisos del usuario de la app (la carpeta es suya y 700).
+write_status() { # write_status estado mensaje [hostname] [ip]
+    local clean tmp
+    clean="$(printf '%s' "${2:-}" | tr -d '"\\' | tr '\n\r\t' '   ' | cut -c1-300)"
+    tmp="$DIR/.status.$$"
+    printf '{"state":"%s","message":"%s","hostname":"%s","ip":"%s","at":"%s"}\n' \
+        "$1" "$clean" "${3:-}" "${4:-}" "$(date -Iseconds)" > "$tmp"
+    chmod 600 "$tmp"
+    chown "$APP_UID:$APP_UID" "$tmp" 2>/dev/null || true
+    mv -f "$tmp" "$DIR/status.json"
+}
+
+refresh_status() {
+    local self ip host
+    if self="$("$TS" status --self=true --peers=false 2>/dev/null)" && [ -n "$self" ]; then
+        ip="$(printf '%s\n' "$self" | awk 'NR==1 {print $1}')"
+        host="$(printf '%s\n' "$self" | awk 'NR==1 {print $2}')"
+        write_status conectado "" "$host" "$ip"
+    else
+        write_status desconectado "$("$TS" status 2>&1 | head -1)"
+    fi
+}
+
+[ -d "$DIR" ] || exit 0
+
+if [ "${1:-}" = "--status" ]; then
+    [ -f "$DIR/authkey" ] || refresh_status
+    exit 0
+fi
+
+[ -f "$DIR/authkey" ] || exit 0
+request="$(cat "$DIR/authkey" 2>/dev/null || true)"
+rm -f "$DIR/authkey"                      # borrada antes de usarla
+trap 'rm -f "$DIR/authkey"' EXIT          # y si algo falla después, tampoco queda
+
+key="$(printf '%s' "$request" | sed -n 's/.*"authkey"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+host="$(printf '%s' "$request" | sed -n 's/.*"hostname"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+host="${host:-tpv}"
+case "$key" in
+    tskey-auth-*) ;;
+    *) write_status error "La clave no es una clave de autenticación de Tailscale."; exit 1 ;;
+esac
+if ! command -v "$TS" >/dev/null 2>&1; then
+    write_status error "Tailscale no está instalado en este equipo."
+    exit 1
+fi
+
+if out="$(timeout 90 "$TS" up --ssh --hostname "$host" --authkey "$key" 2>&1)"; then
+    unset key request
+    refresh_status
+else
+    unset key request
+    write_status error "$(printf '%s' "$out" | tail -1)" "$host"
+    exit 1
+fi
