@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Customers\RelationManagers;
 
 use App\Models\DeliveryZone;
+use App\Support\PostalCode;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -11,6 +12,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
@@ -35,14 +37,18 @@ class AddressesRelationManager extends RelationManager
             TextInput::make('number')->label('Número')->maxLength(20),
             TextInput::make('floor_door')->label('Piso / puerta')->maxLength(50),
             TextInput::make('postal_code')->label('Código postal')->maxLength(10)->live(onBlur: true)
-                ->afterStateUpdated(function (?string $state, Set $set) {
-                    // Sugerir la zona por código postal.
+                ->afterStateUpdated(function (?string $state, Get $get, Set $set) {
+                    // Sugerir la zona y el municipio por código postal.
                     $zone = DeliveryZone::query()->whereJsonContains('postal_codes', $state)->first();
                     if ($zone) {
                         $set('delivery_zone_id', $zone->id);
                     }
+                    if (blank($get('city')) && ($city = PostalCode::city($state))) {
+                        $set('city', $city);
+                    }
                 }),
-            TextInput::make('city')->label('Población')->maxLength(255),
+            TextInput::make('city')->label('Municipio')->maxLength(255)
+                ->helperText(fn (Get $get) => ($province = PostalCode::province($get('postal_code'))) ? "Provincia: {$province}" : null),
             Select::make('delivery_zone_id')->label('Zona de reparto')->relationship('deliveryZone', 'name')
                 ->helperText('Se rellena sola si el código postal está en una zona.'),
             Toggle::make('is_default')->label('Dirección principal')->inline(false),

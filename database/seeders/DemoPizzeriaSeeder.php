@@ -123,9 +123,12 @@ class DemoPizzeriaSeeder extends DemoSeeder
 
         // Zonas de reparto (Sant Feliu de Guíxols y alrededores, Girona).
         $zones = [
-            DeliveryZone::create(['name' => 'Sant Feliu', 'delivery_fee' => 0, 'minimum_order' => 1200, 'postal_codes' => ['17220']]),
-            DeliveryZone::create(['name' => "S'Agaró i Platja d'Aro", 'delivery_fee' => 150, 'minimum_order' => 1500, 'postal_codes' => ['17248', '17249', '17250']]),
-            DeliveryZone::create(['name' => 'Santa Cristina i Calonge', 'delivery_fee' => 250, 'minimum_order' => 2000, 'postal_codes' => ['17246', '17251', '17252']]),
+            DeliveryZone::create(['name' => 'Sant Feliu', 'delivery_fee' => 0, 'minimum_order' => 1200, 'postal_codes' => ['17220'],
+                'postal_code_cities' => ['17220' => 'Sant Feliu de Guíxols']]),
+            DeliveryZone::create(['name' => "S'Agaró i Platja d'Aro", 'delivery_fee' => 150, 'minimum_order' => 1500, 'postal_codes' => ['17248', '17249', '17250'],
+                'postal_code_cities' => ['17248' => "S'Agaró", '17249' => "Castell d'Aro", '17250' => "Platja d'Aro"]]),
+            DeliveryZone::create(['name' => 'Santa Cristina i Calonge', 'delivery_fee' => 250, 'minimum_order' => 2000, 'postal_codes' => ['17246', '17251', '17252'],
+                'postal_code_cities' => ['17246' => "Santa Cristina d'Aro", '17251' => 'Calonge', '17252' => 'Sant Antoni de Calonge']]),
         ];
         // Calles reales y población de cada código postal.
         $streets = [

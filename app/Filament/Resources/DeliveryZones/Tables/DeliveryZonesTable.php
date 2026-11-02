@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\DeliveryZones\Tables;
 
 use App\Filament\Components\MoneyColumn;
+use App\Filament\Resources\DeliveryZones\Schemas\DeliveryZoneForm;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
@@ -19,7 +20,8 @@ class DeliveryZonesTable
                 TextColumn::make('name')->label('Zona')->searchable(),
                 MoneyColumn::make('delivery_fee')->label('Envío'),
                 MoneyColumn::make('minimum_order')->label('Pedido mínimo'),
-                TextColumn::make('postal_codes')->label('Códigos postales')->badge(),
+                TextColumn::make('postal_codes')->label('Códigos postales')->badge()
+                    ->state(fn ($record) => DeliveryZoneForm::labels($record)),
                 IconColumn::make('is_active')->label('Activa')->boolean(),
             ])
             ->recordActions([

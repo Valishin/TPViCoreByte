@@ -3,13 +3,14 @@
 namespace App\Support;
 
 use App\Models\CustomerAddress;
+use App\Models\DeliveryZone;
 use App\Models\Setting;
 
 /**
  * Código postal español → provincia (las dos primeras cifras) y municipio.
- * El municipio sale de las direcciones ya guardadas con ese CP (el más usado)
- * o, si es el CP del local, de su población: se escribe una vez y después se
- * rellena solo. Sin conexión a internet.
+ * El municipio sale, por este orden, de la zona de reparto (/admin: cada CP
+ * con su municipio), de las direcciones ya guardadas con ese CP (el más usado)
+ * o, si es el CP del local, de su población. Sin conexión a internet.
  */
 final class PostalCode
 {
@@ -37,13 +38,16 @@ final class PostalCode
         return self::valid($postalCode) ? self::PROVINCES[substr(trim($postalCode), 0, 2)] : null;
     }
 
-    /** Municipio conocido para ese CP (el más repetido en las direcciones guardadas) o null. */
+    /** Municipio conocido para ese CP (zona de reparto → direcciones guardadas → el local) o null. */
     public static function city(?string $postalCode): ?string
     {
         if (! self::valid($postalCode)) {
             return null;
         }
         $postalCode = trim($postalCode);
+        if ($zone = DeliveryZone::cityForPostalCode($postalCode)) {
+            return $zone;
+        }
         $known = CustomerAddress::query()->where('postal_code', $postalCode)->whereNotNull('city')->where('city', '<>', '')
             ->selectRaw('city, count(*) as uses')->groupBy('city')->orderByDesc('uses')->orderBy('city')->value('city');
         if ($known) {
