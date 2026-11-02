@@ -11,8 +11,11 @@ final class MapsLink
         if (! $address || empty($address['street'])) {
             return null;
         }
+        $city = trim((string) ($address['city'] ?? '')) ?: (string) PostalCode::city($address['postal_code'] ?? null);
+        $province = PostalCode::province($address['postal_code'] ?? null);
         $query = trim(($address['street'] ?? '').' '.($address['number'] ?? ''))
-            .', '.trim(($address['postal_code'] ?? '').' '.($address['city'] ?? ''));
+            .', '.trim(($address['postal_code'] ?? '').' '.$city)
+            .($province && mb_strtolower($province) !== mb_strtolower($city) ? ", {$province}" : '');
 
         return 'https://www.google.com/maps/search/?api=1&query='.rawurlencode(trim($query, ', '));
     }

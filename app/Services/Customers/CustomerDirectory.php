@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\DeliveryZone;
 use App\Support\PhoneNormalizer;
+use App\Support\PostalCode;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -75,7 +76,7 @@ class CustomerDirectory
                 'number' => $data['number'] ?? null,
                 'floor_door' => $data['floor_door'] ?? null,
                 'postal_code' => $data['postal_code'] ?? null,
-                'city' => $data['city'] ?? null,
+                'city' => trim((string) ($data['city'] ?? '')) ?: PostalCode::city($data['postal_code'] ?? null),
                 'instructions' => $data['instructions'] ?? null,
                 'delivery_zone_id' => $zoneId,
                 'is_default' => $first || ! empty($data['is_default']),

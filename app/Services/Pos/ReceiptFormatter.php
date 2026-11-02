@@ -19,6 +19,7 @@ use App\Services\Printing\Ticket as Printable;
 use App\Services\Verifactu\TaxQr;
 use App\Support\Format;
 use App\Support\MapsLink;
+use App\Support\PostalCode;
 
 /**
  * Impresión de cara al cliente y a la caja: ticket (factura simplificada o
@@ -240,7 +241,7 @@ class ReceiptFormatter
         if (! empty($a['floor_door'])) {
             $p->line($a['floor_door'], bold: true, large: true);
         }
-        $place = trim(($a['postal_code'] ?? '').' '.($a['city'] ?? ''));
+        $place = PostalCode::place($a['postal_code'] ?? null, $a['city'] ?? null);   // «17220 Sant Feliu de Guíxols (Girona)»
         if ($place !== '') {
             $p->line($place, bold: true);
         }

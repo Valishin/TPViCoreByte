@@ -4,6 +4,7 @@ namespace App\Http\Resources\Pos;
 
 use App\Enums\TicketType;
 use App\Models\Order;
+use App\Support\PostalCode;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -59,12 +60,12 @@ class TakeawayOrderResource extends JsonResource
         ];
     }
 
-    /** "Calle Mayor 3, 2º B · 28001 Madrid" */
+    /** "Calle Mayor 3, 2º B · 17220 Sant Feliu de Guíxols (Girona)" */
     public static function addressLine(array $a): string
     {
         $street = trim(($a['street'] ?? '').' '.($a['number'] ?? ''));
         $parts = array_filter([$street, $a['floor_door'] ?? null]);
-        $place = trim(($a['postal_code'] ?? '').' '.($a['city'] ?? ''));
+        $place = PostalCode::place($a['postal_code'] ?? null, $a['city'] ?? null);
 
         return implode(', ', $parts).($place !== '' ? " · {$place}" : '');
     }

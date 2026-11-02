@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\DeliveryZone;
 use App\Services\Customers\CustomerDirectory;
 use App\Support\PhoneNormalizer;
+use App\Support\PostalCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -71,6 +72,9 @@ class CustomerController extends Controller
         return response()->json([
             'data' => DeliveryZone::query()->where('is_active', true)->orderBy('name')->get()->map(fn ($z) => CustomerResource::zone($z)),
             'suggested_id' => $this->customers->zoneForPostalCode($postalCode)?->id,
+            // Municipio y provincia del CP, para rellenar la dirección.
+            'city' => PostalCode::city($postalCode),
+            'province' => PostalCode::province($postalCode),
         ]);
     }
 

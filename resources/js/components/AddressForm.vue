@@ -16,7 +16,7 @@
                 :error="zoneError"
                 @update:model-value="suggestZone"
             />
-            <TextField v-model="a.city" label="Población" :maxlength="255" />
+            <TextField v-model="a.city" label="Municipio" :maxlength="255" :hint="province ? `Provincia: ${province}` : ''" @update:model-value="cityTouched = true" />
         </div>
         <TextField v-model="a.instructions" label="Indicaciones" :maxlength="500" placeholder="Portal verde, timbre roto…" />
 
@@ -50,6 +50,9 @@ const a = reactive({ street: '', number: '', floor_door: '', postal_code: '', ci
 const zones = ref([]);
 const suggestedId = ref(null);
 const checkedCp = ref('');
+const province = ref('');
+// El municipio se rellena solo con el CP mientras no se haya escrito a mano.
+const cityTouched = ref(!!a.city);
 
 // Zona por el CP, junto al campo (y en el teclado en pantalla mientras se escribe).
 const zoneHint = computed(() => {
@@ -67,10 +70,12 @@ onMounted(async () => {
     zones.value = result.data;
     suggestedId.value = result.suggested_id;
     checkedCp.value = a.postal_code;
+    province.value = result.province ?? '';
 });
 
 let last = '';
 async function suggestZone(cp) {
+    if (!cp || cp.length !== 5) province.value = '';
     if (!cp || cp.length !== 5 || cp === last) return;
     last = cp;
     const result = await pos.zones(cp).catch(() => null);
@@ -78,6 +83,8 @@ async function suggestZone(cp) {
     zones.value = result.data;
     suggestedId.value = result.suggested_id;
     checkedCp.value = cp;
+    province.value = result.province ?? '';
+    if (result.city && (!cityTouched.value || !a.city)) a.city = result.city;
     if (result.suggested_id) a.delivery_zone_id = result.suggested_id;
 }
 </script>
