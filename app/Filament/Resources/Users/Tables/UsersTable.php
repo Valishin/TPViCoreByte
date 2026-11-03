@@ -28,6 +28,7 @@ class UsersTable
                         UserRole::Courier => 'success',
                     }),
                 TextColumn::make('email')->label('Email')->placeholder('—')->searchable(),
+                TextColumn::make('username')->label('Usuario')->placeholder('—')->searchable()->toggleable(),
                 IconColumn::make('pin')->label('PIN')->boolean()->state(fn ($record) => filled($record->pin)),
                 IconColumn::make('is_active')->label('Activo')->boolean(),
             ])

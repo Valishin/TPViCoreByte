@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
-#[Fillable(['name', 'email', 'password', 'role', 'color', 'pin', 'is_active'])]
+#[Fillable(['name', 'email', 'username', 'password', 'role', 'color', 'pin', 'is_active'])]
 #[Hidden(['password', 'remember_token', 'pin'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -58,6 +58,19 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
+    /** Nombre de usuario para entrar en /admin: sin espacios y en minúsculas (vacío = null). */
+    public static function normalizeUsername(?string $value): ?string
+    {
+        $value = mb_strtolower(trim((string) $value));
+
+        return $value === '' ? null : $value;
+    }
+
+    protected function username(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => self::normalizeUsername($value));
+    }
+
     /** PIN de 4 dígitos para el TPV; se guarda hasheado. */
     protected function pin(): Attribute
     {
@@ -73,7 +86,7 @@ class User extends Authenticatable implements FilamentUser
         });
     }
 
-    /** Acceso al backoffice /admin por email y contraseña: admin y encargado activos. */
+    /** Acceso al backoffice /admin por email (o usuario) y contraseña: admin y encargado activos. */
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->is_active && $this->role->canAccessBackoffice();

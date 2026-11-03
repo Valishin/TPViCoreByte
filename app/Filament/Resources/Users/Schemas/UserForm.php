@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\UserRole;
+use App\Models\User;
+use Closure;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -26,6 +28,20 @@ class UserForm
                     ->helperText(fn (Get $get) => self::backoffice($get)
                         ? 'Obligatorio: lo usa para entrar en el backoffice.'
                         : 'Opcional para camareros y repartidores.'),
+                TextInput::make('username')->label('Nombre de usuario')->maxLength(50)
+                    ->regex('/^[A-Za-z0-9._-]{3,50}$/')
+                    ->validationMessages(['regex' => 'De 3 a 50 caracteres: letras, números, punto, guion o guion bajo (sin espacios).'])
+                    // Único sin distinguir mayúsculas (se guarda en minúsculas).
+                    ->rule(fn (?User $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record) {
+                        $taken = User::query()->where('username', User::normalizeUsername($value))
+                            ->when($record, fn ($q) => $q->whereKeyNot($record->getKey()))->exists();
+                        if ($taken) {
+                            $fail('Ese nombre de usuario ya lo tiene otra persona.');
+                        }
+                    })
+                    ->dehydrateStateUsing(fn ($state) => User::normalizeUsername($state))
+                    ->visible(fn (Get $get) => self::backoffice($get))
+                    ->helperText('Opcional. Para entrar en el backoffice sin escribir el email (p. ej. «alex»).'),
                 ColorPicker::make('color')->label('Color en el TPV')
                     ->helperText('Para reconocerlo de un vistazo en el plano de mesas.'),
                 Toggle::make('is_active')->label('Activo')->default(true)->inline(false)

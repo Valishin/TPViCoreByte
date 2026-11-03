@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Dashboard;
 use App\Http\Middleware\RedirectToFirstRun;
 use Filament\Http\Middleware\Authenticate;
@@ -28,7 +29,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class)   // email o nombre de usuario
             ->brandName('TPV · Backoffice')
             // En la pantalla de entrada, el logo de iCOREBYTE; dentro, el nombre en texto.
             ->brandLogo(fn () => request()->routeIs('filament.admin.auth.*') ? new HtmlString(view('partials.brand-mark', ['height' => 36])->render()) : null)

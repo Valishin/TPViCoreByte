@@ -3,9 +3,9 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\UserRole;
+use App\Filament\Pages\Auth\Login;
 use App\Models\Setting;
 use App\Models\User;
-use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -52,7 +52,7 @@ class PosAdminNavigationTest extends TestCase
     {
         $this->loginPos();
         $this->get('/admin')->assertRedirect('/admin/login');
-        $this->get('/admin/login')->assertOk()->assertSee('Correo electrónico');
+        $this->get('/admin/login')->assertOk()->assertSee('Email o usuario');
     }
 
     public function test_admin_logout_keeps_the_pos_session_and_vice_versa(): void
