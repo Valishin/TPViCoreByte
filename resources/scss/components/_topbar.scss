@@ -75,6 +75,13 @@
         flex-direction: column;
         gap: $space-3;
     }
+
+    // Asistencia técnica debajo de los botones de Ajustes.
+    &__support {
+        margin-top: $space-4;
+        padding-top: $space-3;
+        border-top: 1px solid $color-border;
+    }
 }
 
 // Avisos persistentes (impresoras / comandas fallidas)

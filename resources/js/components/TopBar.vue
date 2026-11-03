@@ -31,21 +31,23 @@
         </template>
         <TpvButton v-else variant="ghost" icon aria-label="Más opciones" @click="menu = true">⋯</TpvButton>
 
-        <BottomSheet :open="menu" :title="ui.isPos ? 'Ajustes' : 'Opciones'" @close="menu = false">
+        <BottomSheet :open="menu" :title="ui.isPos ? 'Ajustes' : 'Opciones'" narrow @close="menu = false">
             <div class="c-topbar__menu">
                 <template v-if="!ui.isPos">
                     <TpvButton v-for="item in nav" :key="item.path" :variant="isActive(item.path) ? 'primary' : 'secondary'" size="lg" block @click="go(item.path)">
                         {{ item.label }}
                     </TpvButton>
                 </template>
+                <!-- Al login de /admin: no entra solo, pide email y contraseña. -->
+                <TpvButton variant="secondary" size="lg" block data-testid="go-admin" @click="goAdmin">⚙ Administración</TpvButton>
                 <TpvButton variant="secondary" size="lg" block @click="ui.toggleTheme()">
                     {{ ui.theme === 'dark' ? '☀ Tema claro' : '☾ Tema oscuro' }}
                 </TpvButton>
                 <TpvButton variant="secondary" size="lg" block @click="go('/acerca')">Acerca de</TpvButton>
-                <!-- Al login de /admin: no entra solo, pide email y contraseña. -->
-                <TpvButton variant="secondary" size="lg" block data-testid="go-admin" @click="goAdmin">⚙ Administración</TpvButton>
                 <TpvButton v-if="!ui.isPos" variant="secondary" size="lg" block @click="menu = false; $emit('lock')">Bloquear</TpvButton>
             </div>
+            <!-- Asistencia técnica (teléfono / WhatsApp, web y email) -->
+            <footer class="c-topbar__support"><SupportContact /></footer>
         </BottomSheet>
     </header>
 </template>
@@ -54,6 +56,7 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BottomSheet from './BottomSheet.vue';
+import SupportContact from './SupportContact.vue';
 import TpvButton from './TpvButton.vue';
 import { useNoticesStore } from '@/stores/notices';
 import { useRealtimeStore } from '@/stores/realtime';

@@ -1,6 +1,6 @@
 <template>
     <Teleport to="body">
-        <div v-if="open" ref="el" v-bind="layer.attrs.value" class="c-sheet" role="dialog" aria-modal="true" :aria-label="title">
+        <div v-if="open" ref="el" v-bind="layer.attrs.value" :class="['c-sheet', { 'c-sheet--narrow': narrow }]" role="dialog" aria-modal="true" :aria-label="title">
             <div class="c-sheet__backdrop" @click="$emit('close')"></div>
             <div class="c-sheet__panel">
                 <header class="c-sheet__header">
@@ -23,6 +23,8 @@ import { useLayer } from '@/composables/useLayer';
 const props = defineProps({
     open: { type: Boolean, default: false },
     title: { type: String, default: '' },
+    // Estrecha (menús de pocos botones, p. ej. Ajustes).
+    narrow: { type: Boolean, default: false },
 });
 defineEmits(['close']);
 
