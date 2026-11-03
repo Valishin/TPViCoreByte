@@ -36,6 +36,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
@@ -115,6 +116,7 @@ class SetupWizard extends Page
                                 ->helperText('PNG o JPG; en blanco y negro se imprime mejor. Máx. 1 MB.'),
                             Textarea::make('ticket_footer')->label('Pie del ticket')->rows(3)
                                 ->placeholder("Gracias por su visita\nIVA incluido"),
+                            $this->skipActions('empresa'),
                         ])
                         ->afterValidation(fn (Step $component) => $this->saveStep($component, 'empresa',
                             ['trade_name', 'legal_name', 'tax_id', 'phone', 'address', 'postal_code', 'city', 'province', 'logo_path', 'ticket_footer'])),
@@ -130,6 +132,7 @@ class SetupWizard extends Page
                                     : 'VERI*FACTU será obligatorio desde el '.SetupProgress::obligationLabel((bool) $state).'.'),
                             // Primer número de cada serie (continuar la de un sistema anterior); se guarda con su propio botón.
                             SeriesNumbering::section(),
+                            $this->skipActions('fiscal'),
                         ])
                         ->afterValidation(fn (Step $component) => $this->saveStep($component, 'fiscal', ['vat_regime_key', 'corporate_tax'])),
 
@@ -138,6 +141,7 @@ class SetupWizard extends Page
                             CheckboxList::make('enabled_order_types')->label('Tipos de pedido activos en este local')->required()->minItems(1)
                                 ->options(collect(OrderType::cases())->mapWithKeys(fn (OrderType $t) => [$t->value => $t->label()])->all())
                                 ->formatStateUsing(fn ($state) => collect($state ?? [])->map(fn ($t) => $t instanceof OrderType ? $t->value : $t)->all()),
+                            $this->skipActions('pedidos'),
                         ])
                         ->afterValidation(function (Step $component) {
                             $this->saveStep($component, 'pedidos', ['enabled_order_types']);
@@ -159,10 +163,11 @@ class SetupWizard extends Page
                             Text::make(new HtmlString('Dalas de alta en <a class="underline" href="'.e(PrinterResource::getUrl('create')).'">Nueva impresora</a> '
                                 .'(las USB se eligen de la lista de conectadas) y pulsa «Imprimir prueba» en '
                                 .'<a class="underline" href="'.e(PrinterResource::getUrl()).'">Impresoras</a>.')),
+                            $this->skipActions('impresoras'),
                         ]),
 
                     $this->step('copias', Heroicon::OutlinedCloudArrowUp, 'Cifradas con age y subidas fuera del local.')
-                        ->schema(BackupSettings::fields($this))
+                        ->schema([...BackupSettings::fields($this), $this->skipActions('copias')])
                         ->afterValidation(fn () => $this->saveBackups()),
 
                     $this->step('remoto', Heroicon::OutlinedGlobeAlt, 'Soporte a distancia con Tailscale.')
@@ -177,6 +182,7 @@ class SetupWizard extends Page
                             TextEntry::make('tailscale_ssh_state')->label('Acceso SSH por Tailscale')
                                 ->state(fn () => Setting::current()->tailscale_ssh ? 'Permitido (activado a mano)' : 'Desactivado'),
                             Actions::make([self::allowSshAction(), self::revokeSshAction()])->key('tailscale-ssh'),
+                            $this->skipActions('remoto'),
                         ])
                         ->afterValidation(function () {
                             $key = trim((string) ($this->data['tailscale_authkey'] ?? ''));
@@ -204,6 +210,7 @@ class SetupWizard extends Page
                                 .'<a class="underline" href="'.e(Verifactu::getUrl()).'">VERI*FACTU</a>.'))->hidden(fn () => InstallMode::isDemo()),
                         ]),
                 ])
+                    ->key('puesta-en-marcha')
                     ->startOnStep(fn () => SetupProgress::firstPending())
                     ->submitAction(new HtmlString('<span></span>')),
             ]);
@@ -220,9 +227,45 @@ class SetupWizard extends Page
         $complete = SetupProgress::steps()[$key]['complete'];
 
         return Step::make(SetupProgress::STEPS[$key])
+            ->key($key)
             ->icon($icon)
             ->completedIcon(Heroicon::OutlinedCheck)
             ->description(($complete ? '✓ Completo' : 'Pendiente').($description ? " · {$description}" : ''));
+    }
+
+    /**
+     * «Omitir este paso»: pasa al siguiente sin validar ni guardar. El paso
+     * sigue «Pendiente» (salvo el acceso remoto, que es opcional y queda
+     * omitido) y se puede retomar cuando se quiera.
+     */
+    public function skipStep(string $key): void
+    {
+        $keys = array_keys(SetupProgress::STEPS);
+        $index = array_search($key, $keys, true);
+        if ($index === false || ! isset($keys[$index + 1])) {
+            return;
+        }
+        if ($key === 'remoto') {
+            SetupProgress::mark('remoto', 'skipped');
+        }
+
+        /** @var Wizard $wizard */
+        $wizard = $this->form->getComponent(fn ($c) => $c instanceof Wizard);
+        $steps = collect($wizard->getChildSchema()->getComponents())->whereInstanceOf(Step::class)->keyBy(fn (Step $step) => Str::afterLast($step->getKey(), '.'));
+        $this->dispatch('next-wizard-step', key: $wizard->getKey(), step: $steps[$keys[$index + 1]]->getKey(), currentStep: $steps[$key]->getKey());
+
+        Notification::make()->info()->title(SetupProgress::STEPS[$key].': omitido')
+            ->body($key === 'remoto' ? 'Lo puedes configurar más adelante.' : 'Queda pendiente: puedes volver a este paso cuando quieras.')->send();
+    }
+
+    /** Botón «Omitir este paso» al pie de un paso. */
+    private function skipActions(string $key): Actions
+    {
+        return Actions::make([
+            Action::make("omitir_{$key}")->label('Omitir este paso')->icon(Heroicon::OutlinedForward)
+                ->link()->color('gray')
+                ->action(fn () => $this->skipStep($key)),
+        ])->key("omitir-{$key}")->alignEnd()->columnSpanFull();
     }
 
     public const SSH_WARNING = 'Con el SSH de Tailscale, las personas y equipos de tu red Tailscale a los que las ACL lo permitan podrán abrir '

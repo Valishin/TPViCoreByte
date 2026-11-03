@@ -91,19 +91,19 @@ class TailscaleBridgeTest extends FilamentTestCase
         $this->assertStringContainsString('SSH por Tailscale desactivado', TailscaleBridge::describe());
 
         $wizard = Livewire::test(SetupWizard::class);
-        $wizard->mountAction(TestAction::make('allowTailscaleSsh')->schemaComponent('tailscale-ssh', 'form'))
+        $wizard->mountAction(TestAction::make('allowTailscaleSsh')->schemaComponent('puesta-en-marcha.remoto.tailscale-ssh', 'form'))
             ->assertMountedActionModalSee('podrán abrir una consola en este mini PC sin su contraseña')
             ->callMountedAction()->assertHasActionErrors(['understood']);
         $this->assertFalse(Setting::current()->tailscale_ssh, 'Sin marcar «Entiendo lo que implica» no se activa.');
 
         Livewire::test(SetupWizard::class)
-            ->callAction(TestAction::make('allowTailscaleSsh')->schemaComponent('tailscale-ssh', 'form'), ['understood' => true])
+            ->callAction(TestAction::make('allowTailscaleSsh')->schemaComponent('puesta-en-marcha.remoto.tailscale-ssh', 'form'), ['understood' => true])
             ->assertNotified('Acceso SSH por Tailscale permitido');
         $this->assertTrue(Setting::current()->tailscale_ssh);
         $this->assertSame(['ssh' => true], json_decode(file_get_contents("{$this->dir}/ssh-request"), true));
 
         Livewire::test(SetupWizard::class)
-            ->callAction(TestAction::make('revokeTailscaleSsh')->schemaComponent('tailscale-ssh', 'form'));
+            ->callAction(TestAction::make('revokeTailscaleSsh')->schemaComponent('puesta-en-marcha.remoto.tailscale-ssh', 'form'));
         $this->assertFalse(Setting::current()->tailscale_ssh);
         $this->assertSame(['ssh' => false], json_decode(file_get_contents("{$this->dir}/ssh-request"), true));
     }

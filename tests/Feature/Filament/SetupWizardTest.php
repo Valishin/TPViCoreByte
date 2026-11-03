@@ -83,6 +83,34 @@ class SetupWizardTest extends FilamentTestCase
         $this->assertTrue(SetupProgress::steps()['remoto']['complete']);
     }
 
+    /** «Omitir este paso»: pasa al siguiente sin validar; el paso obligatorio sigue pendiente. */
+    public function test_any_step_can_be_skipped_and_stays_pending(): void
+    {
+        config(['tpv.tailscale_bridge' => '/no/existe']);
+        Setting::current()->update(['tax_id' => 'B12345674', 'address' => 'Carrer Major, 1', 'corporate_tax' => false, 'setup_steps' => ['pedidos' => 'done']]);
+        Printer::factory()->create(['type' => PrinterType::Ticket]);
+
+        $page = Livewire::test(SetupWizard::class)->assertWizardCurrentStep(5)   // Copias de seguridad
+            ->assertSee('Omitir este paso')
+            ->call('skipStep', 'copias')
+            ->assertHasNoFormErrors()
+            ->assertDispatched('next-wizard-step', fn ($name, $params) => $params['step'] === 'form.puesta-en-marcha.remoto'
+                && $params['currentStep'] === 'form.puesta-en-marcha.copias' && $params['key'] === 'form.puesta-en-marcha')
+            ->assertNotified('Copias de seguridad: omitido');
+        // Las claves coinciden con las del asistente en la página (Alpine las compara).
+        $page->assertSeeHtml('step-form.puesta-en-marcha.remoto');
+
+        $this->assertFalse(SetupProgress::steps()['copias']['complete']);
+        $this->assertSame(5, SetupProgress::firstPending());
+
+        // El acceso remoto es opcional: omitirlo lo da por hecho.
+        $page->call('skipStep', 'remoto');
+        $this->assertTrue(SetupProgress::steps()['remoto']['skipped']);
+
+        // El último paso no tiene «siguiente».
+        $page->call('skipStep', 'verifactu')->assertNotDispatched('next-wizard-step');
+    }
+
     public function test_demo_does_not_need_verifactu_and_client_does(): void
     {
         $this->assertTrue(SetupProgress::steps()['verifactu']['complete']);   // tests en demo
