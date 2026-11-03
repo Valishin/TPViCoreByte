@@ -110,4 +110,26 @@ class AccessTest extends FilamentTestCase
         $this->assertTrue($settings->print_courier_copy);
         $this->assertFalse($settings->print_courier_settlement);
     }
+
+    /** Avisos de tiempo: /admin → Ajustes del local → «Avisos de tiempo», y la TPV los recibe. */
+    public function test_admin_turns_time_alerts_on_and_off_and_the_pos_gets_them(): void
+    {
+        Livewire::test(LocalSettings::class)
+            ->assertSee('Avisos de tiempo')
+            ->fillForm(['time_alerts_enabled' => true, 'time_alert_takeaway_minutes' => 15, 'time_alert_table_minutes' => 90])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $settings = Setting::current();
+        $this->assertTrue($settings->time_alerts_enabled);
+        $this->assertSame(15, $settings->time_alert_takeaway_minutes);
+        $this->assertSame(90, $settings->time_alert_table_minutes);
+
+        Livewire::test(LocalSettings::class)->fillForm(['time_alerts_enabled' => false])->call('save')->assertHasNoFormErrors();
+        $this->assertFalse(Setting::current()->time_alerts_enabled);
+
+        $waiter = User::factory()->role(UserRole::Waiter)->withPin('1234')->create();
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($waiter, 'pos')->getJson('/api/me')->assertOk()
+            ->assertJsonPath('settings.time_alerts', ['enabled' => false, 'takeaway_minutes' => 15, 'table_minutes' => 90]);
+    }
 }

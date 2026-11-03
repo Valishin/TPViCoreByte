@@ -281,3 +281,77 @@
         color: var(--brand-blue);
     }
 }
+
+// Avisos de tiempo (TimeAlerts.vue): pequeños, abajo a la izquierda (no tapan los botones de
+// acción de arriba); en el móvil, por encima de la barra inferior del pedido.
+.c-time-alerts {
+    position: fixed;
+    left: $space-2;
+    bottom: calc(#{$touch-target} + #{$space-4} + env(safe-area-inset-bottom));
+    z-index: 40; // encima de la página, debajo de ventanas y avisos
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-start;
+
+    html[data-layout='pos'] & {
+        bottom: $space-3;
+    }
+    gap: $space-1;
+    max-width: min(380px, calc(100vw - #{$space-4}));
+    pointer-events: none; // solo los avisos reciben toques
+
+    &__item {
+        display: flex;
+        align-items: stretch;
+        max-width: 100%;
+        border: 1px solid $color-border;
+        border-left: 4px solid $color-warning;
+        border-radius: $radius-md;
+        background: $color-surface;
+        box-shadow: $shadow-overlay;
+        pointer-events: auto;
+
+        &--late {
+            border-left-color: $color-danger;
+        }
+    }
+
+    &__open,
+    &__close {
+        border: 0;
+        background: transparent;
+        color: $color-text;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    &__open {
+        flex: 1;
+        min-width: 0;
+        min-height: 48px;
+        padding: $space-1 $space-3;
+        text-align: left;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+    }
+
+    &__item--late &__open {
+        color: $color-danger;
+    }
+
+    &__close {
+        flex: 0 0 48px;
+        color: $color-text-muted;
+        font-size: $font-size-base;
+    }
+
+    &__more {
+        margin: 0;
+        padding: 2px $space-2;
+        border-radius: $radius-sm;
+        background: $color-surface;
+        color: $color-text-muted;
+        font-size: $font-size-xs;
+        pointer-events: auto;
+    }
+}

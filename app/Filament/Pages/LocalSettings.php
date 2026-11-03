@@ -26,6 +26,7 @@ use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Mail;
@@ -169,6 +170,21 @@ class LocalSettings extends Page
                             ->helperText('Desactivado, la caja se abre en la misma pestaña de /admin.'),
                         Toggle::make('print_join_notice')->label('Avisar en cocina y barra al unir mesas')->inline(false)
                             ->helperText('Imprime «MESA 4 UNIDA A MESA 3» en las impresoras de cocina y barra. Lo ya enviado nunca se reimprime.'),
+                    ]),
+                // Avisos discretos en la TPV (arriba a la derecha; se quitan con ✕ y al tocarlos abren el pedido).
+                Section::make('Avisos de tiempo')->columns(3)->columnSpanFull()
+                    ->description('Un aviso pequeño en la TPV, arriba a la derecha, cuando un pedido para llevar o a domicilio está cerca de su hora '
+                        .'(o ya va tarde) o una mesa lleva mucho rato abierta. Se quita con ✕ y al tocarlo abre el pedido.')
+                    ->schema([
+                        Toggle::make('time_alerts_enabled')->label('Mostrar avisos de tiempo')->inline(false)->live(),
+                        TextInput::make('time_alert_takeaway_minutes')->label('Llevar y domicilio: avisar cuando queden (minutos)')
+                            ->numeric()->integer()->minValue(1)->maxValue(120)->required()
+                            ->helperText('Antes de la hora prometida. Si ya va tarde, el aviso sale en rojo.')
+                            ->visible(fn (Get $get) => (bool) $get('time_alerts_enabled')),
+                        TextInput::make('time_alert_table_minutes')->label('Mesas: avisar cuando lleven abiertas (minutos)')
+                            ->numeric()->integer()->minValue(0)->maxValue(600)->required()
+                            ->helperText('0 = sin aviso para las mesas.')
+                            ->visible(fn (Get $get) => (bool) $get('time_alerts_enabled')),
                     ]),
                 Section::make('Notas rápidas generales')->columnSpanFull()
                     ->description('Salen en todos los productos, detrás de las notas de su categoría. Arrastra para ordenarlas.')

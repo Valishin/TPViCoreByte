@@ -3,6 +3,7 @@
         <TopBar :title="title" @lock="lock" />
         <PrintAlerts v-if="!session.isCourier" />
         <VerifactuAlerts v-if="!session.isCourier" />
+        <TimeAlerts v-if="!session.isCourier && session.settings?.time_alerts?.enabled" />
     </template>
     <RouterView />
     <AuthorizeModal />
@@ -21,6 +22,7 @@ import LanAddress from '@/components/LanAddress.vue';
 import OnScreenKeyboard from '@/components/OnScreenKeyboard.vue';
 import PrintAlerts from '@/components/PrintAlerts.vue';
 import VerifactuAlerts from '@/components/VerifactuAlerts.vue';
+import TimeAlerts from '@/components/TimeAlerts.vue';
 import ToastHost from '@/components/ToastHost.vue';
 import TopBar from '@/components/TopBar.vue';
 import { useInactivity } from '@/composables/useInactivity';

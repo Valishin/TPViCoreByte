@@ -84,6 +84,12 @@ class AuthController extends Controller
                 'print_ticket_on_checkout' => $settings->print_ticket_on_checkout,
                 'show_onscreen_keyboard_pos' => $settings->show_onscreen_keyboard_pos,
                 'invoice_require_address' => $settings->invoice_require_address,
+                // Avisos de tiempo (/admin → Ajustes del local → Avisos de tiempo).
+                'time_alerts' => [
+                    'enabled' => $settings->time_alerts_enabled,
+                    'takeaway_minutes' => $settings->time_alert_takeaway_minutes,
+                    'table_minutes' => $settings->time_alert_table_minutes,
+                ],
                 // Por encima de estos importes la pantalla pide confirmación.
                 'amount_limits' => [
                     'opening_float' => $settings->max_opening_float,
