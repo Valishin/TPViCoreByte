@@ -2,8 +2,11 @@
 
 namespace App\Http\Resources\Pos;
 
+use App\Enums\CashMovementType;
 use App\Enums\TicketType;
+use App\Models\CashMovement;
 use App\Models\Order;
+use App\Services\Orders\DispatchService;
 use App\Support\PostalCode;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -42,6 +45,9 @@ class TakeawayOrderResource extends JsonResource
             'planned_payment_method' => $this->planned_payment_method?->value,
             'prepaid_method' => $this->prepaid_method?->value,
             'cash_change_for' => $this->cash_change_for,
+            // «Cambio para 50 €»: el cambio que hay que llevar y el que ya se llevó desde la caja.
+            'change_needed' => DispatchService::changeNeeded($this->resource),
+            'change_from_till' => -(int) CashMovement::query()->where('order_id', $this->id)->where('type', CashMovementType::CourierFloat)->sum('amount'),
             'courier' => $this->courier ? ['id' => $this->courier->id, 'name' => $this->courier->name] : null,
             'total' => $this->total,
             'delivery_fee' => $this->delivery_fee,

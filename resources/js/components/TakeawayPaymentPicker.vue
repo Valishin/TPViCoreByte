@@ -53,6 +53,8 @@ const props = defineProps({
     modelValue: { type: Object, default: () => ({ payment: 'efectivo', cash_change_for: null }) },
     total: { type: Number, default: 0 },
     cardLabel: { type: String, default: 'Tarjeta' },
+    // Al enviar un domicilio: solo efectivo o tarjeta (sin «Ya pagado»).
+    allowPrepaid: { type: Boolean, default: true },
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -60,7 +62,7 @@ const plans = computed(() => [
     { value: 'efectivo', label: 'Efectivo' },
     { value: 'tarjeta', label: props.cardLabel },
     { value: 'pagado', label: 'Ya pagado' },
-]);
+].filter((p) => props.allowPrepaid || p.value !== 'pagado'));
 const prepaidMethods = [
     { value: 'tarjeta', label: 'Tarjeta' },
     { value: 'bizum', label: 'Bizum' },

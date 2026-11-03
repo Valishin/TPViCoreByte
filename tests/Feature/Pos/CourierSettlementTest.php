@@ -113,6 +113,44 @@ class CourierSettlementTest extends TakeawayTestCase
         $this->assertSame(1, CashMovement::count());
     }
 
+    /** «Cambio para 50 €»: el cambio sale de la caja con el repartidor y al liquidar entrega los 50 €. */
+    public function test_change_taken_from_the_till_is_handed_back_at_settlement(): void
+    {
+        $session = $this->openCash(10000);
+        $id = $this->deliveryWith(null, ['payment' => 'efectivo', 'cash_change_for' => 5000]);   // 21,50 €
+        $this->send($id)->assertOk();
+        $this->assertSame(2850, $this->asWaiter()->getJson("/api/orders/{$id}")->json('data.takeaway.change_needed'));
+
+        $this->asWaiter()->postJson("/api/takeaway-orders/{$id}/dispatch", ['courier_id' => $this->javi->id, 'change_from_till' => true])->assertOk();
+
+        $movement = CashMovement::query()->where('order_id', $id)->sole();
+        $this->assertSame(-2850, $movement->amount);
+        $this->assertSame($this->javi->id, $movement->courier_id);
+        $javi = collect($this->asWaiter()->getJson('/api/couriers/settlement')->json('data'))->firstWhere('courier.name', 'Javi');
+        $this->assertSame(5000, $javi['expected_cash'], 'Al liquidar entrega los 50 € (21,50 + 28,50 de cambio).');
+        $this->assertSame(2850, $javi['orders'][0]['change_from_till']);
+
+        $this->asWaiter()->postJson("/api/couriers/{$this->javi->id}/settle", ['collected' => [], 'handed_cash' => 5000])
+            ->assertCreated()->assertJsonPath('settlement.difference', 0);
+        // En la caja: entran los 21,50 de la venta (el cambio sale y vuelve).
+        $this->assertSame(10000 + 2150, app(CashReportService::class)->build($session->refresh())['cash']['expected']);
+    }
+
+    public function test_without_change_from_the_till_nothing_changes(): void
+    {
+        $this->openCash();
+        $id = $this->deliveryWith(null, ['payment' => 'efectivo', 'cash_change_for' => 5000]);
+        $this->send($id)->assertOk();
+        $this->asWaiter()->postJson("/api/takeaway-orders/{$id}/dispatch", ['courier_id' => $this->javi->id])->assertOk();
+        $card = $this->deliveryWith(null, ['payment' => 'tarjeta']);
+        $this->send($card)->assertOk();
+        $this->asWaiter()->postJson("/api/takeaway-orders/{$card}/dispatch", ['courier_id' => $this->javi->id, 'change_from_till' => true])->assertOk();
+
+        $this->assertSame(0, CashMovement::query()->count(), 'Sin la casilla, o con tarjeta, no sale nada del cajón.');
+        $javi = collect($this->asWaiter()->getJson('/api/couriers/settlement')->json('data'))->firstWhere('courier.name', 'Javi');
+        $this->assertSame(2150, $javi['expected_cash']);
+    }
+
     public function test_settlement_receipt_can_be_turned_off_in_admin(): void
     {
         Setting::current()->update(['print_courier_settlement' => false]);

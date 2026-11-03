@@ -400,9 +400,11 @@
         }
     }
 
-    // Efectivo · Tarjeta · Ya pagado: a partes iguales en todo el ancho.
+    // Efectivo · Tarjeta (· Ya pagado): a partes iguales en todo el ancho.
     > .c-options {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: none;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
     }
 
     .c-option {
@@ -642,5 +644,15 @@
         flex-direction: column;
         padding: $space-2 0;
         border-bottom: 1px solid $color-border;
+    }
+}
+
+// Dar salida: «Le doy el cambio desde la caja».
+.c-dispatch__change {
+    align-items: flex-start;
+
+    small {
+        display: block;
+        color: $color-text-muted;
     }
 }

@@ -26,7 +26,8 @@
                         </span>
                         <span class="v-couriers__amount">
                             {{ o.pending_amount ? money(o.pending_amount) : 'Pagado' }}
-                            <span class="c-takeaway-card__meta">{{ paymentLabel(o) }}<template v-if="o.cash_change_for"> · cambio {{ money(o.cash_change_for) }}</template></span>
+                            <span class="c-takeaway-card__meta">{{ paymentLabel(o) }}<template v-if="o.cash_change_for"> · paga con {{ money(o.cash_change_for) }}</template></span>
+                            <span v-if="o.change_from_till" class="c-takeaway-card__meta">se llevó {{ money(o.change_from_till) }} de cambio · entrega {{ money(o.pending_amount + o.change_from_till) }}</span>
                         </span>
                     </li>
                     <li v-if="!row.orders.length" class="v-board__empty">Nada pendiente.</li>
@@ -58,6 +59,10 @@
                         <strong>{{ o.ticket?.number }} · {{ o.customer_name }}</strong>
                         <span>{{ o.pending_amount ? money(o.pending_amount) : 'Ya pagado' }}</span>
                     </div>
+                    <p v-if="o.change_from_till" class="v-config__rule">
+                        Pagó con {{ money(o.cash_change_for) }} y se llevó {{ money(o.change_from_till) }} de cambio de la caja:
+                        por este pedido entrega <strong>{{ money(o.pending_amount + o.change_from_till) }}</strong>.
+                    </p>
                     <template v-if="o.pending_amount">
                         <div class="c-options">
                             <button
@@ -78,7 +83,7 @@
 
                 <div class="v-couriers__summary">
                     <p>Efectivo cobrado <strong>{{ money(summary.cash) }}</strong></p>
-                    <p v-if="settling.float">+ Fondo <strong>{{ money(settling.float) }}</strong></p>
+                    <p v-if="settling.float">+ Fondo y cambios de la caja <strong>{{ money(settling.float) }}</strong></p>
                     <p class="v-couriers__expected">Debe entregar {{ money(summary.expected) }}</p>
                     <AmountKeypad v-model="handed" label="Entrega" :exact="summary.expected" />
                     <p :class="['v-couriers__difference', { 'v-couriers__difference--bad': handed !== summary.expected }]">

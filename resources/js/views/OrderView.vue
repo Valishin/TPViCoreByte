@@ -137,7 +137,7 @@
 
         <!-- Llevar / domicilio: forma de pago y cambio al enviar (si aún no se ha elegido) -->
         <ModalDialog :open="!!paymentAsk" title="Forma de pago" wide @close="answerPayment(false)">
-            <TakeawayPaymentPicker v-model="paymentChoice" :total="o?.total ?? 0" :card-label="o?.type === 'domicilio' ? 'Tarjeta (datáfono del repartidor)' : 'Tarjeta'" />
+            <TakeawayPaymentPicker v-model="paymentChoice" :total="o?.total ?? 0" card-label="Tarjeta (datáfono del repartidor)" :allow-prepaid="false" />
             <template #actions>
                 <TpvButton variant="ghost" size="lg" @click="answerPayment(false)">Volver</TpvButton>
                 <TpvButton variant="primary" size="lg" :loading="savingPayment" @click="savePaymentAndSend">Enviar</TpvButton>
@@ -344,13 +344,14 @@ async function sendBelowMinimum() {
     }
 }
 
-// Forma de pago y cambio: se piden al enviar un pedido de llevar / domicilio que aún no la tiene.
+// Forma de pago y cambio: se piden al enviar un domicilio que aún no la tiene (el repartidor necesita
+// saber si cobra y con cuánto cambio). Para llevar se paga al recoger: se elige al cobrar.
 const paymentAsk = ref(null);
 const paymentChoice = ref({ payment: 'efectivo', cash_change_for: null });
 const savingPayment = ref(false);
 function needsPayment() {
     const t = o.value?.takeaway;
-    return !!t && !t.planned_payment_method && !t.prepaid_method;
+    return !!t && t.type === 'domicilio' && !t.planned_payment_method && !t.prepaid_method;
 }
 function askPayment() {
     paymentChoice.value = { payment: 'efectivo', cash_change_for: null };
@@ -411,11 +412,11 @@ async function goDispatch() {
     if (order.pendingCount) await send();
     if (!order.pendingCount && !belowMinimum.value) dispatching.value = o.value.takeaway;
 }
-async function dispatchTo(courier, recipient) {
+async function dispatchTo(courier, recipient, changeFromTill = false) {
     sending.value = true;
     invoiceHint.value = '';
     try {
-        const result = await pos.dispatch(o.value.id, courier.id, recipient?.id);
+        const result = await pos.dispatch(o.value.id, courier.id, recipient?.id, changeFromTill);
         board.upsert(result.takeaway);
         dispatching.value = null;
         notices.success(`Sale con ${courier.name} · ${recipient ? 'factura' : 'ticket'} ${result.ticket.number}`);

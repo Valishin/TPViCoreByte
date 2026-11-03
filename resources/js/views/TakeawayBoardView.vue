@@ -138,10 +138,10 @@ function action(key, order) {
     }
 }
 
-function dispatchTo(courier, recipient) {
+function dispatchTo(courier, recipient, changeFromTill = false) {
     const order = dispatching.value;
     invoiceHint.value = '';
-    run(order, 'dispatch', () => pos.dispatch(order.id, courier.id, recipient?.id), (r) => {
+    run(order, 'dispatch', () => pos.dispatch(order.id, courier.id, recipient?.id, changeFromTill), (r) => {
         dispatching.value = null;
         notices.success(`Sale con ${courier.name} · ${recipient ? 'factura' : 'ticket'} ${r.ticket.number}`);
     });

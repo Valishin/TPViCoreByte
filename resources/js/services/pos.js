@@ -82,8 +82,8 @@ const pos = {
     updateTakeaway: (id, payload) => api.patch(`/takeaway-orders/${id}`, payload).then((r) => r.data),
     takeawayStatus: (id, status, invoiceCustomerId = null) =>
         api.post(`/takeaway-orders/${id}/status`, { status, invoice_customer_id: invoiceCustomerId ?? undefined }).then((r) => r.data),
-    dispatch: (id, courierId, invoiceCustomerId = null) =>
-        api.post(`/takeaway-orders/${id}/dispatch`, { courier_id: courierId, invoice_customer_id: invoiceCustomerId ?? undefined }).then((r) => r.data),
+    dispatch: (id, courierId, invoiceCustomerId = null, changeFromTill = false) =>
+        api.post(`/takeaway-orders/${id}/dispatch`, { courier_id: courierId, invoice_customer_id: invoiceCustomerId ?? undefined, change_from_till: changeFromTill }).then((r) => r.data),
     cancelTakeaway: (id, payload) => api.post(`/takeaway-orders/${id}/cancel`, payload).then((r) => r.data),
     repeatOrder: (id, sourceId) => api.post(`/takeaway-orders/${id}/repeat/${sourceId}`).then((r) => r.data),
     notDelivered: (id, payload) => api.post(`/takeaway-orders/${id}/not-delivered`, payload).then((r) => r.data),

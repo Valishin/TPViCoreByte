@@ -84,8 +84,10 @@ class TakeawayOrderController extends Controller
         $data = $request->validate([
             'courier_id' => ['required', 'integer', 'exists:users,id'],
             'invoice_customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            'change_from_till' => ['boolean'],
         ]);
-        $ticket = $dispatch->dispatch($order, User::query()->findOrFail($data['courier_id']), $request->user(), self::recipient($data));
+        $ticket = $dispatch->dispatch($order, User::query()->findOrFail($data['courier_id']), $request->user(), self::recipient($data),
+            changeFromTill: (bool) ($data['change_from_till'] ?? false));
 
         return $this->respond($order, $request, 200, ['ticket' => ['id' => $ticket->id, 'number' => $ticket->fullNumber(), 'payment_status' => $ticket->payment_status->value]]);
     }
