@@ -99,6 +99,15 @@
         white-space: nowrap;
     }
 
+    // Los hijos pueden encoger; un detalle largo dentro de un bloque (resumen
+    // de productos, dirección…) baja de línea en vez de salirse del botón.
+    > * {
+        min-width: 0;
+    }
+    span &__extra {
+        white-space: normal;
+    }
+
     &__count {
         min-width: 1.8em;
         padding: 0 $space-2;

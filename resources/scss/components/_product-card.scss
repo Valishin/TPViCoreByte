@@ -14,6 +14,9 @@
     background: $color-surface-2;
     color: $color-text;
     text-align: left;
+    // Una palabra larga («Personalizado», «Hamburguesa»…) se parte con guion en vez de salirse.
+    overflow-wrap: anywhere;
+    hyphens: auto;
     cursor: pointer;
 
     &:active {

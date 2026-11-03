@@ -10,6 +10,7 @@
     gap: $space-2;
     // Alto: el mínimo táctil (64 px en caja, 48 en móvil); de ancho, lo justo.
     min-width: $touch-target;
+    max-width: 100%; // nunca más ancho que su caja: el texto baja de línea
     min-height: $touch-target;
     padding: $space-2 $space-4;
     border: 2px solid transparent;
@@ -18,6 +19,7 @@
     font-weight: $font-weight-bold;
     line-height: 1.1;
     text-align: center;
+    overflow-wrap: break-word;
     cursor: pointer;
     transition: background-color $transition-fast, transform $transition-fast;
 

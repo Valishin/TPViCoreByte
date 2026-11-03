@@ -74,7 +74,7 @@
 
     &__unplaced-list {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
         gap: $space-2;
     }
 
@@ -82,10 +82,18 @@
         width: 100%;
         min-height: calc(#{$touch-target} * 1.2);
 
+        flex-wrap: nowrap;
+        text-align: left;
+
         > span {
             display: flex;
+            flex: 1;
             flex-direction: column;
             align-items: flex-start;
+        }
+        > strong {
+            flex-shrink: 0;
+            white-space: nowrap;
         }
     }
 }
