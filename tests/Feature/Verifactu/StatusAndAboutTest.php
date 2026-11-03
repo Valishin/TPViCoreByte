@@ -156,6 +156,7 @@ class StatusAndAboutTest extends InvoiceTestCase
             ->assertSee('name="tpv-support"', false)->assertSee('info@icorebyte.com', false);
         $this->get('/admin/login')->assertOk()
             ->assertSee('images/icorebyte-logo.png', false)   // logo en la entrada de /admin
+            ->assertSee('Volver a la TPV')->assertSee('href="/"', false)   // vuelta a la caja sin entrar
             ->assertSee('Soporte técnico · iCOREBYTE')
             ->assertSee('tel:+34678758210', false)->assertSee('https://wa.me/34678758210', false)
             ->assertSee('https://icorebyte.com', false)->assertSee('mailto:info@icorebyte.com', false);
