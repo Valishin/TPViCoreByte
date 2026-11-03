@@ -9,6 +9,7 @@ use App\Filament\Components\VatRateSelect;
 use App\Models\ModifierGroup;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\VariantGroup;
 use App\Support\Format;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
@@ -22,7 +23,9 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 
 class ProductForm
 {
@@ -94,6 +97,19 @@ class ProductForm
         return Tab::make('Variantes')->icon('heroicon-o-arrows-pointing-out')
             ->visible(fn (Get $get) => self::isType($get, ProductType::Variants))
             ->schema([
+                // Las de un grupo (Carta → Grupos de variantes) se copian aquí: siguen siendo de este
+                // producto y se pueden cambiar; sin precio en el grupo, se escribe aquí.
+                Select::make('variant_group_pick')->label('Añadir variantes de un grupo')
+                    ->placeholder('Elige un grupo…')
+                    ->options(fn () => VariantGroup::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->dehydrated(false)->live()
+                    ->afterStateUpdated(function ($state, Get $get, Set $set) {
+                        if ($state) {
+                            $set('variants', self::withGroupVariants($get('variants') ?? [], (int) $state));
+                            $set('variant_group_pick', null);
+                        }
+                    })
+                    ->helperText('Añade las que falten (sin repetir el código de tamaño). Los grupos se crean en Carta → Grupos de variantes.'),
                 Repeater::make('variants')->hiddenLabel()
                     ->relationship()
                     ->orderColumn('sort_order')
@@ -116,6 +132,28 @@ class ProductForm
                     ])
                     ->helperText('El código de tamaño debe ser igual en todas las pizzas (mediana, familiar…): sirve para la mitad y mitad y para los extras por tamaño.'),
             ]);
+    }
+
+    /** Variantes del formulario (sin filas vacías) + las del grupo que falten (por código de tamaño). */
+    public static function withGroupVariants(array $variants, int $groupId): array
+    {
+        // La fila vacía con la que empieza la tabla no se queda colgando.
+        $variants = array_filter($variants, fn ($v) => filled($v['name'] ?? null) || filled($v['code'] ?? null) || filled($v['price'] ?? null));
+        $codes = collect($variants)->pluck('code')->filter()->map(fn ($c) => mb_strtolower((string) $c))->all();
+        $group = VariantGroup::query()->with('items')->find($groupId);
+        foreach ($group?->items ?? [] as $item) {
+            if (in_array(mb_strtolower($item->code), $codes, true)) {
+                continue;
+            }
+            $variants[(string) Str::uuid()] = [
+                'name' => $item->name,
+                'code' => $item->code,
+                'price' => $item->price !== null ? Format::moneyInput($item->price) : null,   // vacío: a mano
+                'is_active' => true,
+            ];
+        }
+
+        return $variants;
     }
 
     private static function modifiersTab(): Tab
