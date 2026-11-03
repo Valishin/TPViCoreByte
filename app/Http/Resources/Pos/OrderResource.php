@@ -76,6 +76,7 @@ class OrderResource extends JsonResource
             'variant_name' => $line->variant_name,
             'quantity' => $line->quantity,
             'unit_price' => $line->unit_price,
+            'half_and_half_surcharge' => $line->half_and_half_surcharge,
             'line_total' => $line->line_total,
             'discount_amount' => $line->discount_amount,
             'is_invitation' => $line->is_invitation,

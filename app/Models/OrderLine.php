@@ -35,6 +35,7 @@ class OrderLine extends Model
             'unit_price' => 'integer',
             'vat_rate' => 'integer',
             'reference_price' => 'integer',
+            'half_and_half_surcharge' => 'integer',
             'allocated_amount' => 'integer',
             'quantity' => 'integer',
             'discount_value' => 'integer',

@@ -40,6 +40,18 @@
         }
     }
 
+    // Aviso del suplemento por mitad y mitad: que se vea antes de elegir.
+    &__surcharge {
+        display: inline-block;
+        margin-bottom: $space-3;
+        padding: $space-1 $space-3;
+        border: 2px solid $color-warning;
+        border-radius: $radius-md;
+        background: $color-pending-bg;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+    }
+
     &__section + &__section {
         margin-top: $space-5;
     }

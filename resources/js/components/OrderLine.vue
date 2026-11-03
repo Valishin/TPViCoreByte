@@ -15,6 +15,9 @@
                 <template v-for="(m, i) in child.modifiers" :key="i">, + {{ m.name }}</template>
                 <template v-if="child.unit_price"> ({{ delta(child.unit_price) }})</template>
             </span>
+            <span v-if="isHalf && line.half_and_half_surcharge" class="c-order-line__detail">
+                + Suplemento mitad y mitad ({{ delta(line.half_and_half_surcharge) }})
+            </span>
             <span v-if="line.notes" class="c-order-line__note">{{ line.notes }}</span>
             <span v-if="line.voided_at" class="c-order-line__detail">Anulada: {{ line.void_reason }}</span>
         </span>

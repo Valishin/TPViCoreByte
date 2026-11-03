@@ -32,6 +32,7 @@ class Product extends Model
             'vat_rate' => 'integer',
             'vat_rate_takeaway' => 'integer',
             'allows_half_and_half' => 'boolean',
+            'half_and_half_surcharge' => 'integer',
             'is_active' => 'boolean',
             'is_available' => 'boolean',
         ];

@@ -189,6 +189,32 @@ class OrderTotalsCalculatorTest extends TestCase
         $this->assertSame(1675, $this->totals($half)->total); // 1600 + 75
     }
 
+    /** Suplemento por mitad y mitad: el mayor de las dos, copiado en la línea y repartido entre las mitades. */
+    public function test_half_and_half_surcharge_is_added_and_snapshotted(): void
+    {
+        [$a, $b] = $this->pizzas(1400, 1600);
+        $a->update(['half_and_half_surcharge' => 100]);
+        $b->update(['half_and_half_surcharge' => 150]);
+        $order = $this->order();
+
+        $line = $this->builder->addHalfAndHalf($order, $a, $b, 'familiar');
+
+        $this->assertSame(150, $line->half_and_half_surcharge);
+        $this->assertSame(1750, $line->unit_price);   // 1600 + 150
+        $this->assertSame(1750, $line->children()->sum('allocated_amount'));
+        $this->assertSame(1750, $this->totals($order)->total);
+
+        // Cambiar la carta no altera el pedido.
+        $b->update(['half_and_half_surcharge' => 500]);
+        $this->assertSame(1750, $this->totals($order->refresh())->total);
+
+        // Sin suplemento (o entera) no cambia nada.
+        $a->update(['half_and_half_surcharge' => 0]);
+        $b->update(['half_and_half_surcharge' => 0]);
+        $plain = $this->order();
+        $this->assertSame(1600, $this->builder->addHalfAndHalf($plain, $a, $b, 'familiar')->unit_price);
+    }
+
     public function test_half_and_half_requires_same_size_and_allowed_products(): void
     {
         [$a] = $this->pizzas(1400, 1600);

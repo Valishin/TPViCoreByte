@@ -215,6 +215,8 @@ class OrderLineBuilder
                 'variant_name' => $variant->name,
                 'variant_code' => $variantCode,
                 'unit_price' => 0, // lo fija OrderTotalsCalculator según la regla
+                // Suplemento por mitad y mitad: el mayor de los dos productos.
+                'half_and_half_surcharge' => max((int) $first->half_and_half_surcharge, (int) $second->half_and_half_surcharge),
                 'vat_rate' => $first->vatRateFor($order->type),
                 'quantity' => $quantity,
                 'notes' => $notes,

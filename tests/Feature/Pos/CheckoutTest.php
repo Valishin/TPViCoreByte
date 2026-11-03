@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\PrintJob;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Pos\ReceiptFormatter;
 use App\Services\Printing\PrinterManager;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +24,27 @@ class CheckoutTest extends PosTestCase
 
         $this->checkout($order, [['method' => 'efectivo', 'amount' => 500]])
             ->assertStatus(409)->assertJsonPath('code', 'cash_session_required');
+    }
+
+    public function test_half_and_half_surcharge_is_shown_on_the_order_and_printed_on_the_ticket(): void
+    {
+        $this->openCash();
+        $a = $this->pizza('Barbacoa', 1000, 1500);
+        $b = $this->pizza('Carbonara', 1000, 1500);
+        $b->update(['half_and_half_surcharge' => 100]);
+        $order = $this->openTable()['id'];
+
+        $this->addLine($order, ['product_id' => $a->id, 'variant_id' => $a->variants[0]->id, 'half' => ['product_id' => $b->id]])
+            ->assertCreated();
+        $line = $this->asWaiter()->getJson("/api/orders/{$order}")->assertOk()->json('data.lines.0');
+        $this->assertSame(100, $line['half_and_half_surcharge']);
+        $this->assertSame(1100, $line['line_total']);
+
+        $ticketId = $this->checkout($order, [['method' => 'efectivo', 'amount' => 1100]])->assertCreated()->json('data.ticket.id');
+        $ticket = Ticket::findOrFail($ticketId);
+        $this->assertSame(100, $ticket->lines->whereNull('parent_line_id')->first()->half_and_half_surcharge);
+        $this->assertStringContainsString('+ Suplemento mitad y mitad 1,00 €',
+            $this->printedText(app(ReceiptFormatter::class)->ticket($ticket)->operations()));
     }
 
     public function test_simple_cash_checkout_with_change_prints_ticket_and_opens_drawer(): void

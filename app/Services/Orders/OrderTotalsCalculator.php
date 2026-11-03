@@ -163,7 +163,9 @@ class OrderTotalsCalculator
         }
 
         $isHalf = $children->first()->kind === OrderLineKind::Half;
-        $parentUnit = $isHalf ? $this->halfAndHalfPrice($children, $settings) : $root->unit_price;
+        $parentUnit = $isHalf
+            ? $this->halfAndHalfPrice($children, $settings) + (int) $root->half_and_half_surcharge
+            : $root->unit_price;
         if ($isHalf) {
             $results[$root->id]['unit_price'] = $parentUnit;
         }

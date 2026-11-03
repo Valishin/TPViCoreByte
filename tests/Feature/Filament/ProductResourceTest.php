@@ -65,6 +65,7 @@ class ProductResourceTest extends FilamentTestCase
                 'price' => '10,50',
                 'vat_rate' => 1000,
                 'allows_half_and_half' => true,
+                'half_and_half_surcharge' => '1,50',
                 'allergens' => ['gluten', 'lacteos'],
                 'variants' => [
                     ['name' => 'Mediana', 'code' => 'mediana', 'price' => '10,50', 'is_active' => true],
@@ -80,6 +81,7 @@ class ProductResourceTest extends FilamentTestCase
         $product = Product::where('name', 'Barbacoa')->firstOrFail();
         $this->assertSame([['mediana', 1050], ['familiar', 1600]], $product->variants->map(fn ($v) => [$v->code, $v->price])->all());
         $this->assertTrue($product->allows_half_and_half);
+        $this->assertSame(150, $product->half_and_half_surcharge);
         $this->assertSame(['gluten', 'lacteos'], $product->allergens->map->value->all());
         $this->assertTrue($product->modifierGroups->contains($extras));
     }

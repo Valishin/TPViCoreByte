@@ -76,6 +76,7 @@ class ReceiptFormatter
                     $p->line('     + '.$m['name']);
                 }
             }
+            $this->halfSurcharge($p, $line->half_and_half_surcharge);
             if ($line->is_invitation) {
                 $p->columns('   Invitación', '-'.Format::money($line->discount_amount));
             } elseif ($line->discount_amount) {
@@ -148,6 +149,7 @@ class ReceiptFormatter
                     $p->line('     + '.$m->name);
                 }
             }
+            $this->halfSurcharge($p, $line->half_and_half_surcharge);
             if ($line->is_invitation) {
                 $p->columns('   Invitación', '-'.Format::money($line->discount_amount));
             } elseif ($line->discount_amount) {
@@ -574,6 +576,14 @@ class ReceiptFormatter
             ->taxQr($url)
             ->line(TaxQr::LEGEND_SHORT, Printable::ALIGN_CENTER, bold: true)
             ->feed();
+    }
+
+    /** Constancia del suplemento por mitad y mitad (ya incluido en el importe de la línea). */
+    private function halfSurcharge(Printable $p, ?int $surcharge): void
+    {
+        if ($surcharge) {
+            $p->line('   + Suplemento mitad y mitad '.Format::money($surcharge));
+        }
     }
 
     private function lineName(TicketLine $line): string

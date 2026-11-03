@@ -156,6 +156,7 @@ class TicketIssuer
                 'vat_rate' => $line->vat_rate,
                 'reference_price' => $line->reference_price,
                 'allocated_amount' => $line->allocated_amount,
+                'half_and_half_surcharge' => $line->half_and_half_surcharge,
                 'modifiers' => $line->modifiers->map->only(['name', 'price_delta', 'quantity'])->values()->all() ?: null,
                 'discount_type' => $line->discount_type,
                 'discount_value' => $line->discount_value,

@@ -88,6 +88,7 @@ class CatalogService
                 'price' => $p->price,
                 'available' => $p->is_available,
                 'allows_half_and_half' => $p->allows_half_and_half,
+                'half_and_half_surcharge' => $p->half_and_half_surcharge,
                 'allergens' => $p->allergens?->map->value->values() ?? [],
                 'variants' => $p->variants->map(fn ($v) => ['id' => $v->id, 'code' => $v->code, 'name' => $v->name, 'price' => $v->price])->values(),
                 'modifier_group_ids' => $p->modifierGroups->pluck('id')->values(),

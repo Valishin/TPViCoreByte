@@ -33,6 +33,7 @@ class TicketLine extends Model
             'vat_rate' => 'integer',
             'reference_price' => 'integer',
             'allocated_amount' => 'integer',
+            'half_and_half_surcharge' => 'integer',
             'discount_value' => 'integer',
             'discount_amount' => 'integer',
             'order_discount_amount' => 'integer',

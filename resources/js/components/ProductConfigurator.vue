@@ -34,6 +34,9 @@
                     </button>
                 </div>
                 <p class="v-config__rule">Mitad {{ product.name }} y mitad…</p>
+                <p v-if="product.half_and_half_surcharge" class="v-config__surcharge">
+                    Mitad y mitad lleva un suplemento de {{ delta(product.half_and_half_surcharge) }}
+                </p>
                 <div class="c-options">
                     <button
                         v-for="p in halfCandidates"
@@ -42,7 +45,8 @@
                         :class="['c-option', { 'c-option--selected': d.halfMode === 'half' && d.halfProductId === p.id }]"
                         @click="pickHalf(p)"
                     >
-                        {{ p.name }} <span class="c-option__extra">{{ money(variantFor(p)?.price) }}</span>
+                        {{ p.name }}
+                        <span class="c-option__extra">{{ money(variantFor(p)?.price) }}<template v-if="surchargeWith(p) > (product.half_and_half_surcharge ?? 0)"> · supl. {{ delta(surchargeWith(p)) }}</template></span>
                     </button>
                 </div>
             </section>
@@ -108,6 +112,7 @@
             <!-- Cantidad y notas -->
             <section v-else-if="step.key === 'final'" class="v-config__summary">
                 <p class="v-config__question">{{ summary }}</p>
+                <p v-if="halfSurcharge" class="v-config__surcharge">Incluye suplemento por mitad y mitad: {{ delta(halfSurcharge) }}</p>
                 <div class="v-config__row">
                     <strong>Cantidad</strong>
                     <span class="c-stepper">
@@ -340,11 +345,15 @@ const flat = (sel) => Object.values(sel).flat();
 const modsTotal = (ids, groups, price = modPrice) =>
     groups.flatMap((g) => g.modifiers).filter((m) => ids.includes(m.id)).reduce((t, m) => t + price(m), 0);
 
+// Suplemento por mitad y mitad: el mayor de las dos mitades (como en el servidor).
+const surchargeWith = (other) => Math.max(props.product?.half_and_half_surcharge ?? 0, other?.half_and_half_surcharge ?? 0);
+const halfSurcharge = computed(() => (halfProduct.value ? surchargeWith(halfProduct.value) : 0));
+
 const price = computed(() => {
     const p = props.product;
     if (!p || !d.value) return 0;
     let unit = variant.value?.price ?? p.price;
-    if (halfProduct.value) unit = Math.max(unit, variantFor(halfProduct.value)?.price ?? 0);
+    if (halfProduct.value) unit = Math.max(unit, variantFor(halfProduct.value)?.price ?? 0) + halfSurcharge.value;
     unit += modsTotal(flat(d.value.modifiers), catalog.groupsOf(p));
     if (halfProduct.value) unit += modsTotal(flat(d.value.halfModifiers), catalog.groupsOf(halfProduct.value));
     for (const g of p.menu_groups) {

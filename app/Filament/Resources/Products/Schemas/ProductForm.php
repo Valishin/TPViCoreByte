@@ -78,8 +78,13 @@ class ProductForm
                     ->helperText('Si no está activo no aparece en el TPV.'),
                 Toggle::make('is_available')->label('Disponible')->default(true)->inline(false)
                     ->helperText('Desmárcalo si se ha agotado hoy.'),
-                Toggle::make('allows_half_and_half')->label('Admite mitad y mitad')->inline(false)
+                Toggle::make('allows_half_and_half')->label('Admite mitad y mitad')->inline(false)->live()
                     ->visible(fn (Get $get) => self::isType($get, ProductType::Variants)),
+                MoneyInput::make('half_and_half_surcharge')->label('Suplemento por mitad y mitad')
+                    ->helperText('Opcional. Se suma al precio de la pizza mitad y mitad (si las dos mitades tienen suplemento, se cobra el mayor). Déjalo en 0 si no cobras nada.')
+                    ->default(0)
+                    ->dehydrateStateUsing(fn ($state) => blank($state) ? 0 : Format::parseMoney($state))
+                    ->visible(fn (Get $get) => self::isType($get, ProductType::Variants) && $get('allows_half_and_half')),
             ]),
             Section::make('Alérgenos')->schema([
                 CheckboxList::make('allergens')->hiddenLabel()
