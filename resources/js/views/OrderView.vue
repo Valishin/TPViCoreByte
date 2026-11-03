@@ -92,7 +92,7 @@
         <ProductConfigurator :product="configuring" :busy="order.busy" @add="addConfigured" @close="closeConfigurator" />
         <LineActions :line-id="selectedLineId" @close="selectedLineId = null" />
         <GuestsDialog :open="guestsOpen" :current="o?.guests" @confirm="setGuests" @close="guestsOpen = false" />
-        <MoveDialog :open="moveOpen" @confirm="move" @close="moveOpen = false" />
+        <MoveDialog :open="moveOpen" :order="o" @confirm="move" @close="moveOpen = false" />
         <JoinDialog :open="joinOpen" :order="o" :busy="order.busy" @confirm="join" @close="joinOpen = false" />
 
         <BottomSheet :open="separateOpen" title="Separar mesas" @close="separateOpen = false">
