@@ -56,6 +56,7 @@ Route::middleware(['auth:sanctum', 'pos.staff'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('pos.orders.show');
     Route::patch('/orders/{order}', [OrderController::class, 'update'])->name('pos.orders.update');
     Route::post('/orders/{order}/lines', [OrderController::class, 'addLine'])->name('pos.orders.lines');
+    Route::post('/orders/{order}/custom-lines', [OrderController::class, 'addCustomLine'])->name('pos.orders.custom-lines');
     Route::post('/orders/{order}/send', [OrderController::class, 'send'])->name('pos.orders.send');
     Route::post('/orders/{order}/move', [OrderController::class, 'move'])->name('pos.orders.move');
     Route::post('/orders/{order}/precheck', [OrderController::class, 'precheck'])->name('pos.orders.precheck');

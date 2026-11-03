@@ -51,3 +51,32 @@
         text-decoration: line-through;
     }
 }
+
+// «+ Personalizado» al final de cada categoría: borde discontinuo (no es un producto de la carta).
+.c-product-card--custom {
+    border-style: dashed;
+    border-left-style: solid;
+    background: transparent;
+    color: $color-text-muted;
+
+    .c-product-card__name {
+        color: $color-text;
+    }
+}
+
+// Ventana del producto personalizado.
+.c-custom-product {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+
+    &__name {
+        display: flex;
+        align-items: flex-end;
+        gap: $space-2;
+
+        > .c-field {
+            flex: 1;
+        }
+    }
+}

@@ -77,9 +77,12 @@
 // Opción seleccionable (variantes, modificadores, elecciones de menú)
 .c-option {
     display: flex;
+    flex-wrap: wrap; // si no cabe, el detalle (precio, nombre…) baja de línea en vez de salirse
     align-items: center;
     justify-content: space-between;
-    gap: $space-2;
+    gap: $space-1 $space-2;
+    min-width: 0;
+    overflow-wrap: anywhere;
     min-height: $touch-target;
     padding: $space-2 $space-3;
     border: 2px solid $color-border;

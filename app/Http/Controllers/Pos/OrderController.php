@@ -6,6 +6,7 @@ use App\Enums\OrderType;
 use App\Events\Pos\OrderUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Pos\OrderResource;
+use App\Models\Category;
 use App\Models\MenuGroupItem;
 use App\Models\Modifier;
 use App\Models\Order;
@@ -97,6 +98,22 @@ class OrderController extends Controller
         } else {
             $line = $this->builder->addProduct($order, $product, $variant, $this->modifiers($data['modifier_ids'] ?? []), $quantity, $notes, $by);
         }
+
+        return $this->respond($order, $request, 201, ['line_id' => $line->id]);
+    }
+
+    /** Producto personalizado (fuera de la carta): nombre y precio escritos en la caja. */
+    public function addCustomLine(Request $request, Order $order): JsonResponse
+    {
+        $data = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'name' => ['required', 'string', 'max:120'],
+            'price' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'quantity' => ['integer', 'min:1', 'max:99'],
+            'notes' => ['nullable', 'string', 'max:200'],
+        ]);
+        $line = $this->builder->addCustom($order, Category::query()->findOrFail($data['category_id']), $data['name'], $data['price'],
+            $data['quantity'] ?? 1, $data['notes'] ?? null, $request->user());
 
         return $this->respond($order, $request, 201, ['line_id' => $line->id]);
     }

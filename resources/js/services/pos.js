@@ -26,6 +26,8 @@ const pos = {
     order: (id) => api.get(`/orders/${id}`).then((r) => r.data.data),
     setGuests: (id, guests) => api.patch(`/orders/${id}`, { guests }).then((r) => r.data.data),
     addLine: (id, payload) => api.post(`/orders/${id}/lines`, payload).then((r) => r.data),
+    /** Producto personalizado: { category_id, name, price (céntimos), quantity? } */
+    addCustomLine: (id, payload) => api.post(`/orders/${id}/custom-lines`, payload).then((r) => r.data),
     updateLine: (lineId, payload) => api.patch(`/order-lines/${lineId}`, payload).then((r) => r.data.data),
     voidLine: (lineId, reason) => api.post(`/order-lines/${lineId}/void`, { reason }).then((r) => r.data.data),
     send: (id, options = {}) => api.post(`/orders/${id}/send`, options).then((r) => r.data),

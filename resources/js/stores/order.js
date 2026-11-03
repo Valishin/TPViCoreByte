@@ -47,6 +47,9 @@ export const useOrderStore = defineStore('order', {
                 this.busy = false;
             }
         },
+        addCustom(payload) {
+            return this.run(() => pos.addCustomLine(this.order.id, payload));
+        },
         addLine(payload) {
             return this.run(() => pos.addLine(this.order.id, payload));
         },

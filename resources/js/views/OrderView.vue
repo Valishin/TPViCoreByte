@@ -61,6 +61,11 @@
                     :flash="flashId === p.id"
                     @select="tapProduct"
                 />
+                <!-- Fuera de la carta: nombre y precio a mano (va a la impresora de esta categoría). -->
+                <button v-if="category" type="button" class="c-product-card c-product-card--custom" :style="{ '--category-color': category.color }" @click="customOpen = true">
+                    <span class="c-product-card__name">+ Personalizado</span>
+                    <span class="c-product-card__price">Nombre y precio</span>
+                </button>
             </section>
 
             <!-- Caja: el pedido siempre a la vista -->
@@ -92,6 +97,7 @@
         <ProductConfigurator :product="configuring" :busy="order.busy" @add="addConfigured" @close="closeConfigurator" />
         <LineActions :line-id="selectedLineId" @close="selectedLineId = null" />
         <GuestsDialog :open="guestsOpen" :current="o?.guests" @confirm="setGuests" @close="guestsOpen = false" />
+        <CustomProductDialog :open="customOpen" :category="category" @add="addCustom" @close="customOpen = false" />
         <MoveDialog :open="moveOpen" :order="o" @confirm="move" @close="moveOpen = false" />
         <JoinDialog :open="joinOpen" :order="o" :busy="order.busy" @confirm="join" @close="joinOpen = false" />
 
@@ -184,6 +190,7 @@ import ModalDialog from '@/components/ModalDialog.vue';
 import MoveDialog from '@/components/MoveDialog.vue';
 import OrderPanel from '@/components/OrderPanel.vue';
 import ProductCard from '@/components/ProductCard.vue';
+import CustomProductDialog from '@/components/CustomProductDialog.vue';
 import ProductConfigurator from '@/components/ProductConfigurator.vue';
 import DispatchSheet from '@/components/DispatchSheet.vue';
 import TakeawayHeader from '@/components/TakeawayHeader.vue';
@@ -211,6 +218,7 @@ const session = useSessionStore();
 const ui = useUiStore();
 
 const categoryId = ref(null);
+const customOpen = ref(false);
 const configuring = ref(null);
 const selectedLineId = ref(null);
 const flashId = ref(null);
@@ -304,6 +312,10 @@ async function act(fn, ok) {
 }
 
 /** Producto simple: 1 toque. Con opciones: configurador. */
+function addCustom({ name, price }) {
+    customOpen.value = false;
+    act(() => order.addCustom({ category_id: categoryId.value, name, price }), () => notices.success(`Añadido: ${name}`));
+}
 function tapProduct(product) {
     if (catalog.needsConfig(product)) {
         configuring.value = product;

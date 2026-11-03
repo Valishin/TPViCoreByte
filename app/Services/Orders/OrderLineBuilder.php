@@ -4,6 +4,7 @@ namespace App\Services\Orders;
 
 use App\Enums\OrderLineKind;
 use App\Enums\ProductType;
+use App\Models\Category;
 use App\Models\MenuGroupItem;
 use App\Models\Modifier;
 use App\Models\Order;
@@ -73,6 +74,49 @@ class OrderLineBuilder
 
             return $line->refresh();
         });
+    }
+
+    /**
+     * Producto personalizado (no está en la carta): nombre y precio escritos en la
+     * caja («Varios», «Tarta de cumpleaños»…). Sin producto: va a la impresora de su
+     * categoría y con el IVA más habitual de sus productos (10 % si no tiene).
+     */
+    public function addCustom(Order $order, Category $category, string $name, int $unitPrice, int $quantity = 1, ?string $notes = null, ?User $by = null): OrderLine
+    {
+        $this->assertEditable($order);
+        $name = trim($name);
+        if ($name === '' || mb_strlen($name) > 120) {
+            throw new InvalidArgumentException('Escribe el nombre del producto.');
+        }
+        if ($unitPrice < 0) {
+            throw new InvalidArgumentException('El precio no puede ser negativo.');
+        }
+
+        return DB::transaction(function () use ($order, $category, $name, $unitPrice, $quantity, $notes, $by) {
+            $line = $order->lines()->create([
+                'kind' => OrderLineKind::Normal,
+                'product_id' => null,
+                'printer_id' => $category->printer_id,
+                'name' => $name,
+                'vat_rate' => self::categoryVatRate($category, $order),
+                'unit_price' => $unitPrice,
+                'quantity' => $quantity,
+                'notes' => blank($notes) ? null : trim($notes),
+                'created_by' => $by?->id,
+                'sort_order' => $this->nextSortOrder($order),
+            ]);
+            $this->totals->apply($order->refresh());
+
+            return $line->refresh();
+        });
+    }
+
+    /** IVA más habitual de los productos activos de la categoría para este tipo de pedido (10 % si no hay). */
+    public static function categoryVatRate(Category $category, Order $order): int
+    {
+        return Product::query()->where('category_id', $category->id)->where('is_active', true)->get()
+            ->map(fn (Product $p) => $p->vatRateFor($order->type))
+            ->countBy()->sortDesc()->keys()->first() ?? 1000;
     }
 
     /**
