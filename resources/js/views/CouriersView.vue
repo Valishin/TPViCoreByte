@@ -48,6 +48,9 @@
         <ModalDialog :open="!!floatFor" :title="floatFor ? `Fondo para ${floatFor.courier.name}` : ''" @close="floatFor = null">
             <AmountKeypad v-model="floatAmount" label="Fondo de cambio" :quick="[1000, 2000, 3000, 5000]" />
             <p class="v-config__rule">Sale del cajón; no es una venta. Lo devuelve al liquidar.</p>
+            <label class="v-checkout__toggle">
+                <input v-model="floatDrawer" type="checkbox" /> Abrir cajón
+            </label>
             <template #actions>
                 <TpvButton variant="ghost" @click="floatFor = null">Cancelar</TpvButton>
                 <TpvButton variant="primary" :disabled="!floatAmount" :loading="busy" @click="giveFloat">Entregar {{ money(floatAmount) }}</TpvButton>
@@ -130,6 +133,11 @@ const loaded = ref(false);
 const busy = ref(false);
 const floatFor = ref(null);
 const floatAmount = ref(0);
+// «Abrir cajón» al entregar el fondo: marcado cada vez (se puede desmarcar).
+const floatDrawer = ref(true);
+watch(floatFor, (row) => {
+    if (row) floatDrawer.value = true;
+});
 const settling = ref(null);
 const choice = reactive({});
 const handed = ref(0);
@@ -166,7 +174,7 @@ watch(() => board.version, () => {
 async function giveFloat() {
     busy.value = true;
     try {
-        await pos.giveFloat(floatFor.value.courier.id, floatAmount.value);
+        await pos.giveFloat(floatFor.value.courier.id, floatAmount.value, floatDrawer.value);
         notices.success(`Fondo de ${money(floatAmount.value)} para ${floatFor.value.courier.name}`);
         floatFor.value = null;
         floatAmount.value = 0;

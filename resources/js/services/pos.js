@@ -89,7 +89,7 @@ const pos = {
     notDelivered: (id, payload) => api.post(`/takeaway-orders/${id}/not-delivered`, payload).then((r) => r.data),
     couriers: () => api.get('/couriers').then((r) => r.data.data),
     courierSettlement: () => api.get('/couriers/settlement').then((r) => r.data.data),
-    giveFloat: (courierId, amount) => api.post(`/couriers/${courierId}/float`, { amount }).then((r) => r.data),
+    giveFloat: (courierId, amount, openDrawer = true) => api.post(`/couriers/${courierId}/float`, { amount, open_drawer: openDrawer }).then((r) => r.data),
     settleCourier: (courierId, payload) => api.post(`/couriers/${courierId}/settle`, payload).then((r) => r.data.settlement),
 
     // Repartidor

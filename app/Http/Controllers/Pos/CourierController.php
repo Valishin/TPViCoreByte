@@ -32,8 +32,8 @@ class CourierController extends Controller
 
     public function giveFloat(Request $request, User $courier): JsonResponse
     {
-        $data = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:100000']]);
-        $movement = $this->couriers->giveFloat($courier, $data['amount'], $request->user());
+        $data = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:100000'], 'open_drawer' => ['boolean']]);
+        $movement = $this->couriers->giveFloat($courier, $data['amount'], $request->user(), $data['open_drawer'] ?? true);
 
         return response()->json(['float' => CourierService::outstandingFloat($courier), 'movement_id' => $movement->id], 201);
     }

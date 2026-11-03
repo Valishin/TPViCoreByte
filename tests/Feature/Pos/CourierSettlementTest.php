@@ -147,6 +147,18 @@ class CourierSettlementTest extends TakeawayTestCase
         $this->assertSame(0, $couriers['Sara']['float']);
     }
 
+    /** Entregar fondo abre el cajón (casilla marcada por defecto); desmarcada, no. */
+    public function test_giving_a_float_opens_the_drawer_unless_unchecked(): void
+    {
+        $this->openCash();
+        $drawers = fn () => PrintJob::query()->where('kind', 'cajon')->count();
+
+        $this->asWaiter()->postJson("/api/couriers/{$this->javi->id}/float", ['amount' => 2000])->assertCreated();
+        $this->assertSame(1, $drawers());
+        $this->asWaiter()->postJson("/api/couriers/{$this->sara->id}/float", ['amount' => 2000, 'open_drawer' => false])->assertCreated();
+        $this->assertSame(1, $drawers());
+    }
+
     public function test_without_change_from_the_till_nothing_changes(): void
     {
         $this->openCash();

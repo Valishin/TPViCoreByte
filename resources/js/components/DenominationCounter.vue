@@ -20,7 +20,7 @@ import { money } from '@/utils/format';
 
 /** Desglose de billetes y monedas. Emite { breakdown: {céntimos: unidades}, total }. */
 const emit = defineEmits(['change']);
-const denominations = [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
+const denominations = [10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
 const counts = reactive({});
 const total = computed(() => denominations.reduce((t, d) => t + (counts[d] || 0) * d, 0));
 

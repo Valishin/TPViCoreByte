@@ -132,6 +132,10 @@
                 <label class="v-checkout__toggle">
                     <input v-model="printTicket" type="checkbox" /> {{ recipient ? 'Imprimir factura' : 'Imprimir ticket' }}
                 </label>
+                <!-- Cajón portamonedas: marcado cada vez que se cobra (se puede desmarcar). -->
+                <label class="v-checkout__toggle">
+                    <input v-model="openDrawer" type="checkbox" /> Abrir cajón
+                </label>
                 <label v-if="parts > 1" class="v-checkout__toggle">
                     <input v-model="receipts" type="checkbox" /> Justificante de pago para cada parte
                 </label>
@@ -209,6 +213,7 @@ const tip = ref(0);
 // Se recuerdan en esta caja: desmarcadas, siguen desmarcadas al volver.
 const printTicket = useRememberedToggle('checkout.print_ticket', session.settings?.print_ticket_on_checkout ?? true);
 const receipts = useRememberedToggle('checkout.receipts', false);
+const openDrawer = ref(true);
 const busy = ref(false);
 const done = ref(null);
 const openCash = ref(false);
@@ -298,6 +303,7 @@ async function charge() {
             payments: payments.value,
             print: printTicket.value,
             payment_receipts: receipts.value,
+            open_drawer: openDrawer.value,
             invoice_customer_id: recipient.value?.id,
         });
         idempotencyKey = uid();

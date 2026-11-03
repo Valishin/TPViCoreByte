@@ -92,6 +92,21 @@ class CheckoutTest extends PosTestCase
         $this->assertTrue(PrintJob::query()->where('kind', PrintJobKind::Drawer)->exists());
     }
 
+    /** Casilla «Abrir cajón» al cobrar: marcada abre (también con tarjeta); desmarcada no abre ni en efectivo. */
+    public function test_open_drawer_checkbox_decides_the_drawer(): void
+    {
+        $this->openCash();
+        $drawers = fn () => PrintJob::query()->where('kind', PrintJobKind::Drawer)->count();
+
+        $cash = $this->orderWith([[$this->product('Caña', 250), 1]]);
+        $this->checkout($cash, [['method' => 'efectivo', 'amount' => 250, 'tendered' => 500]], extra: ['open_drawer' => false])->assertCreated();
+        $this->assertSame(0, $drawers(), 'Desmarcada: no se abre aunque sea efectivo.');
+
+        $card = $this->orderWith([[$this->product('Vino', 400), 1]]);
+        $this->checkout($card, [['method' => 'tarjeta', 'amount' => 400]], extra: ['open_drawer' => true])->assertCreated();
+        $this->assertSame(1, $drawers(), 'Marcada: se abre también con tarjeta.');
+    }
+
     public function test_equal_split_is_one_ticket_with_several_payments_and_payment_receipts(): void
     {
         $this->openCash();

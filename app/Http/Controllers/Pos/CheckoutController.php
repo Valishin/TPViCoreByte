@@ -55,12 +55,14 @@ class CheckoutController extends Controller
             'payments.*.tip' => ['nullable', 'integer', 'min:0'],
             'print' => ['nullable', 'boolean'],
             'payment_receipts' => ['boolean'],
+            'open_drawer' => ['nullable', 'boolean'],   // casilla «Abrir cajón»
             // Factura completa con los datos fiscales de este cliente (en vez del ticket).
             'invoice_customer_id' => ['nullable', 'integer', 'exists:customers,id'],
         ]);
 
         $recipient = isset($data['invoice_customer_id']) ? Customer::query()->findOrFail($data['invoice_customer_id']) : null;
-        $result = $checkout->checkout($order, $request->user(), $data['payments'], $data['idempotency_key'], $data['print'] ?? null, $data['payment_receipts'] ?? false, $recipient);
+        $result = $checkout->checkout($order, $request->user(), $data['payments'], $data['idempotency_key'], $data['print'] ?? null, $data['payment_receipts'] ?? false, $recipient,
+            $data['open_drawer'] ?? null);
         if (! $result['replayed']) {
             event(new OrderUpdated($order->fresh(), $request->user()->id));
         }

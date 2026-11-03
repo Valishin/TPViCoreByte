@@ -53,7 +53,8 @@ class CheckoutService
     /**
      * @param  Customer|null  $recipient  con datos fiscales: factura completa (serie F) en lugar del ticket
      */
-    public function checkout(Order $order, User $by, array $payments, string $idempotencyKey, ?bool $print = null, bool $paymentReceipts = false, ?Customer $recipient = null): array
+    /** $openDrawer: abrir el cajón (casilla al cobrar); null = solo si se cobra algo en efectivo. */
+    public function checkout(Order $order, User $by, array $payments, string $idempotencyKey, ?bool $print = null, bool $paymentReceipts = false, ?Customer $recipient = null, ?bool $openDrawer = null): array
     {
         if ($existing = Ticket::query()->where('idempotency_key', $idempotencyKey)->first()) {
             return ['ticket' => $existing, 'change' => $this->change($existing), 'replayed' => true];
@@ -62,7 +63,7 @@ class CheckoutService
         $session = self::openSession() ?? throw new CashSessionRequiredException;
         $print ??= Setting::current()->print_ticket_on_checkout;
 
-        return DB::transaction(function () use ($order, $by, $payments, $idempotencyKey, $print, $paymentReceipts, $session, $recipient) {
+        return DB::transaction(function () use ($order, $by, $payments, $idempotencyKey, $print, $paymentReceipts, $session, $recipient, $openDrawer) {
             $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
             // Otra petición con la misma clave ha ganado mientras esperábamos el bloqueo.
@@ -97,7 +98,7 @@ class CheckoutService
                 $ticket->update(['payment_status' => PaymentStatus::Paid, 'paid_at' => now()]);
             }
 
-            $this->queuePrinting($ticket->refresh(), $by, $session, $print, $paymentReceipts);
+            $this->queuePrinting($ticket->refresh(), $by, $session, $print, $paymentReceipts, $openDrawer);
             app(TakeawayOrderService::class)->afterCheckout($order->refresh(), $by);
 
             return ['ticket' => $ticket, 'change' => $this->change($ticket), 'replayed' => false];
@@ -125,7 +126,7 @@ class CheckoutService
         $this->printing->dispatch(null, $printer, PrintJobKind::Drawer, (new Printable)->pulse(), by: $by, session: $session ?? self::openSession());
     }
 
-    private function queuePrinting(Ticket $ticket, User $by, CashSession $session, bool $print, bool $paymentReceipts): void
+    private function queuePrinting(Ticket $ticket, User $by, CashSession $session, bool $print, bool $paymentReceipts, ?bool $openDrawer = null): void
     {
         $printer = PrintJobDispatcher::ticketPrinter();
         if (! $printer) {
@@ -145,8 +146,8 @@ class CheckoutService
             }
         }
 
-        // El cajón solo se abre si se ha cobrado algo en efectivo.
-        if ($payments->contains(fn ($p) => $p->method === PaymentMethod::Cash)) {
+        // El cajón: lo que diga la casilla «Abrir cajón»; sin ella, solo si se ha cobrado algo en efectivo.
+        if ($openDrawer ?? $payments->contains(fn ($p) => $p->method === PaymentMethod::Cash)) {
             $this->printing->dispatch(null, $printer, PrintJobKind::Drawer, (new Printable)->pulse(), by: $by, forTicket: $ticket, session: $session);
         }
     }

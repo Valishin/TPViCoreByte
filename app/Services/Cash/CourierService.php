@@ -25,6 +25,7 @@ use App\Services\Pos\AuthorizationService;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\PrintJobDispatcher;
 use App\Services\Pos\ReceiptFormatter;
+use App\Services\Printing\Ticket as Printable;
 use App\Services\Tickets\AnnulmentService;
 use App\Services\Tickets\NotDeliveredPolicy;
 use App\Services\Tickets\PaymentService;
@@ -158,7 +159,8 @@ class CourierService
             })->all();
     }
 
-    public function giveFloat(User $courier, int $amount, User $by): CashMovement
+    /** $openDrawer: abrir el cajón para sacar el fondo (casilla, marcada por defecto). */
+    public function giveFloat(User $courier, int $amount, User $by, bool $openDrawer = true): CashMovement
     {
         $this->assertCourier($courier);
         if ($amount <= 0) {
@@ -166,13 +168,18 @@ class CourierService
         }
         $session = $this->session();
 
-        return CashMovement::create([
+        $movement = CashMovement::create([
             'cash_session_id' => $session->id,
             'type' => CashMovementType::CourierFloat,
             'amount' => -$amount,
             'courier_id' => $courier->id,
             'user_id' => $by->id,
         ]);
+        if ($openDrawer && ($printer = PrintJobDispatcher::ticketPrinter())) {
+            $this->printing->dispatch(null, $printer, PrintJobKind::Drawer, (new Printable)->pulse(), by: $by, session: $session);
+        }
+
+        return $movement;
     }
 
     /**
