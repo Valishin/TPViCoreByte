@@ -16,18 +16,21 @@
                 </header>
 
                 <ul class="v-couriers__orders">
+                    <!-- Un pedido por bloque, en líneas: ticket y cliente con el importe, dirección, estado y pago. -->
                     <li v-for="o in row.orders" :key="o.id" class="v-couriers__order">
-                        <span class="v-couriers__order-main">
-                            <strong>{{ o.ticket?.number }} · {{ o.customer_name }}</strong>
-                            <span class="c-takeaway-card__meta">{{ o.address_line }}</span>
-                        </span>
-                        <span :class="['c-badge', o.delivery_status === 'entregado' ? 'c-badge--ok' : 'c-badge--pending']">
-                            {{ o.delivery_status === 'entregado' ? 'Entregado' : 'En reparto' }}
-                        </span>
-                        <span class="v-couriers__amount">
-                            {{ o.pending_amount ? money(o.pending_amount) : 'Pagado' }}
-                            <span class="c-takeaway-card__meta">{{ paymentLabel(o) }}<template v-if="o.cash_change_for"> · paga con {{ money(o.cash_change_for) }}</template></span>
-                            <span v-if="o.change_from_till" class="c-takeaway-card__meta">se llevó {{ money(o.change_from_till) }} de cambio · entrega {{ money(o.pending_amount + o.change_from_till) }}</span>
+                        <div class="v-couriers__order-top">
+                            <strong class="v-couriers__order-title">{{ o.ticket?.number }} · {{ o.customer_name }}</strong>
+                            <strong class="v-couriers__order-amount">{{ o.pending_amount ? money(o.pending_amount) : 'Pagado' }}</strong>
+                        </div>
+                        <span class="v-couriers__order-line">{{ o.address_line }}</span>
+                        <div class="v-couriers__order-tags">
+                            <span :class="['c-badge', o.delivery_status === 'entregado' ? 'c-badge--ok' : 'c-badge--pending']">
+                                {{ o.delivery_status === 'entregado' ? 'Entregado' : 'En reparto' }}
+                            </span>
+                            <span class="v-couriers__order-line">{{ paymentLabel(o) }}<template v-if="o.cash_change_for"> · paga con {{ money(o.cash_change_for) }}</template></span>
+                        </div>
+                        <span v-if="o.change_from_till" class="v-couriers__order-note">
+                            Se llevó {{ money(o.change_from_till) }} de cambio · entrega {{ money(o.pending_amount + o.change_from_till) }}
                         </span>
                     </li>
                     <li v-if="!row.orders.length" class="v-board__empty">Nada pendiente.</li>
@@ -57,7 +60,10 @@
                 <div v-for="o in settling.orders" :key="o.id" class="v-couriers__settle-row">
                     <div class="v-couriers__settle-head">
                         <strong>{{ o.ticket?.number }} · {{ o.customer_name }}</strong>
-                        <span>{{ o.pending_amount ? money(o.pending_amount) : 'Ya pagado' }}</span>
+                        <span class="v-couriers__settle-side">
+                            <TpvButton v-if="o.delivery_status === 'en_reparto'" variant="ghost" size="sm" @click="failing = o">No entregado…</TpvButton>
+                            <span>{{ o.pending_amount ? money(o.pending_amount) : 'Ya pagado' }}</span>
+                        </span>
                     </div>
                     <p v-if="o.change_from_till" class="v-config__rule">
                         Pagó con {{ money(o.cash_change_for) }} y se llevó {{ money(o.change_from_till) }} de cambio de la caja:
@@ -78,22 +84,27 @@
                             <p>Con tarjeta: <strong>{{ money(Math.max(0, o.pending_amount - choice[o.id].cash)) }}</strong></p>
                         </div>
                     </template>
-                    <TpvButton v-if="o.delivery_status === 'en_reparto'" variant="ghost" @click="failing = o">No entregado…</TpvButton>
                 </div>
 
+                <!-- En caja: entrega y resumen a la izquierda, el teclado entero a la derecha (sin scroll). -->
                 <div class="v-couriers__summary">
-                    <p>Efectivo cobrado <strong>{{ money(summary.cash) }}</strong></p>
-                    <p v-if="settling.float">+ Fondo y cambios de la caja <strong>{{ money(settling.float) }}</strong></p>
-                    <p class="v-couriers__expected">Debe entregar {{ money(summary.expected) }}</p>
-                    <AmountKeypad v-model="handed" label="Entrega" :exact="summary.expected" />
-                    <p :class="['v-couriers__difference', { 'v-couriers__difference--bad': handed !== summary.expected }]">
-                        Diferencia {{ money(handed - summary.expected) }}
-                    </p>
+                    <AmountKeypad v-model="handed" label="Entrega" split>
+                        <template #aside>
+                            <dl class="v-couriers__totals">
+                                <dt>Efectivo cobrado</dt><dd>{{ money(summary.cash) }}</dd>
+                                <template v-if="settling.float"><dt>+ Fondo y cambios de la caja</dt><dd>{{ money(settling.float) }}</dd></template>
+                                <dt class="v-couriers__expected">Debe entregar</dt><dd class="v-couriers__expected">{{ money(summary.expected) }}</dd>
+                                <dt>Diferencia</dt>
+                                <dd :class="['v-couriers__difference', { 'v-couriers__difference--bad': handed !== summary.expected }]">{{ money(handed - summary.expected) }}</dd>
+                            </dl>
+                        </template>
+                    </AmountKeypad>
                 </div>
             </template>
             <template #footer>
-                <TpvButton variant="ghost" @click="settling = null">Cancelar</TpvButton>
-                <TpvButton variant="primary" block :disabled="!valid" :loading="busy" @click="settle">Liquidar</TpvButton>
+                <TpvButton variant="ghost" size="lg" @click="settling = null">Cancelar</TpvButton>
+                <TpvButton variant="secondary" size="lg" class="v-couriers__exact" @click="handed = summary.expected">Importe exacto</TpvButton>
+                <TpvButton variant="primary" size="lg" block :disabled="!valid" :loading="busy" @click="settle">Liquidar</TpvButton>
             </template>
         </BottomSheet>
 

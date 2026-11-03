@@ -8,6 +8,8 @@
             <button v-if="exact !== null" type="button" class="c-option c-amount__quick-btn c-amount__quick-btn--exact" @click="set(exact)">Importe exacto</button>
             <button v-for="q in quick" :key="q" type="button" class="c-option c-amount__quick-btn" @click="set(q)">{{ bill(q) }}</button>
         </div>
+        <!-- En «split»: lo que acompaña al importe en la columna izquierda (p. ej. el resumen al liquidar). -->
+        <div v-if="$slots.aside" class="c-amount__aside"><slot name="aside" /></div>
         <div class="c-keypad">
             <button v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="n" type="button" class="c-keypad__key" @click="press(String(n))">{{ n }}</button>
             <button type="button" class="c-keypad__key" aria-label="Coma decimal" @click="press(',')">,</button>

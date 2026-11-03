@@ -507,27 +507,56 @@
         list-style: none;
     }
 
+    // Un pedido: líneas con aire, el texto largo se parte y nunca se monta.
     &__order {
         display: flex;
-        align-items: center;
-        gap: $space-3;
-        padding: $space-2 $space-3;
-        border-bottom: 1px solid $color-border;
-    }
-
-    &__order-main,
-    &__amount {
-        display: flex;
         flex-direction: column;
+        gap: $space-1;
+        padding: $space-3;
+        border-bottom: 1px solid $color-border;
+        line-height: 1.35;
     }
 
-    &__order-main {
-        flex: 1;
+    &__order-top,
+    &__order-tags {
+        display: flex;
+        align-items: center;
+        gap: $space-2 $space-3;
+    }
+
+    &__order-top {
+        justify-content: space-between;
+        align-items: baseline;
+    }
+
+    &__order-title {
         min-width: 0;
+        overflow-wrap: anywhere;
     }
 
-    &__amount {
-        align-items: flex-end;
+    &__order-amount {
+        flex: 0 0 auto;
+        font-size: $font-size-lg;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__order-tags {
+        flex-wrap: wrap;
+    }
+
+    &__order-line {
+        color: $color-text-muted;
+        font-size: $font-size-sm;
+        overflow-wrap: anywhere;
+    }
+
+    &__order-note {
+        align-self: flex-start;
+        padding: 2px $space-2;
+        border-radius: $radius-sm;
+        background: $color-pending-bg;
+        color: $color-text;
+        font-size: $font-size-sm;
         font-weight: $font-weight-bold;
     }
 
@@ -536,31 +565,66 @@
         font-weight: $font-weight-bold;
     }
 
+    // Liquidar: compacto (cada pedido en pocas líneas; formas de pago en una fila).
     &__settle-row {
         display: flex;
         flex-direction: column;
         gap: $space-2;
-        padding: $space-3 0;
+        padding: $space-2 0;
         border-bottom: 1px solid $color-border;
+
+        .c-options {
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        }
+
+        .v-config__rule {
+            margin: 0;
+        }
     }
 
     &__settle-head {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: $space-3;
         font-size: $font-size-lg;
+    }
+
+    &__settle-side {
+        display: flex;
+        align-items: center;
+        gap: $space-3;
+        white-space: nowrap;
     }
 
     &__mixed {
         max-width: 420px;
     }
 
+    // Resumen y entrega: una columna en el móvil; en caja, totales a la izquierda y teclado a la derecha.
     &__summary {
-        display: flex;
-        flex-direction: column;
-        gap: $space-2;
-        max-width: 420px;
-        padding-top: $space-3;
-        font-size: $font-size-lg;
+        padding-top: $space-2;
+    }
+
+    // «Importe exacto» del pie en una línea.
+    &__summary ~ * .c-button,
+    &__exact {
+        white-space: nowrap;
+    }
+
+    &__totals {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: $space-1 $space-3;
+        margin: 0;
+        font-size: $font-size-base;
+
+        dd {
+            margin: 0;
+            text-align: right;
+            font-weight: $font-weight-bold;
+            font-variant-numeric: tabular-nums;
+        }
     }
 
     &__difference {
