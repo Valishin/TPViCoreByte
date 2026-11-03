@@ -1,13 +1,18 @@
 @use '../tokens' as *;
 
-// Hoja inferior (configurador, acciones de línea, resumen del pedido en móvil).
+// Ventana con cabecera, contenido con scroll y pie (configurador, acciones de línea,
+// descuentos, dar salida, liquidar…): siempre CENTRADA en la pantalla, en caja y en
+// móvil, como las de ModalDialog. Con el teclado en pantalla, centrada encima de él.
 .c-sheet {
     position: fixed;
     inset: 0;
     z-index: $z-sheet;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: center;
+    padding: $space-3;
+    padding-bottom: calc(#{$space-3} + env(safe-area-inset-bottom));
 
     &__backdrop {
         position: absolute;
@@ -19,12 +24,13 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        max-height: 92vh;
+        width: 100%;
+        max-height: 100%;
+        overflow: hidden;
         background: $color-surface;
-        border-top: 2px solid $color-border;
-        border-radius: $radius-lg $radius-lg 0 0;
+        border: 2px solid $color-border;
+        border-radius: $radius-lg;
         box-shadow: $shadow-overlay;
-        padding-bottom: env(safe-area-inset-bottom);
     }
 
     &__header {
@@ -57,9 +63,9 @@
         background: $color-surface-2;
     }
 
-    // En caja la hoja se centra con un ancho cómodo.
+    // En caja, con un ancho cómodo.
     html[data-layout='pos'] &__panel {
         width: min(760px, 92vw);
-        margin: 0 auto;
+        max-height: 92vh;
     }
 }
