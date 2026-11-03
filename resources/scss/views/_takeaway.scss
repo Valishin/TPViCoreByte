@@ -282,7 +282,7 @@
     }
 
     &__type {
-        min-height: calc(#{$touch-target} * 1.6);
+        min-height: calc(#{$touch-target} * 1.35);
         border: 3px solid $color-border;
         border-radius: $radius-lg;
         background: $color-surface-2;
@@ -429,7 +429,7 @@
 
 // Opciones grandes (repartidores, horas, pago)
 .c-options--large .c-option {
-    min-height: calc(#{$touch-target} * 1.2);
+    min-height: calc(#{$touch-target} * 1.1);
     font-size: $font-size-lg;
 }
 

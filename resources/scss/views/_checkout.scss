@@ -100,7 +100,7 @@
     }
 
     &__method {
-        min-height: calc(#{$touch-target} * 1.2);
+        min-height: calc(#{$touch-target} * 1.1);
         border: 3px solid $color-border;
         border-radius: $radius-md;
         background: $color-surface-2;

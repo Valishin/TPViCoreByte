@@ -8,9 +8,10 @@
     align-items: center;
     justify-content: center;
     gap: $space-2;
+    // Alto: el mínimo táctil (64 px en caja, 48 en móvil); de ancho, lo justo.
     min-width: $touch-target;
     min-height: $touch-target;
-    padding: $space-2 $space-5;
+    padding: $space-2 $space-4;
     border: 2px solid transparent;
     border-radius: $radius-md;
     font-size: $font-size-base;
@@ -92,10 +93,11 @@
         text-decoration: none;
     }
 
+    // Acciones principales (Enviar, Cobrar, pies de ventana): algo más altas que el mínimo.
     &--lg {
-        min-height: calc(#{$touch-target} * 1.25);
-        font-size: $font-size-lg;
-        padding: $space-3 $space-6;
+        min-height: calc(#{$touch-target} * 1.12);
+        font-size: 1.125rem;
+        padding: $space-2 $space-5;
     }
 
     &--sm {
