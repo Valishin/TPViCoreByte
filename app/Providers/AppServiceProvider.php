@@ -29,6 +29,9 @@ use App\Services\Pos\CatalogService;
 use App\Services\Printing\PrinterManager;
 use App\Support\PosNotifier;
 use Filament\Auth\Http\Controllers\LogoutController;
+use Filament\Notifications\Livewire\Notifications;
+use Filament\Support\Enums\Alignment;
+use Filament\Support\Enums\VerticalAlignment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 
@@ -49,6 +52,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Avisos de /admin («Guardado»…) abajo a la derecha: arriba tapaban «Ir a la TPV».
+        Notifications::alignment(Alignment::End);
+        Notifications::verticalAlignment(VerticalAlignment::End);
+
         // Factura completa emitida: si el cliente aceptó recibirlas por email
         // (art. 9.2) y hay SMTP, se envía sola tras confirmar la transacción.
         Ticket::created(function (Ticket $ticket) {
