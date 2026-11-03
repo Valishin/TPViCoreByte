@@ -606,9 +606,10 @@
         padding-top: $space-2;
     }
 
-    // «Importe exacto» del pie en una línea.
-    &__summary ~ * .c-button,
+    // «Importe exacto» del pie: a su tamaño, en una línea (no lo estrecha «Liquidar»).
     &__exact {
+        flex: 0 0 auto;
+        width: auto;
         white-space: nowrap;
     }
 

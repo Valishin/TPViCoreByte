@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Cash\CourierService;
 use App\Services\Orders\DispatchService;
 use App\Services\Orders\OrderCancellation;
 use App\Services\Orders\OrderRepeater;
@@ -104,12 +105,13 @@ class TakeawayOrderController extends Controller
         return $this->respond($order, $request);
     }
 
-    /** Repartidores activos (botones de "Dar salida"). */
-    public function couriers(): JsonResponse
+    /** Repartidores activos (botones de "Dar salida"), con el fondo de cambio que llevan sin liquidar. */
+    public function couriers(Request $request): JsonResponse
     {
         $couriers = User::query()->where('role', UserRole::Courier)->where('is_active', true)->orderBy('name')->get();
 
-        return response()->json(['data' => StaffResource::collection($couriers)]);
+        return response()->json(['data' => $couriers->map(fn (User $c) => (new StaffResource($c))->resolve($request)
+            + ['float' => CourierService::outstandingFloat($c)])->values()]);
     }
 
     /** Repetir un pedido anterior del cliente en este pedido. */

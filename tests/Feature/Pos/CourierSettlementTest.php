@@ -136,6 +136,17 @@ class CourierSettlementTest extends TakeawayTestCase
         $this->assertSame(10000 + 2150, app(CashReportService::class)->build($session->refresh())['cash']['expected']);
     }
 
+    /** Al dar salida se ve quién lleva fondo: con fondo, el cambio se da de él (casilla desmarcada). */
+    public function test_couriers_list_says_who_already_carries_a_float(): void
+    {
+        $this->openCash();
+        $this->asWaiter()->postJson("/api/couriers/{$this->javi->id}/float", ['amount' => 3000])->assertCreated();
+
+        $couriers = collect($this->asWaiter()->getJson('/api/couriers')->assertOk()->json('data'))->keyBy('name');
+        $this->assertSame(3000, $couriers['Javi']['float']);
+        $this->assertSame(0, $couriers['Sara']['float']);
+    }
+
     public function test_without_change_from_the_till_nothing_changes(): void
     {
         $this->openCash();
