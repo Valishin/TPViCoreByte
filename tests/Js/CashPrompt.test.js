@@ -74,3 +74,17 @@ describe('Al entrar con la caja cerrada', () => {
         expect(topLayer()).toBeNull();
     });
 });
+
+describe('Abrir caja contando billetes y monedas', () => {
+    it('el botón dice lo contado, no el fondo propuesto', async () => {
+        pos.cashSession.mockResolvedValue(null);
+        wrapper = mount(CashPrompt, { attachTo: '#app' });
+        await logIn();
+
+        await tap('Contar billetes y monedas', flushPromises);
+        expect(topLayer().textContent).toContain('Abrir con 0,00 €');
+
+        await tap('Importe', flushPromises);
+        expect(topLayer().textContent).toContain('Abrir con 150,00 €');
+    });
+});

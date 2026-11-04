@@ -103,3 +103,16 @@
         font-size: $font-size-lg;
     }
 }
+
+// En una ventana ancha de la caja (abrir caja): dos columnas, sin desplazar.
+html[data-layout='pos'] .c-modal--wide .c-denoms {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: $space-6;
+    max-height: none;
+    overflow: visible;
+
+    .c-denoms__sum {
+        grid-column: 1 / -1;
+    }
+}
