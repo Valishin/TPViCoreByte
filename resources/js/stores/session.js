@@ -13,6 +13,7 @@ export const useSessionStore = defineStore('session', {
         settings: null,
         checked: false,
         lockedBy: null, // { userId, route }
+        loginCount: 0, // entradas (PIN o sesión recuperada al abrir el programa)
     }),
     getters: {
         isLoggedIn: (s) => !!s.user,
@@ -39,6 +40,7 @@ export const useSessionStore = defineStore('session', {
                 const me = await pos.me();
                 this.user = me.user;
                 this.settings = me.settings;
+                this.loginCount++;   // al abrir el programa con la sesión ya iniciada, también
             } catch {
                 this.user = null;
             } finally {
@@ -52,6 +54,7 @@ export const useSessionStore = defineStore('session', {
             const resume = this.lockedBy?.userId === me.user.id ? this.lockedBy.route : null;
             const sameUser = this.lockedBy ? this.lockedBy.userId === me.user.id : true;
             this.lockedBy = null;
+            this.loginCount++;   // CashPrompt: al entrar, si la caja está cerrada, ofrece abrirla
             return { resume, sameUser };
         },
         async lock(currentRoute) {

@@ -1,5 +1,10 @@
 <template>
-    <ModalDialog :open="open" title="Abrir caja" text="Fondo inicial (el cambio que hay en el cajón)." @close="$emit('close')">
+    <ModalDialog
+        :open="open"
+        :title="prompt ? 'La caja está cerrada' : 'Abrir caja'"
+        :text="prompt ? '¿La abres ahora? Hace falta para cobrar. Indica el fondo inicial (el cambio que hay en el cajón).' : 'Fondo inicial (el cambio que hay en el cajón).'"
+        @close="$emit('close')"
+    >
         <div class="c-tabs" style="margin-bottom: 1rem">
             <button type="button" :class="['c-tabs__tab', { 'c-tabs__tab--active': mode === 'amount' }]" @click="mode = 'amount'">Importe</button>
             <button type="button" :class="['c-tabs__tab', { 'c-tabs__tab--active': mode === 'count' }]" @click="mode = 'count'">Contar billetes y monedas</button>
@@ -7,7 +12,7 @@
         <AmountKeypad v-if="mode === 'amount'" v-model="amount" label="Fondo inicial" :quick="[5000, 10000, 15000, 20000]" />
         <DenominationCounter v-else @change="onCount" />
         <template #actions>
-            <TpvButton variant="ghost" @click="$emit('close')">Cancelar</TpvButton>
+            <TpvButton variant="ghost" @click="$emit('close')">{{ prompt ? 'Ahora no' : 'Cancelar' }}</TpvButton>
             <TpvButton variant="primary" size="lg" :loading="busy" @click="submit">Abrir con {{ money(amount) }}</TpvButton>
         </template>
     </ModalDialog>
@@ -25,7 +30,11 @@ import { isCancelled, useAuthorizeStore } from '@/stores/authorize';
 import { useNoticesStore } from '@/stores/notices';
 import { money } from '@/utils/format';
 
-defineProps({ open: { type: Boolean, default: false } });
+defineProps({
+    open: { type: Boolean, default: false },
+    // Al entrar con la caja cerrada: la misma ventana, con la pregunta «¿La abres ahora?».
+    prompt: { type: Boolean, default: false },
+});
 const emit = defineEmits(['close', 'opened']);
 
 const authorize = useAuthorizeStore();

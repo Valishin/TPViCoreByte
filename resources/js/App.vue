@@ -11,6 +11,7 @@
     <ToastHost />
     <OnScreenKeyboard />
     <LanAddress v-if="ui.isPos" />
+    <CashPrompt v-if="ui.isPos" />
 </template>
 
 <script setup>
@@ -18,6 +19,7 @@ import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AmountConfirmModal from '@/components/AmountConfirmModal.vue';
 import AuthorizeModal from '@/components/AuthorizeModal.vue';
+import CashPrompt from '@/components/CashPrompt.vue';
 import LanAddress from '@/components/LanAddress.vue';
 import OnScreenKeyboard from '@/components/OnScreenKeyboard.vue';
 import PrintAlerts from '@/components/PrintAlerts.vue';
